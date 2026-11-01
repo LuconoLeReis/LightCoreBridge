@@ -20,6 +20,9 @@ UPDATE WITHOUT LOSING SETTINGS
    and VTTs. Existing pages retain old scripts until refreshed or reopened.
 5. Confirm your saved destination and connection are still selected.
 
+Published November 1, 2026. Full current release notes:
+https://github.com/LuconoLeReis/WayBeyond20/releases/tag/v1.73.57
+
 WHAT CHANGED
 - Automatic sends completed results to available VTTs. If delivery cannot be
   confirmed, the completed result appears locally instead of aborting the roll.
@@ -65,8 +68,19 @@ KNOWN LIMITS AND TROUBLESHOOTING
 - TaleSpire's saved Symbiote link identifies the installed Symbiote connection;
   it is not a separate link for every board. The optional local return helper
   supplies board/mini/target data. Native mini HP is not synchronized.
+- If native digital-dice audience controls are unavailable, several warnings may
+  describe one fallback event while the action continues. The existing Hide roll
+  results on D&D Beyond when using Digital Dice setting can suppress a local card
+  independently of delivery. A missing local card alone is not delivery proof.
 - Full live Forge acceptance and every class/rules combination are not claimed.
   English rule text and DDB markup remain external dependencies.
+
+VALIDATION
+Full automated and focused browser/recovery checks, Chrome/Firefox builds and
+independent review passed. Bill accepted fresh Calan/Rhonen load/display. Bounded
+live test-character checks covered attacks, damage, one slot spend/restoration
+and authenticated TaleSpire receipts (not native-chat screenshots). These are
+not full live Forge or every-class acceptance.
 
 LICENSE AND SOURCE
 LICENSE and LICENSE.MIT accompany this modified distribution; preserve both.

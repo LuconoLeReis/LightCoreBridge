@@ -1,10 +1,17 @@
-## 1.73.57
+## 1.73.57 — Published November 1, 2026
 
-- Preserve the existing five-column action list while matching native range number/unit/Reach/Touch styling.
-- Added value controls use native-style borders and known damage icons, forwarding to the same existing activation, not another attack executor.
-- Remove redundant Action/Bonus Action/Reaction labels from spell Notes; keep accessible/hover costs, duration/components, and source-confirmed material prices (per cast only when consumed).
-- Show identical equipped weapon entries once; keep native inventory, listeners, differing statistics and property variants.
-- No routing, roll/resource accounting, saved destination, or native sheet-frame changes. Retains56 local-result lifetime/header/typography fixes.
+Browser build 2.20.189. Stable release collecting the reliability and presentation work since 1.73.29; the intervening development numbers were not separate public releases. [Full release notes](https://github.com/LuconoLeReis/WayBeyond20/releases/tag/v1.73.57).
+
+- Automatic forwards completed results to available VTTs. Confirmed delivery suppresses the extra WB20 local result; otherwise the same completed result falls back locally, subject to existing display/privacy choices. Optional delivery never gates action completion or repeats resource spending.
+- Bound worker settings readiness and retain saved destinations across worker restarts. Discover current permitted Foundry tabs rather than relying only on an in-memory cache. Spell shortcuts recognize native spell casting controls.
+- Preserve shared-sheet loading and still-owned feature rules during filtered/incomplete renders. Fix the reproduced action-list delete/rebuild loop and reduce repeated rule reads within each render. The intermittent loading root cause remains open.
+- Preserve Name, Range, Hit/DC, Damage and Notes columns. Match range hierarchy, Hit/DC size, native-style value borders, known damage icons and light/Underdark ink. Value controls use the existing row activator. Collapse only identical equipped-weapon displays; keep inventory and distinct variants.
+- Omit redundant spell action-cost labels from Notes. Keep useful source details and indicate source-confirmed material prices; label per-cast consumption only when confirmed.
+- Restore centered temporary local results with configurable duration, hover/focus pause and dismissal. Keep recovery in Settings/the extension menu rather than a permanent page button. Settings opens in a normal tab; the saved TaleSpire link is readable and reused across boards. Correct header icon ink/spacing and Defenses frame containment.
+- Full automated suite, focused browser/recovery checks, both builds, syntax/manifest checks and independent review passed. Bill accepted fresh Calan/Rhonen load/display. Bounded live tests covered skill/attack/damage prompts, exactly one spell-slot spend/restoration and authenticated TaleSpire receipts. Receipt evidence is not a screenshot of native TaleSpire chat; no full live Forge/all-class claim.
+- Known limits: intermittent X/Stop loading (fresh-tab update workaround); native digital-dice audience fallback warnings; the existing digital-dice hide setting can suppress local fallback independently of delivery; late/old companions can leave an extra local copy. Native enemy HP, terrain/path adjudication and all remote effects are not automated.
+
+The notes were reconciled after publication; no code, version, tag or downloadable asset was replaced. Development entries below retain their historical observations and pending status; this published summary controls the shipped release's disposition. Later display/delivery behavior supersedes earlier development experiments.
 
 ## 1.73.56 (development only)
 
