@@ -39,7 +39,7 @@ const portal=(name='Fangs',data=properties)=>`<div class="ct-sidebar__portal"><d
    'wayBeyond20InjectBardicInspirationButton','wayBeyond20InjectLayOnHandsControls','activateQuickRolls',
    'wayBeyond20RefreshCombinedActions','injectRollButton'].map(n=>`function ${n}(){}`).join('\n')}
    ${fn('propertyListToDict',read('src/dndbeyond/base/utils.js'))}
-   ${read('src/dndbeyond/content-scripts/attack-handoff.js')}
+   ${process.env.WB20_HANDOFF_SOURCE ? fs.readFileSync(process.env.WB20_HANDOFF_SOURCE,'utf8') : read('src/dndbeyond/content-scripts/attack-handoff.js')}
    ${fn('wayBeyond20DDBRollInputAvailable')}
    ${['swallowRollEvent','canHandleDDBRollTarget','resetHijackQuickRollState','wayBeyond20QueueCombatAttackIcon',
    'handleCombatAttackIntegratedDie','executeQuickRoll','documentModified','installDDBRollHijack'].map(n=>fn(n,ancestorSource)).join('\n')}
@@ -74,7 +74,7 @@ const portal=(name='Fangs',data=properties)=>`<div class="ct-sidebar__portal"><d
   }
   assert.equal(await page.evaluate(()=>nativeDice),0,'No duplicate native dice click');
   console.log('PASS full/to-hit/damage/versatile share one executor with one dispatch');
-  for(const paneClass of ['b20-item-pane','ct-spell-pane']){
+  for(const paneClass of ['b20-item-pane']){
    const before=await page.evaluate(({html,paneClass})=>{
     document.querySelectorAll('.ct-sidebar__portal').forEach(e=>e.remove());
     const container=document.createElement('div');container.innerHTML=html;
@@ -85,7 +85,33 @@ const portal=(name='Fangs',data=properties)=>`<div class="ct-sidebar__portal"><d
    await page.waitForFunction(n=>calls.length===n+1,before);
    assert.equal(await page.evaluate(()=>calls.at(-1).pane),paneClass);
   }
-  console.log('PASS native item/action/spell pane chooses existing executor branch');
+  console.log('PASS native item/action pane chooses existing executor branch');
+  // Captured live Starry Wisp structure: no To Hit/Damage/Attack-Save
+  // properties. Heading, metadata and rules can arrive before caster controls.
+  const spellBefore=await page.evaluate(html=>{
+   document.querySelectorAll('.ct-sidebar__portal').forEach(e=>e.remove());
+   document.querySelector('main').innerHTML=html;
+   return calls.length;
+  },row('Starry Wisp'));
+  await page.getByRole('button',{name:'Starry Wisp full',exact:true}).click();
+  await page.evaluate(()=>{
+   const portal=document.createElement('div');portal.className='ct-sidebar__portal';
+   portal.innerHTML='<div class="ct-spell-pane"><header class="ct-sidebar__header"><h1 class="ct-sidebar__heading"><span class="styles_spellName__live">Starry Wisp</span></h1></header><div class="ct-spell-detail"><span class="ct-spell-detail__level-school-item">Evocation</span><span class="ct-spell-detail__level-school-item">Cantrip</span><div role="list"><div><span class="InfoItem_label">Casting Time:</span><span class="InfoItem_value">1 action</span></div><div><span class="InfoItem_label">Range/Area:</span><span class="InfoItem_value">60 ft.</span></div></div><div class="ct-spell-detail__description">Make a ranged spell attack. On a hit, deal Radiant damage.</div></div></div>';
+   document.body.append(portal);
+  });
+  await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,120)));
+  assert.equal(await page.evaluate(()=>calls.length),spellBefore,'spell metadata alone must not execute before caster hydration');
+  await page.evaluate(()=>{
+   const caster=document.createElement('div');caster.className='ct-spell-caster';
+   caster.innerHTML='<div class="ct-spell-caster__modifiers--damages"><div class="ct-spell-caster__modifier--damage"><span class="ct-spell-caster__modifier-amount">1d8</span></div></div>';
+   document.querySelector('.ct-spell-pane').append(caster);
+  });
+  await page.waitForFunction(n=>calls.length===n+1,spellBefore,{timeout:1500});
+  assert.equal(await page.evaluate(()=>calls.at(-1).pane),'ct-spell-pane');
+  await page.evaluate(()=>{for(let i=0;i<20;i++)documentModified();});
+  assert.equal(await page.evaluate(()=>calls.length),spellBefore+1,'native spell executes exactly once through the same boundary');
+  console.log('PASS live spell-pane shape waits for caster controls and hands off once without weapon-only properties');
+  await page.evaluate(html=>{document.querySelector('main').innerHTML=html;},row());
   // A React row replacement is valid only when an equivalent source is unique.
   const beforeReplacement=await page.evaluate(html=>{
    document.querySelectorAll('.ct-sidebar__portal').forEach(e=>e.remove());

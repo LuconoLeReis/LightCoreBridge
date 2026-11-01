@@ -55,6 +55,7 @@ const root=path.resolve(__dirname,'..');
             window.wayBeyond20Prompt=async(title,html)=>{document.body.insertAdjacentHTML('beforeend',html);return null;};
             window.warnings=[];window.alertify={warning:message=>warnings.push(message)};
             window.chrome={runtime:{lastError:null,sendMessage:(_request,callback)=>callback({connected:false,ok:false})}};
+            window.wayBeyond20SendRuntimeMessage=async()=>({ok:true,response:{connected:false,ok:false}});
         });
         await page.addScriptTag({path:path.join(root,'src/dndbeyond/content-scripts/talespire.js')});
         await page.evaluate(async()=>{wb20TSConnected=false;wb20TSRenderStatus();await wb20TSLinkMini();await wb20TSRefresh();});

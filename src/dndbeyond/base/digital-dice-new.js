@@ -352,7 +352,8 @@ class DigitalDiceManager {
 
         let opened = await DigitalDiceManager._ensureRollerOpenWithRetry();
         if (opened) {
-            await DigitalDiceManager._selectRollTargetWithRetry(roll.whisper);
+            if (!await DigitalDiceManager._selectRollTargetWithRetry(roll.whisper))
+                throw new Error("D&D Beyond dice audience unavailable; use local dice instead.");
             await DigitalDiceManager._wait(80);
             return await DigitalDiceManager._clickRollButtonWithRetry();
         }
@@ -474,7 +475,7 @@ class DigitalDiceManager {
                     await this._wait(20);
                 }
 
-                return true;
+                return this._isRollTargetAlreadySelected(whisper);
             }
 
             await this._wait(delay);
@@ -488,7 +489,7 @@ class DigitalDiceManager {
     static async _clickOldToolbarRollWithRetry(whisper, retries = 50, delay = 10) {
         // If whisper, try to select target in old toolbar menu
         if (whisper) {
-            await this._selectWhisperTargetWithRetry();
+            if (!await this._selectWhisperTargetWithRetry()) return false;
         }
         for (let i = 0; i <= retries; i++) {
             const $rollButton = $(".dice-toolbar.rollable .dice-toolbar__target button:not(.dice-toolbar__target-menu-button)").first();

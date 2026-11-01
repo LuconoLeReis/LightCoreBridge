@@ -508,7 +508,7 @@ class Beyond20RollRenderer {
         const discordChannel = getDiscordChannel(this._settings, request.character)
         postToDiscord(discordChannel ? discordChannel.secret : "", request, title, source, attributes, description, attack_rolls, roll_info, damage_rolls, total_damages, open, this._settings).then(discord_error => {
             if (discord_error != undefined)
-                this._displayer.displayError("WayBeyond20 Discord Integration: " + discord_error);
+                console.warn("WayBeyond20: optional Discord delivery unavailable; the roll remains local.");
         });
 
         // Hide the dialog showing the roll result on DDB when whispering to Discord (if the setting is on)
@@ -557,7 +557,7 @@ class Beyond20RollRenderer {
         const discordChannel = getDiscordChannel(this._settings, request.character)
         postToDiscord(discordChannel ? discordChannel.secret : "", request, title, "", {}, "", [], [], [], [], false, this._settings).then(discord_error => {
             if (discord_error != undefined)
-                this._displayer.displayError("WayBeyond20 Discord Integration: " + discord_error);
+                console.warn("WayBeyond20: optional Discord delivery unavailable; the roll remains local.");
         });
 
     }
@@ -1165,7 +1165,7 @@ class Beyond20RollRenderer {
         const discordChannel = getDiscordChannel(this._settings, request.character);
         postToDiscord(discordChannel ? discordChannel.secret : "", request, request.name, "", {}, "", [], [], [], [], false, this._settings).then((error) => {
             if (error)
-                this._displayer.displayError("WayBeyond20 Discord Integration: " + error);
+                console.warn("WayBeyond20: optional Discord delivery unavailable; the result remains local.");
         });
     }
 
@@ -1192,6 +1192,8 @@ class Beyond20RollRenderer {
             return this.rollTypedCustom(request);
         if (request["waybeyond20-attack-continuation"] && !request.rollAttack && request.rollDamage) {
             const continuation = request["waybeyond20-attack-continuation"];
+            if (typeof wayBeyond20ContinueAttackDamage === "function")
+                return wayBeyond20ContinueAttackDamage(continuation.id);
             const message = { action: "forward", tab: continuation.tab,
                 message: { action: "waybeyond20-continue-attack", id: continuation.id } };
             if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage)

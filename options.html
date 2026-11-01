@@ -1,16 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>WayBeyond20: D&amp;D Beyond to VTT Integration</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Settings | WayBeyond20</title>
   <link rel="stylesheet" href="options.css" />
   <link rel="stylesheet" href="libs/css/alertify.css" />
   <link rel="stylesheet" href="libs/css/alertify-themes/default.css" />
 </head>
-<body style="min-width:500px;">
+<body class="wb20-settings-page">
+  <header class="wb20-settings-header">
+    <img src="images/icons/icon128.png" width="52" height="52" alt="">
+    <div><p class="wb20-settings-brand">WayBeyond20</p><h1>Settings</h1>
+      <p class="wb20-settings-intro">Configure connections, rolls, and sheet behavior.</p></div>
+    <span class="wb20-settings-save-note">Changes save automatically</span>
+  </header>
   <main>
     <div class="save">
     <button id="save" class="btn">Save</button>
-    <button id="advanced" class="btn">Advanced Options</button>
     <button id="display-current-settings" class="btn">Display All Current Settings</button>
     <button id="display-debug-log" class="btn">Display Debug Log</button>
     </div>
@@ -37,7 +44,7 @@
           <button id="close-debug-log" class="btn">Close</button>
         </div>
       </div>
-      <p class="debug-log-note">Enable <strong>Debug Log</strong> in Advanced Options before reproducing the problem. The log is stored locally until cleared.</p>
+      <p class="debug-log-note">Find <strong>Debug Log</strong> with Search settings or under Support and backup. The log is stored locally until cleared.</p>
       <textarea id="debug-log" readonly></textarea>
     </section>
   </main>
@@ -45,5 +52,6 @@
   <script src="libs/marka.js" charset="UTF-8"></script>
   <script src="libs/alertify.min.js" charset="UTF-8"></script>
   <script src="dist/options.js" charset="UTF-8"></script>
+  <script src="dist/recovery_popup.js" charset="UTF-8"></script>
 </body>
 </html>

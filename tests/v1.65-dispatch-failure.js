@@ -45,7 +45,7 @@ const OPTIONAL_CHARACTER_FUNCTIONS = ["wayBeyond20DispatchRollWithCharacter", "w
 
 // runtime modes: "ok" (Roll20 answered), "no-vtt" (background: no VTT, local display), "throw" (orphaned
 // script: sendMessage throws), "last-error" (callback with lastError), "no-id" (runtime.id gone).
-function createSandbox({ runtime = "ok", digitalDice = false, rendererSends = true, rendererThrows = false, talespireConnection = true } = {}) {
+function createSandbox({ runtime = "ok", digitalDice = false, rendererSends = true, rendererThrows = false, talespireConnection = true, destination } = {}) {
     const log = { runtimeSends: [], errors: [], warnings: [], localDisplays: [], rendered: [], turnSpends: [],
         limitedUseSpends: [], slotSpends: [], freeSmiteSpends: 0, selfEffects: [], intrusion: [], removedEffects: [],
         merges: [], remoteEffects: [], effectsUpdates: [], restoredTabs: 0 };
@@ -55,6 +55,7 @@ function createSandbox({ runtime = "ok", digitalDice = false, rendererSends = tr
         sendMessage(message, callback) {
             if (runtime === "throw") throw new Error("Extension context invalidated.");
             log.runtimeSends.push(message);
+            if (runtime === "never") return;
             setTimeout(() => {
                 if (runtime === "last-error" || runtime === "talespire-last-error") {
                     chromeRuntime.lastError = { message: "Could not establish connection. Receiving end does not exist." };
@@ -82,6 +83,7 @@ function createSandbox({ runtime = "ok", digitalDice = false, rendererSends = tr
         type: () => "Character",
         getDict: () => ({ id: 7, name: "Test Sheet", type: "Character", settings: {} }),
         getGlobalSetting: (key, fallback) => key === "use-digital-dice" ? digitalDice :
+            key === 'vtt-tab' && destination !== undefined ? destination :
             key === 'vtt-tab' && runtime.startsWith('talespire') ? {vtt: 'talespire'} :
             key === 'talespire-url' && runtime.startsWith('talespire') ? (talespireConnection ? 'talespire://symbiote/test/' : '') : fallback,
         getSetting: (key, fallback) => fallback,
@@ -89,7 +91,7 @@ function createSandbox({ runtime = "ok", digitalDice = false, rendererSends = tr
         mergeCharacterSettings(data, callback) { log.merges.push(data); if (callback) callback(data); }
     };
     const context = {
-        console: { log() {}, warn() {}, error() {} }, Promise, setTimeout, WeakMap, Date, Math, String, Object, Array, JSON,
+        console: { log() {}, warn() {}, error() {} }, Promise, setTimeout, clearTimeout, WeakMap, Date, Math, String, Object, Array, JSON,
         chrome: { runtime: chromeRuntime }, character, settings: {}, log, key_modifiers: {},
         WhisperType: { NO: 0, YES: 1, QUERY: 2, HIDE_NAMES: 3 },
         RollType: { NORMAL: 0, DOUBLE: 1, QUERY: 2, ADVANTAGE: 3, DISADVANTAGE: 4, THRICE: 5, SUPER_ADVANTAGE: 6, SUPER_DISADVANTAGE: 7, OVERRIDE_ADVANTAGE: 8, OVERRIDE_DISADVANTAGE: 9 },
@@ -142,7 +144,7 @@ function createSandbox({ runtime = "ok", digitalDice = false, rendererSends = tr
         ...CHARACTER_FUNCTIONS.map(name => topLevelFunction(characterSource, name)),
         ...OPTIONAL_CHARACTER_FUNCTIONS.map(name => topLevelFunction(characterSource, name, { optional: true }))
     ].join("\n"), Object.assign(context, { displayerHolder: displayer }));
-    if (runtime.startsWith('talespire')) displayer.value.postHTML = (...args) => log.localDisplays.push({request: args[0], html: args[2], whisper: args[4], attacks: args[9]});
+    displayer.value.postHTML = (...args) => log.localDisplays.push({request: args[0], html: args[2], whisper: args[4], attacks: args[9]});
     return context;
 }
 
@@ -182,13 +184,12 @@ function assertNothingCommitted(log, label) {
 const sections = [];
 const section = (name, body) => sections.push({ name, body });
 
-section("1. Orphaned script, sendMessage throws: sendRoll reports failure and asks for a tab reload", async () => {
+section("1. A send failure cannot discard a locally completed roll", async () => {
     const ctx = createSandbox({ runtime: "throw" });
     const result = await run(ctx, "sendRoll")(ctx.character, "attack", "1d8", { name: "Longsword" });
-    assert.equal(result, false, "a thrown extension-context error is a failed dispatch");
-    assert.equal(ctx.log.errors.length, 1, "one notice");
-    assert.match(ctx.log.errors[0], /reload this tab/i);
-    assert.match(ctx.log.errors[0], /nothing was spent/i);
+    assert.equal(result, true);
+    assert.equal(ctx.log.localDisplays.length, 1);
+    assert.equal(ctx.log.errors.length, 0);
 });
 
 section("2. Runtime id already gone: failure without attempting the send", async () => {
@@ -202,18 +203,18 @@ section("2. Runtime id already gone: failure without attempting the send", async
     assert.deepEqual(digital.log.rendered, [], "no dice rolled");
 });
 
-section("3. Callback lastError: failure", async () => {
+section("3. Callback lastError does not undo local completion", async () => {
     const ctx = createSandbox({ runtime: "last-error" });
-    assert.equal(await run(ctx, "sendRoll")(ctx.character, "attack", "1d8", { name: "Longsword" }), false);
+    assert.equal(await run(ctx, "sendRoll")(ctx.character, "attack", "1d8", { name: "Longsword" }), true);
     assert.equal(ctx.log.runtimeSends.length, 1);
-    assert.equal(ctx.log.errors.length, 1);
+    assert.equal(ctx.log.errors.length, 0);
 });
 
-section("4. Roll20 received the roll: success, no local display, no notice", async () => {
+section("4. Roll20 gets the resolved result after one local display", async () => {
     const ctx = createSandbox({ runtime: "ok" });
     assert.equal(await run(ctx, "sendRoll")(ctx.character, "attack", "1d8", { name: "Longsword" }), true);
     assert.equal(ctx.log.runtimeSends.length, 1);
-    assert.deepEqual(ctx.log.localDisplays, []);
+    assert.equal(ctx.log.localDisplays.length, 1);
     assert.deepEqual(ctx.log.errors, []);
 });
 
@@ -256,15 +257,15 @@ section("TaleSpire forces resolved output once and preserves post-dispatch resou
     assert.equal(privateLocal.log.runtimeSends.length, 0, 'private local result is never forwarded');
 });
 
-section("6. Digital dice: the renderer's later send decides the outcome", async () => {
+section("6. Digital dice complete locally regardless of optional delivery", async () => {
     const failed = createSandbox({ runtime: "throw", digitalDice: true });
     // runtime.id is present, so the precheck passes; the send after the dice throws.
-    assert.equal(await run(failed, "sendRoll")(failed.character, "attack", "1d8", { name: "Longsword" }), false, "thrown send after the dice");
+    assert.equal(await run(failed, "sendRoll")(failed.character, "attack", "1d8", { name: "Longsword" }), true, "thrown send after local completion");
     assert.deepEqual(failed.log.rendered, ["Longsword"]);
-    assert.equal(failed.log.errors.length, 1);
+    assert.equal(failed.log.errors.length, 0);
 
     const lastError = createSandbox({ runtime: "last-error", digitalDice: true });
-    assert.equal(await run(lastError, "sendRoll")(lastError.character, "attack", "1d8", { name: "Longsword" }), false, "lastError after the dice");
+    assert.equal(await run(lastError, "sendRoll")(lastError.character, "attack", "1d8", { name: "Longsword" }), true, "lastError after the dice");
 
     const ok = createSandbox({ runtime: "ok", digitalDice: true });
     assert.equal(await run(ok, "sendRoll")(ok.character, "attack", "1d8", { name: "Longsword" }), true);
@@ -279,8 +280,8 @@ section("6. Digital dice: the renderer's later send decides the outcome", async 
     assert.equal(await run(renderFailure, "sendRoll")(renderFailure.character, "attack", "1d8", { name: "Longsword" }), false);
 });
 
-section("7. sendRollWithCharacter: failed dispatch commits nothing (throw, lastError, orphaned, digital)", async () => {
-    for (const options of [{ runtime: "throw" }, { runtime: "last-error" }, { runtime: "no-id" }, { runtime: "throw", digitalDice: true }]) {
+section("7. No local result: failed rendering or invalidated context commits nothing", async () => {
+    for (const options of [{ runtime: "no-id" }, { runtime: "ok", rendererThrows:true }, { runtime: "no-id", digitalDice: true }]) {
         const ctx = createSandbox(options);
         const result = await run(ctx, "sendRollWithCharacter")("attack", "1d8 + 3", fullRequest(ctx));
         const label = JSON.stringify(options);
@@ -291,7 +292,7 @@ section("7. sendRollWithCharacter: failed dispatch commits nothing (throw, lastE
 });
 
 section("8. sendRollWithCharacter: successful dispatch still commits everything once (regression)", async () => {
-    for (const options of [{ runtime: "ok" }, { runtime: "no-vtt" }, { runtime: "ok", digitalDice: true }]) {
+    for (const options of [{ runtime: "ok" }, { runtime: "no-vtt" }, { runtime: "ok", digitalDice: true }, {runtime:"throw"}, {runtime:"last-error"}]) {
         const ctx = createSandbox(options);
         const result = await run(ctx, "sendRollWithCharacter")("attack", "1d8 + 3", fullRequest(ctx));
         const label = JSON.stringify(options);
@@ -305,13 +306,13 @@ section("8. sendRollWithCharacter: successful dispatch still commits everything 
         assert.deepEqual(ctx.log.removedEffects, ["stealth-1"], label);
         assert.deepEqual(ctx.log.merges, [{ "rogue-sneak-attack": false }], `${label}: one-shot toggle committed after dispatch`);
         const dispatched = ctx.log.runtimeSends[0];
-        const payload = dispatched.action === "rendered-roll" ? dispatched.request : dispatched;
+        const payload = !dispatched ? ctx.log.localDisplays[0].request : dispatched.action === "rendered-roll" ? dispatched.request : dispatched;
         assert.equal(payload["waybeyond20-after-dispatch"], undefined, `${label}: commit intents never leave the tab`);
     }
 });
 
 section("9. Spell effects, Concentration and target effects are committed only after dispatch", async () => {
-    for (const [runtime, expectCommitted] of [["throw", false], ["ok", true]]) {
+    for (const [runtime, expectCommitted] of [["no-id", false], ["ok", true], ["throw",true]]) {
         const ctx = createSandbox({ runtime });
         assert.equal(typeof ctx.wayBeyond20CreateSpellEffectPlan, "function", "spell effect plan exists");
         const plan = run(ctx, "wayBeyond20CreateSpellEffectPlan")(ctx.character);
@@ -349,6 +350,20 @@ section("10. Roll builders no longer save settings before dispatch", async () =>
     }
     assert.doesNotMatch(topLevelFunction(characterSource, "wayBeyond20ApplySpellEffectWithTargets"), /wayBeyond20SendEffectToTarget\(/,
         "target effects are queued in the plan, not sent during target selection");
+});
+
+section("Local-first matrix: destination, closed/stale tabs and a nonresponding worker cannot block", async () => {
+    for (const destination of [null,{vtt:'dndbeyond'},{vtt:'roll20',id:999,title:'Closed campaign'},
+        {vtt:'fvtt',id:998,title:'Renamed world'},{vtt:'talespire'}, {vtt:'unknown'},'corrupt-old-selection']) {
+        const ctx=createSandbox({runtime:'never',destination});
+        const completed=run(ctx,'sendRollWithCharacter')('attack','1d8+3',fullRequest(ctx));
+        const result=await Promise.race([completed,new Promise(resolve=>setTimeout(()=>resolve('blocked'),200))]);
+        assert.equal(result,true,JSON.stringify(destination));
+        assert.equal(ctx.log.rendered.length,1);
+        assert.equal(ctx.log.localDisplays.length,1);
+        assert.deepEqual(ctx.log.turnSpends,['action','bonusAction']);
+        assert.equal(ctx.log.errors.length,0);
+    }
 });
 
 (async () => {

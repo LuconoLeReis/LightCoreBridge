@@ -3,10 +3,10 @@ var settings = null;
 function createOptionList() {
     $("main").prepend(E.ul({ class: "list-group beyond20-options" }));
     const options = $(".beyond20-options");
+    for (const name of ['vtt-tab', 'talespire-url', 'discord-channels']) options.append(createHTMLOption(name, false));
     options.append(createHTMLOptionEx("default-popup", {
-        "title": "Not a D&D Beyond or VTT page",
-        "description": "Open a D&D Beyond character sheet and try again.\n"  +
-                        "VTT and Character specific options will be available from their respective pages.",
+        "title": "Global connections",
+        "description": "Choose where to send rolls here. Open a character sheet for character options and current effects.",
         "type": "info"
     }));
     options.append(createHTMLOptionEx("donate", options_list["donate"], true));
@@ -30,6 +30,15 @@ function createOptionList() {
 
 function setupHTML() {
     createOptionList();
+    initializeMarka();
+    loadSettings(settings);
+    wayBeyond20OrganizeSettings();
+    const save = () => saveSettings(saved => {
+        settings = saved;
+        chrome.runtime.sendMessage({action: 'settings', type: 'general', settings: saved});
+    });
+    $('.beyond20-option-input').change(save);
+    $('.beyond20-options').on('markaChanged', save);
     $(document).on('click', 'a', function (ev) {
         const href = this.getAttribute('href');
         if (href.length > 0 && href != "#")

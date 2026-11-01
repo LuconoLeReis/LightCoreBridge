@@ -419,7 +419,7 @@ assert.ok(pageScript.includes('} else if (rollMode == "selfroll") {'), 'self rol
     const sent = [];
     let lastError = null;
     const ctx = vm.createContext({
-        console,
+        console, contentEvents: [],
         addCustomEventListener: (name, f) => { listeners[name] = f; },
         chrome: { runtime: { get lastError() { return lastError; }, sendMessage: (m, cb) => { sent.push(m); cb && cb(); } } }
     });

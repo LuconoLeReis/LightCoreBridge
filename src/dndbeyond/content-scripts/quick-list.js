@@ -76,6 +76,7 @@ function wb20QuickReadSpells() {
             effect: healing ? `${effect} Healing` : effect || "Effect",
             damage: !healing && damageNode ? damageNode.textContent.trim() : "",
             attack: /^[+−-]?\s*\d/.test(hit), notes: text(row, "notes"),
+            damageType: row.querySelector(".ddbc-damage-type-icon,.ct-damage-type-icon")?.getAttribute("aria-label")?.replace(/ damage$/i, "") || "",
             action, row
         };
         result.push(spell);
@@ -101,8 +102,28 @@ function wb20QuickRememberOpenDescription() {
     const spell = wb20QuickSession().spells.find(spell => wayBeyond20NativeSpellPaneMatches(spell));
     if (!spell) return;
     const description = pane?.querySelector(".ct-spell-detail__description,div[class*='styles_description']")?.textContent.trim();
-    if (!description || wb20QuickSettings().descriptions?.[spell.key] === description) return;
-    wb20QuickSave({descriptions: {...wb20QuickSettings().descriptions, [spell.key]: description}});
+    const preview=pane.querySelector('.ct-spell-pane__heading-preview,.ddbc-spell-pane__heading-preview');
+    const school=Array.from(preview?.classList || []).map(c=>c.match(/__heading-preview--school-([a-z]+)$/)?.[1]).find(Boolean);
+    const background=preview && getComputedStyle(preview).backgroundImage;
+    const icon=school && background?.match(/^url\(["']?(https:\/\/media\.dndbeyond\.com\/media\/spell-school-icons\/[a-z]+\.svg)["']?\)$/)?.[1];
+    const art=icon?{school,url:icon}:null,settings=wb20QuickSettings(),patch={};
+    if(description && settings.descriptions?.[spell.key]!==description)patch.descriptions={...settings.descriptions,[spell.key]:description};
+    const properties=typeof propertyListToDict==='function'?propertyListToDict($(pane).find('.ct-spell-detail [role=list] > div')):{};
+    const components=properties['Components'];
+    if(components && settings.components?.[spell.key]!==components)patch.components={...settings.components,[spell.key]:components};
+    if(JSON.stringify(settings.icons?.[spell.key])!==JSON.stringify(art))patch.icons={...settings.icons,[spell.key]:art};
+    if(Object.keys(patch).length)wb20QuickSave(patch);
+}
+
+function wb20QuickRenderSpellIcon(button,spell,settings) {
+    const art=spell && settings.icons?.[spell.key];
+    const candidate=typeof art?.url==='string' && /^https:\/\/media\.dndbeyond\.com\/media\/spell-school-icons\/[a-z]+\.svg$/.test(art.url)?art.url:null;
+    const url=candidate!==button._wb20ArtworkFailed?candidate:null;
+    const signature=url || 'generic-spell';
+    if(button.dataset.wb20Artwork===signature)return;
+    button.dataset.wb20Artwork=signature;
+    if(url){const image=document.createElement('img');image.className='wb20-spell-school-icon';image.alt='';image.setAttribute('aria-hidden','true');image.addEventListener('error',()=>{if(image.parentElement===button){button._wb20ArtworkFailed=url;wb20QuickRenderSpellIcon(button,spell,settings);}});image.src=url;button.replaceChildren(image);}
+    else button.innerHTML='<svg viewBox="0 0 20 20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M3 3h5l2 2 2-2h5v13h-5l-2 2-2-2H3zM10 5v13"/></svg>';
 }
 
 function wb20QuickDescriptionText(spell) {
@@ -125,11 +146,17 @@ function wb20QuickMissingDescriptions() {
     const settings = wb20QuickSettings(), session = wb20QuickSession();
     return [...new Set(wb20QuickGroups().filter(group => !wb20QuickIsHidden(group, settings))
         .flatMap(group => group.spells.filter(spell => spell.key === settings.selected?.[group.key])
-            .map(spell => spell.key)))].filter(key => !settings.descriptions?.[key] &&
+            .map(spell => spell.key)))].filter(key => (!settings.descriptions?.[key] || settings.icons?.[key]===undefined) &&
                 !session.descriptionAttempts?.has(key));
 }
 
+function wb20QuickAutomaticDiscoveryAllowed() {
+    // Explicit per-tab diagnostic only. No saved setting or change to manual casting.
+    return new URLSearchParams(window.location.search).get("wb20-passive-startup") !== "1";
+}
+
 function wb20QuickScheduleDescriptions() {
+    if (!wb20QuickAutomaticDiscoveryAllowed()) return;
     const owner = character, session = wb20QuickSession();
     if (!session.scanned || session.descriptionTimer || !wb20QuickMissingDescriptions().length ||
         !wb20QuickCanLoadDescriptions()) return;
@@ -145,7 +172,7 @@ function wb20QuickScheduleDescriptions() {
 async function wb20QuickLoadDescription(key) {
     const owner = character, session = wb20QuickSession();
     const keys = [...new Set(Array.isArray(key) ? key : [key])]
-        .filter(key => !wb20QuickSettings().descriptions?.[key]);
+        .filter(key => !wb20QuickSettings().descriptions?.[key] || wb20QuickSettings().icons?.[key]===undefined);
     // Remembered selections share one visit; hovering never moves the sheet.
     // Leave an already-open sidebar/dialog or an in-progress cast alone.
     if (!keys.length || !wb20QuickCanLoadDescriptions()) return;
@@ -226,6 +253,7 @@ async function wb20QuickVisitSpells(callback) {
 }
 
 function wb20QuickDiscover() {
+    if (!wb20QuickAutomaticDiscoveryAllowed()) return;
     if (!character) return;
     const owner = character, session = wb20QuickSession();
     if (session.scanned || session.pending || !wayBeyond20CharacterSheetTab("Spells")) return;
@@ -394,6 +422,25 @@ async function wb20QuickRollCustom(id) {
     } finally { session.pending = false; }
 }
 
+// Display only: component prices never spend inventory or gate a cast.
+function wb20QuickSpellNotes(spell, settings = wb20QuickSettings()) {
+    if (!spell) return {text:'',title:''};
+    const notes=String(spell.notes || '').replace(/\b1\s+(?:Bonus Action|Action|Reaction)\s*[·,]?\s*/gi,'').trim();
+    const components=String(settings.components?.[spell.key] || '');
+    const description=String(settings.descriptions?.[spell.key] || '');
+    // Only a native Components value or a parenthetical component clause can
+    // establish per-cast consumption. Unrelated gold/consumption in prose cannot.
+    const clauses=[components,...(description.match(/\([^)]{0,600}\b(?:worth|value|cost)[^)]{0,600}\)/gi)||[])].filter(Boolean);
+    let material='';
+    for(const clause of clauses){
+        const price=clause.match(/\b(\d[\d,]*(?:\.\d+)?)\s*(cp|sp|ep|gp|pp)\b/i);
+        const consumed=/\bconsum(?:e[sd]?|ing|ption)\b/i.test(clause) && !/\b(?:not|never)\s+consumed\b|does\s+not\s+consume/i.test(clause);
+        if(price){material=price[1]+' '+price[2].toUpperCase()+(consumed?'/cast':' material');break;}
+        if(consumed && /\b(?:costly|worth|value|cost)\b/i.test(clause)){material='Costly material/cast';break;}
+    }
+    return {text:[material,notes].filter(Boolean).join(' · '),title:components || (material?clauses.join(' '):'')};
+}
+
 function wb20QuickRows(root) {
     const settings = wb20QuickSettings(), retained = new Set(), entries = [];
     const definitions = [
@@ -422,7 +469,8 @@ function wb20QuickRows(root) {
         row._wb20Owner = character; row._wb20Definition = definition;
         const set = (selector, value) => {
             const el = row.querySelector(selector);
-            if (el.textContent !== value) el.textContent = value;
+            if (selector === ".ddbc-combat-attack__range" && typeof wb20SetActionRange === "function") wb20SetActionRange(el,value);
+            else if (el.textContent !== value) el.textContent = value;
         };
         set(".wb20-feature-option-name", definition.name);
         const subtitle = row.querySelector(".wb20-talent-category");
@@ -463,7 +511,9 @@ function wb20QuickRows(root) {
             if (select.getAttribute("aria-description") !== help) select.setAttribute("aria-description", help);
         } else set(".wb20-talent-category", "Custom roll");
         row._wb20Selected = selected?.key || null;
+        row._wb20PresentationSpell = selected || null;
         const icon = row.querySelector("button");
+        if(!definition.custom)wb20QuickRenderSpellIcon(icon,selected,settings);
         const disabled = !!wb20QuickSession().loadingDescription || (!definition.custom && !selected);
         if (icon.disabled !== disabled) icon.disabled = disabled;
         const title = definition.custom ? `Roll ${definition.name}` : selected ? `Cast ${selected.name} (${definition.time})` : "Select a spell first";
@@ -474,8 +524,10 @@ function wb20QuickRows(root) {
             (wb20QuickDamageTypes.includes(definition.damageType) ? ` ${definition.damageType}` : "") : selected?.effect || "—");
         const sortFormula = definition.custom ? definition.formula : selected?.damage || "";
         if (row.dataset.wb20SortFormula !== sortFormula) row.dataset.wb20SortFormula = sortFormula;
-        set(".ddbc-combat-attack__notes", definition.custom ? definition.notes || "" :
-            `${definition.time}${selected?.notes ? " · " + selected.notes : ""}`);
+        const displayNotes=definition.custom?{text:definition.notes || "",title:""}:wb20QuickSpellNotes(selected,settings);
+        set(".ddbc-combat-attack__notes", displayNotes.text);
+        const notesCell=row.querySelector('.ddbc-combat-attack__notes');
+        if(notesCell.title!==displayNotes.title)notesCell.title=displayNotes.title;
         retained.add(row);
         entries.push({row, name: definition.name, key: definition.key, cost: definition.cost, defaultVisible: definition.defaultVisible,
             group: definition.cost === "special" || definition.cost === "extended" ? "action" : definition.cost});
@@ -518,7 +570,7 @@ async function wb20QuickManage(root) {
                 `<label>Range<input name="custom-${index}-range" maxlength="60" value="${escape(item.range || "")}"></label>` +
                 `<label>Notes<input name="custom-${index}-notes" maxlength="240" value="${escape(item.notes || "")}"></label>` +
                 (index === "new" ? "" : `<label><input type="checkbox" name="remove-${index}">Remove this custom line</label>`) + "</fieldset>";
-            const html = '<form class="wb20-quick-manager"><p>Only damage/attack and healing spell rows appear by default. Check any other categories you want to add. Nothing is removed from your character sheet. Identical native entries share a visibility choice.</p>' +
+            const html = '<form class="wb20-quick-manager"><p>Only damage/attack and healing spell rows appear by default. Check any other categories you want to add. Nothing is removed from your character sheet. Identical equipped weapon copies appear once. Their native inventory entries are retained; identical entries share a visibility choice.</p>' +
                 '<label><input type="checkbox" name="refresh-spells">Refresh spells from the current Spells tab when saving</label>' +
                 '<div class="wb20-quick-checks">' + entries.map(([key, entry], index) =>
                     `<label><input type="checkbox" name="visible-${index}"${wb20QuickIsHidden(entry, draft) ? "" : " checked"}>${escape(entry.name)} <small>${escape(({action:"Action",bonusAction:"Bonus Action",reaction:"Reaction",special:"Free/Special",extended:"Longer/other casting time"})[entry.cost] || entry.cost)}</small></label>`).join("") + "</div>" +

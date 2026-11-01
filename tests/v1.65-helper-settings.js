@@ -83,7 +83,7 @@ function createChrome(storage, messages) {
 function createPopupDom() {
     const byId = new Map();
     const node = (tag, attrs = {}, children = []) => {
-        const n = { tag, attrs: Object.assign({}, attrs), children: children.filter(c => c !== null && c !== undefined), classes: new Set(), checked: false, value: "", textValue: "" };
+        const n = { tag, attrs: Object.assign({}, attrs), dataset: {}, children: children.filter(c => c !== null && c !== undefined), classes: new Set(), checked: false, value: "", textValue: "" };
         n.classList = { add: c => n.classes.add(c), contains: c => n.classes.has(c) };
         return n;
     };
@@ -138,6 +138,7 @@ function createExtensionContext(storage, messages, dom = createPopupDom()) {
         getPlatform: () => "Windows",
         $: dom.$,
         E: dom.E,
+        wayBeyond20OrganizeSettings: () => {}, // Real navigation is checked in the browser fixture.
         setImmediate
     };
     vm.createContext(ctx);

@@ -41,7 +41,7 @@ function group(heading, names) {
             function wayBeyond20BardicInspirationRemainingUses(){return remaining;}
             function wayBeyond20GetBardicInspirationDie(){return '1d6';}
             async function wayBeyond20ActivateBardicInspiration(){activations++;}
-            ${['wayBeyond20FindBardicInspirationActionRow','wayBeyond20InjectBardicInspirationButton','wayBeyond20ActionListMetadata','wayBeyond20ActionSortValue','wayBeyond20FillHitDieChoices','wayBeyond20CollectFeatureOptions','wayBeyond20MatchActionTypography','wayBeyond20RefreshNaturalAttackIcons','wayBeyond20RefreshCombinedActions'].map(fn).join('\n')}
+            ${['wayBeyond20FindBardicInspirationActionRow','wayBeyond20InjectBardicInspirationButton','wayBeyond20ActionListMetadata','wayBeyond20ActionSortValue','wayBeyond20FillHitDieChoices','wayBeyond20CollectFeatureOptions','wb20SetActionRange','wb20DecorateActionValues','wb20MarkDuplicateWeapons','wayBeyond20MatchActionTypography','wayBeyond20RefreshNaturalAttackIcons','wayBeyond20RefreshCombinedActions'].map(fn).join('\n')}
             var originals=Array.from(document.querySelectorAll('.ddbc-combat-attack')).map(row=>[row,row.parentElement]);
             originals[0][0].querySelector('.wb20-full-attack').addEventListener('click',()=>nativeClicks++);
             wayBeyond20InjectBardicInspirationButton();wayBeyond20RefreshCombinedActions();
@@ -171,7 +171,7 @@ function group(heading, names) {
         });
         assert.ok(categoryStyles.added.every(style=>JSON.stringify(style)===JSON.stringify(categoryStyles.native)),'Talent subtitles match native attack typography exactly');
         for(const [field,text] of [['range','5 ft Touch'],['action','--']]){
-            assert.equal(await blood.locator('.ddbc-combat-attack__'+field).innerText(),text);
+            assert.equal((await blood.locator('.ddbc-combat-attack__'+field).innerText()).replace(/\s+/g,' '),text);
             assert.equal(await blood.locator('.ddbc-combat-attack__'+field+' button').count(),0);
         }
         const useDie=blood.getByRole('button',{name:'Blood and Bone: choose Target Hit Die',exact:true});

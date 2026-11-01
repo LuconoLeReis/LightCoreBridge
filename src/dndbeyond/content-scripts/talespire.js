@@ -116,9 +116,8 @@ async function wb20TSRefresh() {
     wb20TSBusy=true;
     try {
         const owner=character;
-        const reply=await new Promise(resolve=>chrome.runtime.sendMessage({action:'wb20-talespire-state'},response=>{
-            if (chrome.runtime.lastError) resolve(null); else resolve(response);
-        }));
+        const result=await wayBeyond20SendRuntimeMessage({action:'wb20-talespire-state'});
+        const reply=result.ok ? result.response : null;
         if (character !== owner || !wb20TSSelected()) return;
         const continuous=wb20TSConnected;
         wb20TSConnected=!!reply?.connected;

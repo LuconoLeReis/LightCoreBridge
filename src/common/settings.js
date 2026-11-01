@@ -90,6 +90,14 @@ const options_list = {
         // callbacks will be added after the functions are defined
     },
 
+    "local-roll-display-duration": {
+        "title": "Duration of Local Rolls display",
+        "description": "How long a local result stays visible before fading. Hover or focus pauses the timer. Close, Escape, or clicking elsewhere dismisses it.",
+        "type": "combobox",
+        "default": "5",
+        "choices": {"3": "3 seconds", "5": "5 seconds", "10": "10 seconds", "15": "15 seconds", "30": "30 seconds", "0": "Until dismissed"}
+    },
+
     "hide-results-on-whisper-to-discord": {
         "title": "Hide roll results on D&D Beyond when whispering to Discord",
         "description": "Don't show the roll results on D&D Beyond when using whisper and sending results to \"D&D Beyond Dice Roller & Discord\"",
@@ -376,8 +384,8 @@ const options_list = {
     },
 
     "vtt-tab": {
-        "title": "Select the VTT tab or Game to send rolls to",
-        "description": "Select the tab to send rolls to or the specific Game.\nYou can select the Game or tab from the extension's popup menu in the VTT tab itself.\nAfter a specific tab is selected and that tab is closed, it will revert to sending rolls to the same Game.",
+        "title": "Send rolls to",
+        "description": "Automatically send to all available VTTs. If delivery is unavailable, show the result on D&D Beyond. Rolls and actions continue without waiting for a connection. Digital dice and Game Log display follow their own settings.",
         "type": "special",
         "default": null
         // callbacks will be added after the functions are defined
@@ -385,7 +393,7 @@ const options_list = {
 
     "talespire-url": {
         "title": "TaleSpire connection",
-        "description": "Open the WayBeyond20 Symbiote in TaleSpire and paste its copied connection here. Select TaleSpire as the roll destination. WB20 resolves the dice once and sends the same results; accept Chrome's TaleSpireUrlRelay prompt. The separate WB20 local return helper adds mini linking, turn following, targeting and distance. Native mini HP is not changed.",
+        "description": "Paste the WayBeyond20 Symbiote connection once. It stays the same when you change boards. Automatic uses the available connection; you can also select TaleSpire as the destination. WB20 resolves the dice once and sends the same results; accept Chrome's TaleSpireUrlRelay prompt. The separate WB20 local return helper adds mini linking, turn following, targeting and distance. Native mini HP is not changed.",
         "type": "string",
         "default": ""
     },
@@ -1213,7 +1221,7 @@ function wayBeyond20DebugSafeValue(value) {
     }
 }
 
-function wayBeyond20DebugLog(scope, event, details = null, enabled = null) {
+function wayBeyond20DebugLog(scope, event, details = null, enabled = null, callback = null) {
     if (enabled === null) {
         try {
             enabled = typeof settings !== "undefined" && !!settings["waybeyond20-debug-log"];
@@ -1239,8 +1247,8 @@ function wayBeyond20DebugLog(scope, event, details = null, enabled = null) {
 
     try {
         if (chrome && chrome.runtime && typeof chrome.runtime.sendMessage === "function") {
-            chrome.runtime.sendMessage({ action: "waybeyond20-debug-log", entry }, () => {
-                void chrome.runtime.lastError;
+            chrome.runtime.sendMessage({ action: "waybeyond20-debug-log", entry }, response => {
+                if (!chrome.runtime.lastError && typeof callback === 'function') callback(response);
             });
         }
     } catch (error) {
@@ -1288,6 +1296,17 @@ function getDefaultSettings(_list = options_list) {
     return settings;
 }
 
+function wayBeyond20NormalizeVTTDestination(value) {
+    if (value === null || value === undefined) return null;
+    const local = {id:0,title:null,vtt:"dndbeyond"};
+    // Invalid/stale schema must not expand delivery to a different campaign.
+    if (typeof value !== "object" || Array.isArray(value)) return local;
+    if (!["roll20","fvtt","talespire","dndbeyond"].includes(value.vtt || "roll20")) return local;
+    if (value.title != null && typeof value.title !== "string") return local;
+    if (value.id != null && (!/^\d+$/.test(String(value.id)) || !Number.isSafeInteger(Number(value.id)))) return local;
+    return value;
+}
+
 function getStoredSettings(cb, key = "settings", _list = options_list) {
     const settings = getDefaultSettings(_list);
     storageGet(key, settings, async (stored_settings) => {
@@ -1318,6 +1337,13 @@ function getStoredSettings(cb, key = "settings", _list = options_list) {
             });;
             stored_settings["migrated-sync-settings"] = true;
             migrated_keys.push("migrated-sync-settings");
+        }
+        if (key === "settings" && Object.hasOwn(_list,"vtt-tab")) {
+            const destination = wayBeyond20NormalizeVTTDestination(stored_settings["vtt-tab"]);
+            if (JSON.stringify(destination) !== JSON.stringify(stored_settings["vtt-tab"])) {
+                stored_settings["vtt-tab"] = destination;
+                migrated_keys.push("vtt-tab");
+            }
         }
         if (migrated_keys.length > 0) {
             console.log("WayBeyond20: Migrated some keys:", stored_settings);
@@ -1427,12 +1453,14 @@ function createHTMLOptionEx(name, option, short = false, {advanced=false}={}) {
             )
         );
     } else if (option.type == "string") {
-        e = E.li({ class: "list-group-item beyond20-option beyond20-option-string" },
+        e = E.li({ class: "list-group-item beyond20-option beyond20-option-string" + (name === "talespire-url" ? " wb20-talespire-option" : "") },
             E.label({ class: "list-content", for: name },
                 E.h4({}, title),
                 ...description_p,
                 E.div({ class: "right-entry" },
-                    E.input({ id: name, class: "beyond20-option-input", name, type: "text" })
+                    name === "talespire-url"
+                        ? E.textarea({ id: name, class: "beyond20-option-input wb20-talespire-connection", name, rows: "2", spellcheck: "false", "aria-label": title })
+                        : E.input({ id: name, class: "beyond20-option-input", name, type: "text" })
                 )
             )
         );
@@ -1481,6 +1509,7 @@ function createHTMLOptionEx(name, option, short = false, {advanced=false}={}) {
     } else if (option.type == "special") {
         e = option.createHTMLElement(name, short);
     }
+    if (e) e.dataset.setting = name;
     return e;
 }
 
@@ -1608,7 +1637,7 @@ function initializeSettings(cb = null) {
 function createRoll20TabCombobox(name, short, dropdown_options) {
     const opt = options_list[name];
     const description = short ? "Restrict where rolls are sent.\nUseful if you have multiple VTT windows open" : opt.description;
-    const title = short ? "Send WayBeyond20 rolls to" : opt.title;
+    const title = "Send rolls to";
     const description_p = description.split("\n").map(desc => E.p({}, desc));
     let options = [];
     for (let option of dropdown_options)
@@ -1624,7 +1653,7 @@ function createRoll20TabCombobox(name, short, dropdown_options) {
             E.h4({ class: "select" }, title),
             ...description_p,
             E.div({ class: "button-group" },
-                E.a({ id: name, class: "input select beyond20-option-input", href: "" }, "All VTT Tabs"),
+                E.a({ id: name, class: "input select beyond20-option-input", href: "" }, "Automatic"),
                 E.ul({ class: "dropdown-menu" },
                     ...options),
                 E.i({ id: `${name}--icon`, class: "icon select" })
@@ -1634,7 +1663,9 @@ function createRoll20TabCombobox(name, short, dropdown_options) {
 }
 
 function createVTTTabSetting(name, short) {
-    const dropdown_options = ["All VTT Tabs",
+    // "This World/Tab" belongs only to an actual VTT, never a DDB sheet.
+    short = !!(short && current_tab && (isFVTT(current_tab.title) || isRoll20(current_tab.title)));
+    const dropdown_options = ["Automatic",
         "Only Roll20 Tabs",
         "Only Foundry VTT Tabs",
         "TaleSpire",
@@ -1655,7 +1686,7 @@ function setVTTTabSetting(name, settings) {
     const combobox = $("#beyond20-option-vtt-tab");
     if (combobox.length == 0) return;
     if (val === null) {
-        $("#" + name).text("All VTT Tabs");
+        $("#" + name).text("Automatic");
     } else if (val.title === null) {
         const vtt = val.vtt || "roll20";
         let choice = "";
@@ -1686,7 +1717,7 @@ function setVTTTabSetting(name, settings) {
             } else if (id == current_id && title == current_title && current_vtt == vtt) {
                 $("#" + name).text("This Specific Tab");
             } else {
-                new_options = ["All VTT Tabs",
+                new_options = ["Automatic",
                     "Only Roll20 Tabs",
                     "Only Foundry VTT Tabs",
                     "TaleSpire",
@@ -1702,7 +1733,7 @@ function setVTTTabSetting(name, settings) {
         } else {
             console.log("Set vtt tab, is LONG ", val);
             console.log("vtt-tab settings are : ", id, title, vtt);
-            new_options = ["All VTT Tabs",
+            new_options = ["Automatic",
                 "Only Roll20 Tabs",
                 "Only Foundry VTT Tabs",
                 "TaleSpire",
@@ -1736,7 +1767,7 @@ function getVTTTabSetting(name) {
     const saved_title = opt.attr("x-beyond20-title");
     const saved_vtt = opt.attr("x-beyond20-vtt");
     let ret = null;
-    if (value == "All VTT Tabs") {
+    if (["All VTT Tabs", "Automatic", "Automatic (local first)"].includes(value)) {
         ret = null;
     } else if (["This Campaign", "This World", "This Specific Tab"].includes(value)) {
         const vtt = isFVTT(current_tab.title) ? "fvtt" : "roll20";
@@ -1816,7 +1847,7 @@ function setDiscordChannelsSetting(name, settings) {
 
     if (typeof (val) === "string")
         val = [{ secret: val, name: "Unnamed Channel", active: true }];
-    const channels = val || [];
+    const channels = Array.isArray(val) ? val.filter(c => c && typeof c.secret === "string") : [];
     dropdowns.push(...channels)
     if (!dropdowns.find(d => d.active)) dropdowns[0].active = true;
     if (dropdowns.find(d => d.secret)) dropdowns.push({ name: "Delete selected channel", action: "delete" })
@@ -1934,9 +1965,9 @@ function getDiscordTargetSetting(name) {
 }
 
 function getDiscordChannel(settings, character) {
-    const channels = (settings["discord-channels"] || [])
-    if (typeof (channels) === "string")
-        return channels;
+    const raw = settings?.["discord-channels"];
+    if (typeof raw === "string") return raw.trim() ? {secret:raw,active:true} : null;
+    const channels = Array.isArray(raw) ? raw.filter(c => c && typeof c.secret === "string") : [];
     const target = (character && character["discord-target"]) || null;
     return channels.find(c => target ? c.secret.slice(0, 12) === target : c.active);
 }

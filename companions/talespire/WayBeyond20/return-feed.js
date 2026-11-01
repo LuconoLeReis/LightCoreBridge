@@ -58,6 +58,7 @@ async function wb20ReturnPoll() {
         const units=await wb20TaleSpireCall(TS.units.getDistanceUnitsForThisCampaign());
         await wb20ReturnFetch('/state',{v:1,campaignId:campaign.id,boardId:board.id,creatures,order:visibleOrder,
             activeIndex:visibleOrder.findIndex(c=>c.id === nativeCurrent),activeHidden:!!nativeCurrent && !visible.has(nativeCurrent),units,tracking:wb20ReturnTracking,
+            connection:document.getElementById('connection').value,
             targetId:wb20ReturnTarget,targetRevision:wb20ReturnTargetRevision,targetSession:wb20ReturnSession});
         for (const command of await wb20ReturnFetch('/commands')) if (command.type === 'pick-target') await wb20ReturnPick();
         wb20ReturnNotice(`Connected · ${creatures.length} minis · ${wb20ReturnTracking?'following turns':'turn following paused'}`);

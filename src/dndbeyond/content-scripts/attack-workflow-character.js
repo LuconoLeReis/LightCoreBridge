@@ -22,6 +22,8 @@ function wb20CreateCharacterAttackWorkflow(rollType, fallback, args, caller) {
         },
         async prepare(attack) {
             if (entryTurnKey !== wayBeyond20AttackActivationTurnKey()) return false;
+            if (typeof wb20PrepareItemRules === "function" && !await wb20PrepareItemRules(attack.args)) return false;
+            if (typeof wb20RulePrepareAttack === "function" && !await wb20RulePrepareAttack(attack.args)) return false;
             if (!attack.args["waybeyond20-attack-context"]) {
                 attack.args["waybeyond20-attack-context"] = {
                     turnKey: entryTurnKey, isOwnTurn

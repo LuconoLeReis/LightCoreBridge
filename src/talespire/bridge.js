@@ -75,7 +75,7 @@ function wayBeyond20TaleSpireURL(prefix, packet) {
 }
 
 function wayBeyond20SendTaleSpire(message, sender, sendResponse) {
-    const respond = (success, error = null) => sendResponse({success, error, vtt: ['talespire'], request: message});
+    const respond = (success, error = null) => sendResponse({success, delivered:success, error, vtt: ['talespire'], request: message});
     // Never forward sheet state to a URL, or accidentally fall through to Roll20.
     if (!['roll', 'rendered-roll'].includes(message.action)) { respond(false); return; }
     // Missing configuration is idle, not a reason to nag on every roll.
@@ -85,12 +85,28 @@ function wayBeyond20SendTaleSpire(message, sender, sendResponse) {
     }
     try {
         if (!sender.tab || !Number.isInteger(sender.tab.id)) throw new Error('Send TaleSpire rolls from an open D&D Beyond tab.');
-        const url = wayBeyond20TaleSpireURL(settings['talespire-url'], wayBeyond20TaleSpirePacket(message));
+        const packet=wayBeyond20TaleSpirePacket(message);
+        const url = wayBeyond20TaleSpireURL(settings['talespire-url'], packet);
         // External-protocol navigation hands the URL to Windows without replacing
         // the DDB document. Chrome may ask the player to allow TaleSpireUrlRelay.
         chrome.tabs.update(sender.tab.id, {url}, () => {
             const error = chrome.runtime.lastError;
-            respond(!error, error ? String(error.message || error) : null);
+            if(error){respond(false,String(error.message || error));return;}
+            // Browser protocol acceptance alone does not prove the board received it.
+            wb20TaleSpireAwaitReceipt(packet.id).then(ok=>respond(ok),()=>respond(false));
         });
     } catch (error) { respond(false, String(error.message || error)); }
+}
+
+async function wb20TaleSpireAwaitReceipt(id) {
+    // Finite, per-roll checks only: no extra background interval or retry of delivery.
+    const deadline=Date.now()+2000;
+    for (let attempt=0;attempt<5 && Date.now()<deadline;attempt++) {
+        if(attempt)await new Promise(resolve=>setTimeout(resolve,250));
+        try {
+            const state=await wb20TaleSpireReturnRequest('/receipts',undefined,300);
+            if(state.ids?.includes(id))return true;
+        } catch(_){return false;}
+    }
+    return false;
 }

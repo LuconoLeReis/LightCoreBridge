@@ -72,7 +72,8 @@ function wb20NativeResources() {
         if (!controls.length) continue;
         const row = controls[0].closest(selectors.row);
         const heading=row?.querySelector(selectors.label);
-        const label = (typeof wayBeyond20ElementOwnText === "function" && heading ? wayBeyond20ElementOwnText(heading) : heading?.textContent.trim()) || name;
+        const itemName=heading?.matches('.ct-sidebar__heading') && heading.closest('.b20-item-pane') ? heading.querySelector('[class*="styles_itemName"]')?.textContent.replace(/\*$/,'').trim() : null;
+        const label = itemName || (typeof wayBeyond20ElementOwnText === "function" && heading ? wayBeyond20ElementOwnText(heading) : heading?.textContent.trim()) || name;
         pools.set(wb20ResourceId(name), {name: label, kind: "native", max: controls.length,
             remaining: controls.filter(wayBeyond20LimitedUseControlIsUnused).length});
     }
@@ -141,7 +142,18 @@ function wb20Resources(owner = character) {
 
 function wb20Resource(name, owner = character) {
     const id = wb20ResourceId(name);
-    return [...wb20Resources(owner)].find(([key,pool]) => key === name || key === id || wb20ResourceId(pool.name) === id)?.[1] || null;
+    const entries=[...wb20Resources(owner)];
+    const exact=entries.find(([key,pool]) => key === name || key === id || wb20ResourceId(pool.name) === id)?.[1];
+    if (exact) return exact;
+    // Native feature options retain their parent label, e.g. Protected: Luck
+    // Points. Only an unambiguous colon-delimited suffix may identify its pool.
+    const matches=entries.filter(([,pool])=>String(pool.name).split(':').slice(1).some(part=>wb20ResourceId(part) === id));
+    if (matches.length === 1) return matches[0][1];
+    // Features & Traits can put the pips on the parent feature (Protected),
+    // while Actions names its child pool (Protected: Luck Points). The live
+    // declaration and matching maximum establish the alias, not proximity.
+    const declared=typeof wb20RuleResourceAlias === "function" ? entries.filter(([,pool])=>wb20RuleResourceAlias(pool,name,owner)) : [];
+    return declared.length === 1 ? declared[0][1] : null;
 }
 
 async function wb20VisitResourceSheets(operation, owner = character, names = ["Features & Traits", "Actions"]) {
@@ -441,8 +453,8 @@ async function wb20CorrectResources() {
         const esc=value=>String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
         const entries=[...pools].filter(([,pool])=>pool.remaining !== null || pool.kind === "local");
         const rows=entries.map(([id,pool],i)=>`<label>${esc(pool.name)} <input name="resource-${i}" type="number" min="0" ${pool.max === null || pool.uncapped ? '' : `max="${pool.max}"`} value="${pool.remaining ?? ''}" placeholder="Unknown" aria-label="${esc(pool.name)} remaining"><span>${pool.max === null ? '' : '/ '+pool.max}</span></label>`).join("");
-        const history=wb20ResourceStore(owner).history.slice().reverse().map(entry=>`<li>${esc(new Date(entry.at).toLocaleTimeString())} Â· ${esc(entry.name)}: ${entry.before ?? '?'} â†’ ${entry.after} Â· ${esc(entry.reason)}</li>`).join("");
-        const form=await dndbeyondDiceRoller._prompter.prompt("Correction",`<form class="wb20-resource-correction"><p>Remaining resources. Only changed values will be saved.</p>${rows || '<p>No feature resources are currently exposed on this sheet.</p>'}<details><summary>Recent resource history Â· local only</summary><ol>${history || '<li>No recorded changes.</li>'}</ol></details></form>`,"Save corrections","Cancel");
+        const history=wb20ResourceStore(owner).history.slice().reverse().map(entry=>`<li>${esc(new Date(entry.at).toLocaleTimeString())} | ${esc(entry.name)}: ${entry.before ?? '?'} -> ${entry.after} | ${esc(entry.reason)}</li>`).join("");
+        const form=await dndbeyondDiceRoller._prompter.prompt("Correction",`<form class="wb20-resource-correction"><p>Remaining resources. Only changed values will be saved.</p>${rows || '<p>No feature resources are currently exposed on this sheet.</p>'}<details><summary>Recent resource history | local only</summary><ol>${history || '<li>No recorded changes.</li>'}</ol></details></form>`,"Save corrections","Cancel");
         if (!form || owner !== character || turn !== wayBeyond20AttackActivationTurnKey()) return;
         const updates=[];
         for (let i=0;i<entries.length;i++) {
@@ -473,7 +485,7 @@ async function wb20ResourcesRest(owner,rest) {
 
 function wb20ThemeResourcePrompt(dialog) {
     if (!dialog || typeof wayBeyond20ApplySheetTheme !== "function") return;
-    wayBeyond20ApplySheetTheme(dialog);
+    wayBeyond20ApplySheetTheme(dialog, {panel:true});
     dialog.classList.add("wb20-resource-dialog");
     dialog.style.backgroundColor="var(--wb20-sheet-surface,Canvas)";
 }

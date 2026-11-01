@@ -1,9 +1,9 @@
 // Background-only HTTP client. Only fixed loopback URLs; never fetch a game-supplied URL.
 var wb20TaleSpireReturnKey='';
-async function wb20TaleSpireReturnRequest(route, data) {
-    if (!['/state','/command'].includes(route)) throw Error('Invalid return request');
+async function wb20TaleSpireReturnRequest(route, data, timeout = 2500) {
+    if (!['/state','/command','/receipts'].includes(route)) throw Error('Invalid return request');
     if (!wb20TaleSpireReturnKey) {
-        const pair=await fetch('http://127.0.0.1:48874/pair',{headers:{'X-WB20-Extension':chrome.runtime.id},signal:AbortSignal.timeout(2500)});
+        const pair=await fetch('http://127.0.0.1:48874/pair',{headers:{'X-WB20-Extension':chrome.runtime.id},signal:AbortSignal.timeout(timeout)});
         if (!pair.ok) throw Error('WB20 local helper is not paired');
         const result=await pair.json();
         if (!/^[a-f0-9]{64}$/.test(result.key)) throw Error('Invalid helper pairing');
@@ -11,7 +11,7 @@ async function wb20TaleSpireReturnRequest(route, data) {
     }
     const response=await fetch('http://127.0.0.1:48874'+route,{method:data?'POST':'GET',
         headers:{Authorization:'Bearer '+wb20TaleSpireReturnKey,...(data?{'Content-Type':'application/json'}:{})},
-        ...(data?{body:JSON.stringify(data)}:{}),signal:AbortSignal.timeout(2500)});
+        ...(data?{body:JSON.stringify(data)}:{}),signal:AbortSignal.timeout(timeout)});
     if (response.status === 401) wb20TaleSpireReturnKey='';
     if (!response.ok) throw Error('WB20 local helper unavailable');
     return response.json();

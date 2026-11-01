@@ -306,8 +306,9 @@ async function run() {
         WhisperType:{NO:0,YES:1,QUERY:2,HIDE_NAMES:3},
         RollType:{NORMAL:0,QUERY:2,OVERRIDE_ADVANTAGE:8,OVERRIDE_DISADVANTAGE:9},
         DigitalDiceManager:{isEnabled:()=>false}, wayBeyond20ExtensionContextAvailable:()=>true,
+        wayBeyond20TrackRollDelivery:()=>({invoked:false}),wayBeyond20RollDeliveries:new WeakMap(),
         wayBeyond20SendRuntimeMessage:async()=>({ok:true}), beyond20SendMessageFailure(){},
-        dndbeyondDiceRoller:{queryAdvantage:()=>{throw Error("unnecessary dice prompt");}} };
+        dndbeyondDiceRoller:{handleRollRequest:async()=>{},queryAdvantage:()=>{throw Error("unnecessary dice prompt");}} };
     vm.createContext(rollctx); vm.runInContext(fn(utils,"sendRoll"),rollctx);
     const caster={type:()=>"Character",getGlobalSetting:(key,fallback)=>key==="roll-type"?2:fallback,getDict:()=>({})};
     assert.equal(await rollctx.sendRoll(caster,"spell-card",0,{name:"Shield of Faith"}),true);

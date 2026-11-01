@@ -12,9 +12,10 @@ function wayBeyond20NeedsAttackFollowup(args) {
     // Classify before choosing the continuation, not only later at dispatch.
     // A producer's name or Smite eligibility must not gate an unarmed on-hit rule.
     wayBeyond20NormalizeAttackSemantics(args, args.name);
+    const parsedDraining = typeof wb20RuleDrainingSource === "function" && wb20RuleDrainingSource();
     return !!((typeof wb20FeatureNeedsHit === "function" && wb20FeatureNeedsHit(args)) || args["waybeyond20-smite-eligible"] || args["waybeyond20-savage-attacker"]?.mode === "post-result" ||
-        (args["waybeyond20-unarmed-strike"] && character.hasRacialTrait("Draining Attack", true) &&
-            character.hasRacialTrait("Natural Attack", true)));
+        (args["waybeyond20-unarmed-strike"] && (parsedDraining || character.hasRacialTrait("Draining Attack", true) &&
+            character.hasRacialTrait("Natural Attack", true))));
 }
 
 function wayBeyond20RunAttackFollowup(rollType, fallback, args) {

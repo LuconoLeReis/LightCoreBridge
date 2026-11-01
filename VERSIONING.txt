@@ -34,3 +34,13 @@ representative live acceptance, exact source/build/archive provenance, license
 and installation checks, and public-download hash verification. Known limits
 are disclosed. Published version contents/tags/assets are immutable; a later
 correction gets a new version. Unpacked installations require manual updates.
+
+Local coding candidate 1.73.32 maps to numeric 2.20.164. MAJOR/MINOR unchanged.
+
+Local coding candidate 1.73.33 maps to numeric 2.20.165. MAJOR/MINOR unchanged.
+
+Local coding candidate 1.73.55 maps to numeric 2.20.187. MAJOR/MINOR unchanged.
+
+Local coding candidate 1.73.56 maps to numeric 2.20.188. MAJOR/MINOR unchanged.
+
+Release preparation1.73.57 maps to numeric2.20.189. Documentation-only promotion must retain identical executable bytes to the reviewed development candidate.

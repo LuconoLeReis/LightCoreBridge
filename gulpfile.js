@@ -18,6 +18,7 @@ const DNDBEYOND_PAGE_DEPS = [
     ...ROLL_RENDERER_DEPS,
     "src/dndbeyond/base/digital-dice.js",
     "src/dndbeyond/base/dice.js",
+    "src/reliability/local-result.js",
     "src/dndbeyond/base/base.js",
     "src/dndbeyond/base/hotkeys.js",
     "src/dndbeyond/base/utils.js",
@@ -31,6 +32,7 @@ const DNDBEYOND_CHARACTER_PAGE_DEPS = [
     ...ROLL_RENDERER_DEPS,
     "src/dndbeyond/base/digital-dice-new.js",
     "src/dndbeyond/base/dice.js",
+    "src/reliability/local-result.js",
     "src/dndbeyond/base/base.js",
     "src/dndbeyond/base/hotkeys.js",
     "src/dndbeyond/base/utils.js",
@@ -48,6 +50,8 @@ const SRC_FILES = {
         "src/common/settings.js",
         "src/talespire/bridge.js",
         "src/talespire/return-client.js",
+        "src/reliability/recovery-scope.js",
+        "src/reliability/recovery-background.js",
         "src/extension/background.js"
     ],
     options: [
@@ -55,6 +59,7 @@ const SRC_FILES = {
         "src/common/utils.js",
         "libs/FileSaver.min.js",
         "src/common/settings.js",
+        "src/extension/settings-navigation.js",
         "src/extension/options.js"
     ],
     default_popup: [
@@ -63,6 +68,7 @@ const SRC_FILES = {
         "src/common/utils.js",
         "libs/FileSaver.min.js",
         "src/common/settings.js",
+        "src/extension/settings-navigation.js",
         "src/extension/default_popup.js",
         "src/common/sandbox-footer.js"
     ],
@@ -71,6 +77,7 @@ const SRC_FILES = {
         "src/common/utils.js",
         "libs/FileSaver.min.js",
         "src/common/settings.js",
+        "src/extension/settings-navigation.js",
         "src/extension/popup.js"
     ],
     roll20: [
@@ -88,10 +95,12 @@ const SRC_FILES = {
         "src/fvtt/check-tab.js"
     ],
     fvtt: [
+        "src/common/sandbox-header.js",
         "src/common/utils.js",
         "libs/FileSaver.min.js",
         "src/common/settings.js",
-        "src/fvtt/content-script.js"
+        "src/fvtt/content-script.js",
+        "src/common/sandbox-footer.js"
     ],
     fvtt_script: [
         "src/common/sandbox-header.js",
@@ -151,11 +160,14 @@ const SRC_FILES = {
         "src/dndbeyond/content-scripts/concentration.js",
         "src/dndbeyond/content-scripts/portent.js",
         "src/dndbeyond/content-scripts/resources.js",
+        "src/dndbeyond/content-scripts/feature-rules.js",
+        "src/dndbeyond/content-scripts/item-rules.js",
         "src/dndbeyond/content-scripts/combat-actions.js",
         "src/dndbeyond/content-scripts/feature-activations.js",
         "src/dndbeyond/content-scripts/attack-workflow-character.js",
         "src/dndbeyond/content-scripts/attack-handoff.js",
         "src/dndbeyond/content-scripts/header.js",
+        "src/reliability/sheet-load-diagnostics.js",
         "src/dndbeyond/content-scripts/character.js",
     ],
     dndbeyond_source: [
@@ -172,9 +184,168 @@ const SRC_FILES = {
         "src/common/sandbox-footer.js"
 	]
 }
+const COMPAT_RENDERER_DEPS = [
+    "vendor/beyond20-2.21.0/src/common/utils.js",
+    "vendor/beyond20-2.21.0/libs/FileSaver.min.js",
+    "vendor/beyond20-2.21.0/src/common/settings.js",
+    "vendor/beyond20-2.21.0/src/common/constants.js",
+    "vendor/beyond20-2.21.0/src/discord/discord.js",
+    "vendor/beyond20-2.21.0/src/common/dice.js",
+    "vendor/beyond20-2.21.0/src/common/roll-table.js",
+    "vendor/beyond20-2.21.0/src/common/roll_renderer.js"
+];
+
+const COMPAT_PAGE_DEPS = [
+    ...COMPAT_RENDERER_DEPS,
+    "vendor/beyond20-2.21.0/src/dndbeyond/base/digital-dice.js",
+    "vendor/beyond20-2.21.0/src/dndbeyond/base/dice.js",
+    "vendor/beyond20-2.21.0/src/dndbeyond/base/base.js",
+    "vendor/beyond20-2.21.0/src/dndbeyond/base/hotkeys.js",
+    "vendor/beyond20-2.21.0/src/dndbeyond/base/utils.js",
+    // Second renderer on DDB pages to allow rednering roll to the DOM
+    "vendor/beyond20-2.21.0/src/generic-site/renderer.js",
+];
+
+const COMPAT_CHARACTER_DEPS = [
+    ...COMPAT_RENDERER_DEPS,
+    "vendor/beyond20-2.21.0/src/dndbeyond/base/digital-dice-new.js",
+    "vendor/beyond20-2.21.0/src/dndbeyond/base/dice.js",
+    "vendor/beyond20-2.21.0/src/dndbeyond/base/base.js",
+    "vendor/beyond20-2.21.0/src/dndbeyond/base/hotkeys.js",
+    "vendor/beyond20-2.21.0/src/dndbeyond/base/utils.js",
+    // Second renderer on DDB pages to allow rednering roll to the DOM
+    "vendor/beyond20-2.21.0/src/generic-site/renderer.js",
+];
+
+const COMPAT_FILES = {
+    background: [
+        "vendor/beyond20-2.21.0/src/common/constants.js",
+        "vendor/beyond20-2.21.0/src/common/utils.js",
+        "vendor/beyond20-2.21.0/libs/FileSaver.min.js",
+        "vendor/beyond20-2.21.0/src/common/settings.js",
+        "vendor/beyond20-2.21.0/src/extension/background.js"
+    ],
+    options: [
+        "vendor/beyond20-2.21.0/src/common/constants.js",
+        "vendor/beyond20-2.21.0/src/common/utils.js",
+        "vendor/beyond20-2.21.0/libs/FileSaver.min.js",
+        "vendor/beyond20-2.21.0/src/common/settings.js",
+        "vendor/beyond20-2.21.0/src/extension/options.js"
+    ],
+    default_popup: [
+        "vendor/beyond20-2.21.0/src/common/sandbox-header.js",
+        "vendor/beyond20-2.21.0/src/common/constants.js",
+        "vendor/beyond20-2.21.0/src/common/utils.js",
+        "vendor/beyond20-2.21.0/libs/FileSaver.min.js",
+        "vendor/beyond20-2.21.0/src/common/settings.js",
+        "vendor/beyond20-2.21.0/src/extension/default_popup.js",
+        "vendor/beyond20-2.21.0/src/common/sandbox-footer.js"
+    ],
+    popup: [
+        "vendor/beyond20-2.21.0/src/common/constants.js",
+        "vendor/beyond20-2.21.0/src/common/utils.js",
+        "vendor/beyond20-2.21.0/libs/FileSaver.min.js",
+        "vendor/beyond20-2.21.0/src/common/settings.js",
+        "vendor/beyond20-2.21.0/src/extension/popup.js"
+    ],
+    roll20: [
+        ...COMPAT_RENDERER_DEPS,
+        "vendor/beyond20-2.21.0/src/roll20/renderer.js",
+        "vendor/beyond20-2.21.0/src/roll20/content-script.js"
+    ],
+    roll20_script: [
+        "vendor/beyond20-2.21.0/src/common/sandbox-header.js",
+        "vendor/beyond20-2.21.0/src/common/utils.js",
+        "vendor/beyond20-2.21.0/src/roll20/page-script.js",
+        "vendor/beyond20-2.21.0/src/common/sandbox-footer.js"
+    ],
+    fvtt_test: [
+        "vendor/beyond20-2.21.0/src/fvtt/check-tab.js"
+    ],
+    fvtt: [
+        "vendor/beyond20-2.21.0/src/common/utils.js",
+        "vendor/beyond20-2.21.0/libs/FileSaver.min.js",
+        "vendor/beyond20-2.21.0/src/common/settings.js",
+        "vendor/beyond20-2.21.0/src/fvtt/content-script.js"
+    ],
+    fvtt_script: [
+        "vendor/beyond20-2.21.0/src/common/sandbox-header.js",
+        ...COMPAT_RENDERER_DEPS,
+        "vendor/beyond20-2.21.0/src/fvtt/page-script.js",
+        "vendor/beyond20-2.21.0/src/common/sandbox-footer.js"
+    ],
+    generic_site: [
+        ...COMPAT_RENDERER_DEPS,
+        "vendor/beyond20-2.21.0/src/generic-site/renderer.js",
+        "vendor/beyond20-2.21.0/src/generic-site/content-script.js"
+    ],
+    dndbeyond_spell: [
+        ...COMPAT_PAGE_DEPS,
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/spell.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/monster.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/content-scripts/spell.js",
+    ],
+    dndbeyond_item: [
+        ...COMPAT_PAGE_DEPS,
+        "vendor/beyond20-2.21.0/src/dndbeyond/content-scripts/item.js",
+    ],
+    dndbeyond_feat: [
+        ...COMPAT_PAGE_DEPS,
+        "vendor/beyond20-2.21.0/src/dndbeyond/content-scripts/feat.js",
+    ],
+    dndbeyond_monster: [
+        ...COMPAT_PAGE_DEPS,
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/spell.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/monster.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/extras.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/content-scripts/monster.js",
+    ],
+    dndbeyond_encounter: [
+        ...COMPAT_PAGE_DEPS,
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/spell.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/monster.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/content-scripts/encounter.js",
+    ],
+    dndbeyond_vehicle: [
+        ...COMPAT_PAGE_DEPS,
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/spell.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/monster.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/content-scripts/vehicle.js",
+    ],
+    dndbeyond_character: [
+        ...COMPAT_CHARACTER_DEPS,
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/spell.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/monster.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/extras.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/character.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/content-scripts/character.js",
+    ],
+    dndbeyond_source: [
+        ...COMPAT_PAGE_DEPS,
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/spell.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/base/monster.js",
+        "vendor/beyond20-2.21.0/src/dndbeyond/content-scripts/source.js",
+    ],
+    dndbeyond_mb: [
+        "vendor/beyond20-2.21.0/src/common/sandbox-header.js",
+        "vendor/beyond20-2.21.0/src/common/utils.js",
+		"vendor/beyond20-2.21.0/src/dndbeyond/base/message-broker.js",
+		"vendor/beyond20-2.21.0/src/dndbeyond/page-scripts/message-broker.js",
+        "vendor/beyond20-2.21.0/src/common/sandbox-footer.js"
+	]
+}
+
+for (const [name, files] of Object.entries(COMPAT_FILES)) {
+    if (['roll20','roll20_script','fvtt','fvtt_script','fvtt_test','generic_site'].includes(name)) SRC_FILES['compat_'+name] = files;
+    if (name.startsWith('dndbeyond_')) SRC_FILES['compat_' + name] =
+        name === 'dndbeyond_mb' ? files : [...files, 'src/reliability/local-result.js', 'src/reliability/compat-delivery.js'];
+}
+SRC_FILES.recovery_boot = ['src/common/sandbox-header.js', 'src/reliability/recovery-scope.js', 'src/reliability/sheet-load-diagnostics.js', 'src/reliability/recovery-boot.js', 'src/common/sandbox-footer.js'];
+SRC_FILES.recovery_popup = ['src/common/sandbox-header.js', 'src/reliability/recovery-scope.js', 'src/reliability/recovery-popup.js', 'src/common/sandbox-footer.js'];
 const CSS_FILES = ['src/extension/beyond20.css']
 
-const targets = {};
+const compatCSS = () => gulp.src('vendor/beyond20-2.21.0/src/extension/beyond20.css').pipe(concat('compat_beyond20.css')).pipe(gulp.dest('dist'));
+const targets = {compatCSS};
 for (const target in SRC_FILES) {
     // Use an object with a named key so each task function gets
     // named instead of being anonymous functions

@@ -539,8 +539,12 @@ class Character extends CharacterBase {
         }
         this._features_needs_refresh = current_classes && !updated_features_list && last_classes !== current_classes;
 
-        if (this._settings && update) {
+        const liveRules = typeof wb20ReadNativeFeatureRules === "function" ? wb20ReadNativeFeatureRules() : [];
+        const mergedRules = typeof wb20MergeNativeFeatureRules === "function" ? wb20MergeNativeFeatureRules(this, liveRules) : liveRules;
+        const rulesChanged = liveRules.length > 0 && JSON.stringify(mergedRules) !== JSON.stringify(this.getSetting("waybeyond20-feature-rules", []));
+        if (this._settings && (update || rulesChanged)) {
             this.mergeCharacterSettings({
+                ...(rulesChanged ? {"waybeyond20-feature-rules": mergedRules} : {}),
                 "class-features": this._class_features,
                 "racial-traits": this._racial_traits,
                 "feats": this._feats,

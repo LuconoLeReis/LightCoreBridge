@@ -688,6 +688,7 @@ async function sendRoll(character, rollType, fallback, args, isCurrent = null) {
         }
     }
 
+    if (typeof wb20RuleApplyResolvedAdvantage === "function") wb20RuleApplyResolvedAdvantage(req);
     // A Portent replacement ignores advantage/disadvantage, including later effect overrides.
     if (req["waybeyond20-portent-value"] !== undefined) req.advantage = RollType.NORMAL;
 
@@ -706,43 +707,25 @@ async function sendRoll(character, rollType, fallback, args, isCurrent = null) {
         req["waybeyond20-talespire-local-fallback"] = true;
         req["waybeyond20-local-only"] = !character.getGlobalSetting("talespire-url", "").trim();
     }
-    if (character.getGlobalSetting("vtt-tab", null)?.vtt === "talespire" ||
-        req["waybeyond20-portent-value"] !== undefined || typeof args["waybeyond20-capture-result"] === "function" ||
-        (character.getGlobalSetting("use-digital-dice", false) && DigitalDiceManager.isEnabled())) {
-        req.sendMessage = true;
-        const delivery = wayBeyond20TrackRollDelivery(req);
-        if (typeof args["waybeyond20-capture-result"] === "function")
-            wayBeyond20ResolvedRollHooks.set(req, args["waybeyond20-capture-result"]);
-        try {
-            await dndbeyondDiceRoller.handleRollRequest(req);
-        } catch (error) {
-            wayBeyond20RollDeliveries.delete(req);
-            wayBeyond20NotifyDispatchFailure(error && error.message ? error.message : error);
-            return false;
-        } finally {
-            if (typeof wayBeyond20ResolvedRollHooks !== "undefined") wayBeyond20ResolvedRollHooks.delete(req);
-        }
-        wayBeyond20RollDeliveries.delete(req);
-        // The renderer sends the rolled result through DNDBDisplayer.sendMessage. A roll it only
-        // displayed locally never reaches that send and keeps the existing local-only outcome.
-        if (!delivery.invoked) return true;
-        const outcome = await delivery.outcome;
-        if (!outcome.ok) {
-            wayBeyond20NotifyDispatchFailure(outcome.error);
-            return false;
-        }
-        return true;
-    }
-    console.log("Sending message: ", req);
-    const outcome = await wayBeyond20SendRuntimeMessage(req);
-    if (!outcome.ok) {
-        wayBeyond20NotifyDispatchFailure(outcome.error);
+    // Resolve on the sheet for every destination. VTT delivery is optional,
+    // never the completion condition for rules, resources or hit follow-ups.
+    req.sendMessage = true;
+    const delivery = wayBeyond20TrackRollDelivery(req);
+    if (typeof args["waybeyond20-capture-result"] === "function")
+        wayBeyond20ResolvedRollHooks.set(req, args["waybeyond20-capture-result"]);
+    try {
+        await dndbeyondDiceRoller.handleRollRequest(req);
+    } catch (error) {
+        wayBeyond20NotifyDispatchFailure(error && error.message ? error.message : error);
         return false;
+    } finally {
+        wayBeyond20RollDeliveries.delete(req);
+        if (typeof wayBeyond20ResolvedRollHooks !== "undefined") wayBeyond20ResolvedRollHooks.delete(req);
     }
-    // A "no VTT found" or D&D Beyond-only response is still a handled roll: the background replied
-    // and the roll is displayed on D&D Beyond.
-    beyond20SendMessageFailure(character, outcome.response);
-    return true;
+    // Local-only renderers do not call sendMessage. A completed result is still
+    // accepted; optional transport callbacks cannot undo or repeat the roll.
+    if (!delivery.invoked) return true;
+    return (await delivery.outcome).ok === true;
     };
     return typeof wayBeyond20PortentDispatch === "function"
         ? wayBeyond20PortentDispatch(character, req, dispatch) : dispatch();
@@ -761,7 +744,10 @@ function wayBeyond20ExtensionContextAvailable() {
 }
 
 function wayBeyond20SendRuntimeMessage(message) {
-    return new Promise(resolve => {
+    return new Promise(settle => {
+        let finished=false;
+        const timer=setTimeout(()=>resolve({ok:false,error:"Optional extension response timed out."}),3000);
+        function resolve(value) { if (finished) return; finished=true; if (typeof clearTimeout === "function") clearTimeout(timer); settle(value); }
         if (!wayBeyond20ExtensionContextAvailable()) {
             resolve({ ok: false, error: "Extension context invalidated." });
             return;

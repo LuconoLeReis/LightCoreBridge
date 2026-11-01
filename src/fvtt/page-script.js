@@ -476,7 +476,7 @@ function handleRoll(request) {
     else
         roll_renderer.handleRollRequest(request);
 }
-function handleRenderedRoll(request) {
+async function handleRenderedRoll(request) {
     console.log("Received rendered roll request ", request);
     // The hook would return "false" to stop propagation, meaning that it was handled
     const handledNatively = Hooks.call("beyond20Request", request.action, request);
@@ -485,11 +485,12 @@ function handleRenderedRoll(request) {
         return popAvatar(request.request, false);
     }
 
-    roll_renderer._displayer.postHTML(request.request, request.title,
+    const posted=await roll_renderer._displayer.postHTML(request.request, request.title,
         request.html, request.character, request.whisper,
         request.play_sound, request.source, request.attributes,
         request.description, request.attack_rolls, request.roll_info,
         request.damage_rolls, request.total_damages, request.open);
+    if (request.wb20DeliveryId) sendCustomEvent("DeliveryResult", [{id:request.wb20DeliveryId,delivered:!!posted}]);
     if (request.request.type === "initiative" && settings["initiative-tracker"]) {
         const initiative = request.attack_rolls.find((roll) => !roll.discarded);
         if (initiative)
@@ -873,7 +874,11 @@ function setTitle() {
 console.log("WayBeyond20: Foundry VTT Page Script loaded");
 const registered_events = [];
 registered_events.push(addCustomEventListener("Roll", handleRoll));
-registered_events.push(addCustomEventListener("RenderedRoll", handleRenderedRoll));
+registered_events.push(addCustomEventListener("RenderedRoll", request=>{
+    Promise.resolve().then(()=>handleRenderedRoll(request)).catch(()=>{
+        if(request.wb20DeliveryId)sendCustomEvent("DeliveryResult",[{id:request.wb20DeliveryId,delivered:false}]);
+    });
+}));
 registered_events.push(addCustomEventListener("NewSettings", setSettings));
 registered_events.push(addCustomEventListener("UpdateHP", updateHP));
 registered_events.push(addCustomEventListener("UpdateConditions", updateConditions));

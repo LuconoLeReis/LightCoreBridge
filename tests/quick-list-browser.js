@@ -259,6 +259,24 @@ function fn(name) {
         await page.waitForFunction(()=>failedLookups===1&&!wb20QuickSession().pending);
         assert.equal(await page.evaluate(()=>wb20QuickMissingDescriptions().length),0,'Failed automatic batch is bounded, not an endless retry');
         await page.evaluate(()=>{wb20QuickVisitSpells=realVisit;});
+        const passiveBefore=await page.evaluate(()=>{
+            history.replaceState(null,'','?wb20-passive-startup=1');
+            wb20QuickSessions.delete(character);
+            const visits=autoVisits;
+            wb20QuickDiscover();wb20QuickScheduleDescriptions();
+            return visits;
+        });
+        await page.waitForTimeout(650);
+        assert.deepEqual(await page.evaluate(()=>({visits:autoVisits,pending:wb20QuickSession().pending,
+            timer:!!wb20QuickSession().descriptionTimer,allowed:wb20QuickAutomaticDiscoveryAllowed()})),
+            {visits:passiveBefore,pending:false,timer:false,allowed:false},
+            'Explicit per-tab passive probe schedules no automatic native visit');
+        assert.equal(await page.evaluate(()=>wb20QuickVisitSpells(()=>true)),true,
+            'Explicit native visits remain available during the passive startup probe');
+        await page.waitForFunction(()=>wayBeyond20ActiveCharacterSheetTab().textContent==='Actions');
+        await page.evaluate(()=>history.replaceState(null,'','/'));
+        assert.equal(await page.evaluate(()=>wb20QuickAutomaticDiscoveryAllowed()),true,
+            'Normal startup retains existing discovery behavior');
         console.log("PASS universal quick list, including automatic remembered-description batching, cache reuse, manager deferral and bounded failure; no casting");
     } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

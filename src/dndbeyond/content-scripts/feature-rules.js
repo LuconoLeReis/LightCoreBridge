@@ -1,0 +1,296 @@
+// Interpret the current character's descriptions. No campaign/character IDs or
+// catalogue of homebrew rules. Native values remain authoritative.
+const WB20_RULES_KEY = "waybeyond20-feature-rules";
+const wb20RuleRerolledRequests = new WeakSet();
+let wb20RuleBusy = false;
+// Synchronous presentation pass only; never cache across a native DOM change,
+// user activation, character change or asynchronous operation.
+let wb20RuleRenderState = null;
+
+function wb20RuleText(value) { return String(value || "").replace(/[’‘]/g,"'").replace(/\s+/g," ").trim(); }
+function wb20RuleName(node) {
+    return Array.from(node?.childNodes || []).filter(n=>n.nodeType === 3).map(n=>n.textContent).join("").trim() || "";
+}
+function wb20ReadNativeFeatureRules() {
+    return Array.from(document.querySelectorAll('.ct-features .ct-feature-snippet,.ct-features .ddbc-feature-snippet,.ct-features [class~="ct-feature-snippet--class"],.ct-features [class~="ct-feature-snippet--racial-trait"],.ct-features [class~="ct-feature-snippet--feat"]')).map(node=>{
+        const heading=node.querySelector('.ct-feature-snippet__heading,.ddbc-feature-snippet__heading,[class*="styles_heading"]');
+        const content=node.querySelector('.ct-feature-snippet__content,.ddbc-feature-snippet__content,[class*="styles_content"]');
+        const actions=Array.from(node.querySelectorAll('.ct-feature-snippet__action-summary,.ddbc-feature-snippet__action-summary')).map(n=>wb20RuleText(wb20RuleName(n)));
+        const options=Array.from(node.querySelectorAll('.ct-feature-snippet__option-content,.ddbc-feature-snippet__option-content')).filter(n=>!content?.contains(n)).map(n=>n.textContent);
+        return {name:wb20RuleName(heading),text:wb20RuleText([content?.textContent,...options].filter(Boolean).join(' ')),actions};
+    }).filter(rule=>rule.name && (rule.text || rule.actions.length));
+}
+// A filtered Features tab unmounts the other categories. Its contents are an
+// update to those rules, not proof that every other owned feature was removed.
+function wb20NativeFeatureRulesComplete() {
+    if (typeof document === "undefined") return false;
+    return Array.from(document.querySelectorAll('.ct-features button')).some(button =>
+        wb20RuleText(button.textContent).toLowerCase() === 'all' &&
+        (button.getAttribute('aria-pressed') === 'true' || /(?:styles_active__|--active\b)/.test(button.className)));
+}
+function wb20MergeNativeFeatureRules(owner, live, complete = wb20NativeFeatureRulesComplete()) {
+    const owned=[...(owner?._class_features || []),...(owner?._racial_traits || []),...(owner?._feats || [])].map(wb20ResourceId);
+    const saved=owner?.getSetting?.(WB20_RULES_KEY,[]) || [];
+    const retained=Array.isArray(saved) ? saved.filter(rule=>rule && typeof rule.name === "string" && typeof rule.text === "string" &&
+        owned.some(name=>name === wb20ResourceId(rule.name) || name.startsWith(wb20ResourceId(rule.name)+" "))).map(rule=>({...rule,actions:Array.isArray(rule.actions)?rule.actions:[]})) : [];
+    // Even an active All tab can be mid-render. Missing descriptions do not
+    // revoke features still present in the owner's list. Replacement is safe
+    // only when every retained owned rule is represented; otherwise merge.
+    if (complete && live.length && retained.every(saved=>live.some(rule=>
+        wb20ResourceId(rule.name)===wb20ResourceId(saved.name)))) return live;
+    for (const rule of live) {
+        const index=retained.findIndex(saved=>wb20ResourceId(saved.name)===wb20ResourceId(rule.name));
+        if (index<0) retained.push(rule); else retained[index]=rule;
+    }
+    return retained;
+}
+function wb20CurrentFeatureRules(owner = character) {
+    if(wb20RuleRenderState?.owner===owner)return wb20RuleRenderState.rules;
+    const live=typeof document === "undefined" ? [] : wb20ReadNativeFeatureRules();
+    const retained=wb20MergeNativeFeatureRules(owner,live);
+    if (!live.length && typeof document !== "undefined") for (const node of document.querySelectorAll('.ct-actions .ct-feature-snippet,.ct-actions .ddbc-feature-snippet')) {
+        const heading=node.querySelector('.ct-feature-snippet__heading,.ddbc-feature-snippet__heading,[class*="styles_heading"]');
+        const name=wb20RuleName(heading),text=wb20RuleText(node.querySelector('.ct-feature-snippet__content,.ddbc-feature-snippet__content,[class*="styles_content"]')?.textContent);
+        if (name && text && !retained.some(rule=>wb20ResourceId(rule.name) === wb20ResourceId(name) ||
+            (wb20RuleOperators(rule).stabilize && wb20ResourceId(name).startsWith(wb20ResourceId(rule.name)+' ')))) retained.push({name,text,actions:[]});
+    }
+    return retained;
+}
+function wb20RuleReductionRoll(type,args) {
+    // A damage-prevention spell is a utility roll, not damage inflicted on its
+    // target. Preserve its already-attached Reaction/slot/commit intents.
+    if (type !== 'spell-attack' || args?.rollAttack || !args?.damages?.length ||
+        !/damage is reduced by\s+\d+d\d+/i.test(wb20RuleText(args.description))) return null;
+    return {type:'custom',fallback:args.damages[0],args:{...args,name:args.name+' — Damage reduction',modifier:args.damages[0],rollAttack:false,rollDamage:false,'waybeyond20-damage-reduction':true}};
+}
+function wb20RuleOperators(rule) {
+    const text=wb20RuleText(rule.text), result={};
+    const natural=text.match(/your unarmed strikes deal\s+(\d*d\d+)/i);
+    if (natural) {result.unarmedDie=natural[1];result.unarmedNames=(rule.actions || []).map(s=>s.replace(/:\s*\d*\s*(?:bonus action|action|reaction|special)\s*$/i,"").trim());}
+    if (/when you hit with an unarmed strike,? you gain temporary (?:hit points|hp) equal to the damage dealt/i.test(text)) result.drain=true;
+    const wards=text.match(/automatically succeed on (?:saving throws|saves) against magical effects that would (?:give you|make you) (.+?)(?:\.|$)/i);
+    if (wards) result.wards=[...wards[1].matchAll(/\b(Incapacitated|Stunned|Unconscious)\b/gi)].map(m=>m[1]);
+    const reroll=text.match(/roll\s+(\d+)\s+or lower on the d20.*?spend\s+(\d+)\s+([A-Za-z ]+?points?)\s+to reroll/i);
+    if (reroll && /must (?:accept|use) the second result/i.test(text)) result.reroll={threshold:Number(reroll[1]),amount:Number(reroll[2]),pool:reroll[3].trim().replace(/point$/i,'Points')};
+    const stabilize=text.match(/spend\s+(\d+)\s+([A-Za-z ]+?points?)\s+to drop to\s+(\d+)\s+HP instead/i);
+    if (stabilize && /reduced to 0 HP and not killed outright/i.test(text)) result.stabilize={amount:Number(stabilize[1]),pool:stabilize[2].trim().replace(/point$/i,'Points'),hp:Number(stabilize[3])};
+    if (/when an ally is next to a creature at the start of your turn,? you have advantage on attacks against it/i.test(text)) result.pack=true;
+    const casting=text.match(/^as (?:an? )?(magic action|bonus action|reaction|action)\b/i);
+    if (casting && !result.reroll && !result.wards) result.activation=({"magic action":"action","bonus action":"bonusAction",reaction:"reaction",action:"action"})[casting[1].toLowerCase()];
+    // These are native options of one shared pool, including Bill's explicit
+    // Control Undead clarification. No class or character identity gate.
+    if (/^(?:channel divinity: )?(?:control undead|abjure foes|divine sense)$/i.test(rule.name)) {
+        result.pool="Channel Divinity";result.activation=/divine sense/i.test(rule.name)?"bonusAction":"action";
+    }
+    return result;
+}
+function wb20RuleIsUnarmed(args, name = args?.name || "") {
+    if (!args || args["attack-source"] === "spell") return false;
+    // A weapon representation of wearable fist gauntlets: read the item itself,
+    // not its display name. Ordinary swords/warhammers mentioning unarmed in
+    // unrelated text do not qualify.
+    if (args["attack-source"] === "item") return /while wearing these gauntlets/i.test(args.description || "") &&
+        /your unarmed strikes deal (?:an )?extra/i.test(args.description || "") && /\b(?:fists|gauntlets)\b/i.test(args.description || "");
+    const clean=wb20RuleText(name).toLowerCase().replace(/\s*\((?:strength|dexterity)\)$/,"");
+    return wb20CurrentFeatureRules().some(rule=>(wb20RuleOperators(rule).unarmedNames || []).some(n=>wb20RuleText(n).toLowerCase() === clean));
+}
+function wb20RuleDrainingSource() { return wb20CurrentFeatureRules().find(rule=>wb20RuleOperators(rule).drain)?.name || null; }
+function wb20RuleResourceAlias(pool,name,owner=character) {
+    return wb20CurrentFeatureRules(owner).some(rule=>{
+        if(wb20ResourceId(rule.name)!==wb20ResourceId(pool.name))return false;
+        const declaration=rule.text.match(/\byou have\s+(\d+)\s+([a-z][a-z ]*?points?)\s+per\s+(?:long|short) rest/i);
+        return declaration && Number(declaration[1]) === pool.max && wb20ResourceId(declaration[2]) === wb20ResourceId(name);
+    });
+}
+
+function wb20RuleActivations() {
+    if(wb20RuleRenderState?.owner===character && wb20RuleRenderState.activations)return wb20RuleRenderState.activations;
+    const activations=wb20CurrentFeatureRules().map(rule=>({...rule,operator:wb20RuleOperators(rule)})).filter(rule=>{
+        const o=rule.operator;return o.wards?.length || o.pack || o.stabilize || o.pool;
+    });
+    if(wb20RuleRenderState?.owner===character)wb20RuleRenderState.activations=activations;
+    return activations;
+}
+function wb20RuleFind(name) {
+    const id=wb20ResourceId(String(name || '').replace(/\s*\((?:special|\d*\s*(?:bonus action|action|reaction))\)\s*$/i,''));
+    return wb20RuleActivations().find(rule=>{
+        const actual=wb20ResourceId(rule.name);
+        return actual === id || id === "channel divinity "+actual ||
+            (rule.operator.stabilize && id.startsWith(actual+' ') && id.endsWith(wb20ResourceId(rule.operator.stabilize.pool)));
+    });
+}
+function wb20RuleCanActivate(name) { return character.getSetting('waybeyond20-feature-controls',true)!==false && !!wb20RuleFind(name); }
+function wb20RuleCurrent(owner, turn) { return owner === character && turn === wayBeyond20AttackActivationTurnKey(); }
+function wb20RuleEscape(value) { return wb20FeatureEscape(value); }
+
+// Presentation only. Extract a short reminder from the current native wording;
+// this does not grant an action, modifier, target or resource entitlement.
+function wb20FeatureReminder(name,description) {
+    const text=wb20RuleText(description),o=wb20RuleOperators({name,text}),parts=[];
+    const within=text.match(/within\s+(\d+)\s*(?:ft\.?|feet)\b/i),duration=text.match(/(?:for (?:the next )?|for\s+)(\d+)\s*(min(?:ute)?s?\.?|hours?|hrs?\.?)/i);
+    const range=within?within[1]+' ft.':null,time=duration?duration[1]+' '+(/^min/i.test(duration[2])?'min':'hr'):null;
+    const push=text.match(/push (?:the creature|a creature|creature|it|the target|target) up to\s+(\d+)\s*ft/i);
+    if(push && /if you hit/i.test(text))return `On hit: push up to ${push[1]} ft.${/large or smaller/i.test(text)?' · Large or smaller':''}`;
+    if(/disadvantage on its next attack roll/i.test(text))return 'On hit: next attack has Disadvantage · before your next turn';
+    if(o.reroll && o.stabilize)return `${o.reroll.amount} point: reroll d20 ≤${o.reroll.threshold} (keep new), or remain at ${o.stabilize.hp} HP`;
+    if(o.wards?.length)return 'Automatic saves vs magical '+o.wards.join(', ');
+    if(o.pack)return 'Advantage if an ally was next to the target at your turn’s start';
+    if(/provokes an opportunity attack/i.test(text) && /cast (?:a |the )?spell/i.test(text) && /(?:one|1) action/i.test(text))return 'Opportunity trigger: cast a one-Action spell at that creature · 1 Reaction';
+    if(/know the location of any celestials, fiends, and undead/i.test(text))return ['Detect Celestials, Fiends and Undead',range,time].filter(Boolean).join(' · ');
+    if(/frightened/i.test(text) && /saving throw|\bsave\b/i.test(text)){
+        const targets=text.match(/(?:target )?up to\s+(\d+)\s+creatures/i),save=text.match(/DC\s+(\d+)\s+(Wis\.?|Wisdom|Dex\.?|Dexterity|Con\.?|Constitution|Str\.?|Strength|Cha\.?|Charisma|Int\.?|Intelligence)\s*(?:saving throw|save)/i);
+        if(targets)parts.push(targets[1]+' creatures');if(range)parts.push(range);if(save)parts.push(save[2].replace(/\.$/,'')+' '+save[1]);parts.push('Frightened'+(time?' '+time:''));if(/until it takes damage/i.test(text))parts.push('ends on damage');return parts.join(' · ');
+    }
+    const purify=text.match(/expend\s+(\d+)\s+HP.*?remove the Poisoned condition/i);if(purify)return `Spend ${purify[1]} pool points: remove Poisoned`;
+    const healing=text.match(/restore a total of\s+(\d+)\s+HP/i);if(healing && /pool of healing/i.test(text))return `${healing[1]} HP healing pool · refills on Long Rest`;
+    if(/touch a creature/i.test(text) && /restore a number of HP/i.test(text) && /pool/i.test(text))return 'Touch: spend healing-pool points to restore that much HP';
+    if(/channel energy directly/i.test(text) && /channel divinity/i.test(text))return 'Shared uses · Long Rest refill; Short Rest regains 1 use';
+    const melee=text.match(/\+(\d+)\s+bonus to melee attack damage rolls/i);if(melee)return [range?`Allies within ${range}`:'Allies',`+${melee[1]} melee damage`,/conscious/i.test(text)?'while conscious':null].filter(Boolean).join(' · ');
+    const sentence=text.split(/(?<=[.!?])\s+/)[0] || '';
+    return sentence.length<=95?sentence:sentence.slice(0,92).replace(/\s+\S*$/,'')+'…';
+}
+
+async function wb20ActivateRule(name) {
+    const rule=wb20RuleFind(name);if (!rule || wb20RuleBusy) return false;
+    const owner=character,turn=wayBeyond20AttackActivationTurnKey(),o=rule.operator,esc=wb20RuleEscape;
+    wb20RuleBusy=true;
+    try {
+        if (o.wards?.length) {
+            const form=await wb20FeatureForm(rule.name,`<p>${esc(rule.text)}</p><label>Condition <select name="condition">${o.wards.map(c=>`<option>${esc(c)}</option>`).join("")}</select></label><p>Applies to a magical effect causing this condition. It does not prevent falling unconscious from 0 HP.</p><label><input type="checkbox" name="magical"> This is a magical effect, not unconsciousness from 0 HP</label>`,"Record automatic success");
+            if (!form || !form.find('[name="magical"]').prop('checked') || !wb20RuleCurrent(owner,turn)) return false;
+            return sendRollWithCharacter('trait',0,{name:rule.name,description:`Automatic saving throw success against the magical ${form.find('[name="condition"]').val()} effect. ${rule.text}`});
+        }
+        if (o.pack) {
+            const form=await wb20FeatureForm(rule.name,`<p>${esc(rule.text)}</p><label>Eligible target(s) <input name="targets" maxlength="300" placeholder="Names, separated by commas"></label><p>Record only creatures that had an ally next to them at the start of your turn. No current-position guess is made.</p>`,"Record for this turn");
+            if (!form || !wb20RuleCurrent(owner,turn)) return false;
+            const targets=String(form.find('[name="targets"]').val()||'').split(',').map(wb20RuleText).filter(Boolean);
+            if (!targets.length) return false;
+            const result=await sendRollWithCharacter('trait',0,{name:rule.name,description:`Eligible this turn: ${targets.join(', ')}. ${rule.text}`});
+            if (result === true && wb20RuleCurrent(owner,turn)) await new Promise(resolve=>owner.mergeCharacterSettings({'waybeyond20-rule-pack':{turn,source:rule.name,targets}},resolve));
+            return result;
+        }
+        if (o.stabilize) {
+            const hp=wayBeyond20CurrentHitPoints();
+            if (hp.current !== 0) {await wb20FeatureForm(rule.name,`<p>${esc(rule.text)}</p><p>Reroll is offered after an eligible d20 result, before that result is delivered. Stabilize becomes available here when you are at 0 HP and were not killed outright.</p>`,"Done");return false;}
+            const form=await wb20FeatureForm(rule.name,`<p>Spend ${o.stabilize.amount} ${esc(o.stabilize.pool)} to drop to ${o.stabilize.hp} HP instead.</p><label><input type="checkbox" name="eligible"> Reduced to 0 HP and not killed outright</label>`,"Use Stabilize");
+            if (!form || !form.find('[name="eligible"]').prop('checked') || !wb20RuleCurrent(owner,turn) || wayBeyond20CurrentHitPoints().current !== 0) return false;
+            const args={name:rule.name+' — Stabilize',description:rule.text,'waybeyond20-resource-costs':[{name:o.stabilize.pool,amount:o.stabilize.amount}]};
+            const result=await sendRollWithCharacter('trait',0,args);
+            if (result === true && wb20RuleCurrent(owner,turn) && wayBeyond20CurrentHitPoints().current === 0) {
+                const applied=await wayBeyond20ApplyHealingToSelf(o.stabilize.hp,{source:rule.name,notify:false});
+                if (!applied.applied) alertify.warning('Stabilize was used. Set HP to 1 manually; do not repeat the feature to retry the HP update.');
+            }
+            return result;
+        }
+        if (o.pool) {
+            const form=await wb20FeatureForm(rule.name,`<p>${esc(rule.text)}</p><p>Uses one ${esc(o.pool)} and one ${o.activation === 'bonusAction'?'Bonus Action':'Action'}.</p><label>Target(s), if applicable <input name="targets" maxlength="300"></label><p>Resolve the target's saving throw and eligibility at the table. An unavailable VTT does not prevent use.</p>`,"Use feature");
+            if (!form || !wb20RuleCurrent(owner,turn)) return false;
+            const args={name:rule.name,description:rule.text+'\nTargets: '+String(form.find('[name="targets"]').val()||'resolve at table'),'waybeyond20-resource-costs':[{name:o.pool,amount:1}]};
+            wayBeyond20AttachTurnResource(args,o.activation,{name:rule.name,rollType:'trait'});
+            const result=await sendRollWithCharacter('trait',0,args);
+            if (result === true && wb20RuleCurrent(owner,turn)) {
+                const duration=wayBeyond20ParseTalentDuration('',rule.text);
+                if (duration.value) wayBeyond20TrackSelfFeatureEffect(rule.name,`${duration.value} ${duration.unit}`, [{name:'Targets',value:String(form.find('[name="targets"]').val()||'resolve at table')}],['feature']);
+            }
+            return result;
+        }
+        return false;
+    } finally {wb20RuleBusy=false;}
+}
+
+async function wb20RulePrepareAttack(args) {
+    if (!args?.rollAttack || args['waybeyond20-followup-phase'] || args['waybeyond20-rule-pack-checked']) return true;
+    args['waybeyond20-rule-pack-checked']=true;
+    const owner=character,turn=wayBeyond20AttackActivationTurnKey(),rule=wb20CurrentFeatureRules().find(r=>wb20RuleOperators(r).pack);
+    if (!rule) return true;
+    const state=wayBeyond20GetTurnTrackerState();
+    const target=[...(state.knownTargets || []),...(state.extraTargets || [])].find(t=>(t.tokenId || t.key) === state.selectedTargetKey);
+    const name=target?.name || state.targetRecords?.[state.selectedTargetKey]?.name || '';
+    const recorded=owner.getSetting('waybeyond20-rule-pack',null);
+    const eligible=recorded?.turn === turn && name && recorded.targets?.some(n=>wb20RuleText(n).toLowerCase() === wb20RuleText(name).toLowerCase());
+    let applies=eligible;
+    if (!eligible) {
+        // No board history is evidence of this start-of-turn requirement. The
+        // player can confirm it even with no VTT or selected target.
+        const form=await wb20FeatureForm(rule.name,`<p>${wb20RuleEscape(rule.text)}</p><label><input type="checkbox" name="eligible"> This attack's target had an ally next to it at the start of my turn</label>`,"Continue attack");
+        if (!form || !wb20RuleCurrent(owner,turn)) return false;
+        applies=!!form.find('[name="eligible"]').prop('checked');
+    }
+    if (applies) {
+        // Combine after the normal global/hotkey/query modifiers have resolved.
+        // The existing combiner handles cancellation and Super modes.
+        if (args['waybeyond20-explicit-attack-mode'] === undefined) args['waybeyond20-rule-advantage']=true;
+        addEffect(args,rule.name);
+    }
+    return true;
+}
+function wb20RuleApplyResolvedAdvantage(request) {
+    if (!request['waybeyond20-rule-advantage']) return;
+    delete request['waybeyond20-rule-advantage'];adjustRollAndKeyModifiersWithAdvantage(request);
+}
+
+async function wb20RuleRerollD20(rolls,request,roller) {
+    if (!request || wb20RuleRerolledRequests.has(request) || request['waybeyond20-portent-value'] !== undefined ||
+        !['attack','spell-attack','skill','ability','saving-throw','death-save','initiative'].includes(request.type)) return;
+    const owner=character,turn=wayBeyond20AttackActivationTurnKey();
+    const rule=wb20CurrentFeatureRules().find(r=>wb20RuleOperators(r).reroll);if (!rule) return;
+    const cost=wb20RuleOperators(rule).reroll;
+    let pool=wb20Resource(cost.pool,owner);
+    if (!pool || pool.remaining === null) await wb20VisitResourceSheets(async()=>{const found=wb20Resource(cost.pool,owner);if(found && found.remaining!==null)pool=found;},owner);
+    if (!wb20RuleCurrent(owner,turn)) return;
+    if (!pool || pool.remaining === null || pool.remaining < cost.amount) return;
+    const choices=[];
+    for (const roll of rolls) {
+        if (roll._roll_type === 'damage') continue;
+        for (const die of roll.dice || []) if (die.faces === 20) for (const result of die.rolls || [])
+            if (!result.discarded && result.roll <= cost.threshold) choices.push({roll,die,result});
+    }
+    if (!choices.length) return;
+    const form=await wb20FeatureForm(rule.name,`<p>Spend ${cost.amount} ${wb20RuleEscape(cost.pool)} to reroll one d20 showing ${cost.threshold} or lower. The new result must be kept, even if lower. Other dice and modifiers are unchanged.</p><select name="die">${choices.map((c,i)=>`<option value="${i}">d20: ${c.result.roll} (total ${c.roll.total})</option>`).join('')}</select>`,"Spend and reroll","Keep roll");
+    if (!form || !wb20RuleCurrent(owner,turn)) return;
+    const choice=choices[Number(form.find('[name="die"]').val())];if (!choice) return;
+    const fresh=wb20Resource(cost.pool,owner);if (!fresh || fresh.remaining < cost.amount) return;
+    const replacement=roller.roll('1d20');await replacement.roll();
+    if (!wb20RuleCurrent(owner,turn)) return;
+    // Already inside the shared dispatch transaction: do not acquire its lock
+    // again. Expected-value native spending protects another-tab changes.
+    if (!await wb20SetResource(fresh.name,fresh.remaining-cost.amount,{owner,expected:fresh.remaining,reason:rule.name+' reroll'})) {
+        alertify.warning('The reroll resource could not be updated. The original roll is retained; check Correction.');return;
+    }
+    choice.result.discarded=true;
+    choice.die.rolls.push({roll:replacement.total});choice.die.calculateTotal();choice.roll.calculateTotal();
+    wb20RuleRerolledRequests.add(request);addEffect(request,rule.name+' reroll');
+}
+
+function wb20RuleRows(root, existing = []) {
+    const entries=[],wanted=new Set();
+    if (character.getSetting('waybeyond20-feature-controls',true)===false) {root.querySelectorAll(':scope > .wb20-rule-row').forEach(n=>n.remove());return entries;}
+    for (const rule of wb20RuleActivations()) {
+        if (existing.some(entry=>wb20RuleFind(entry.name)?.name === rule.name)) continue;
+        wanted.add(rule.name);
+        let row=Array.from(root.querySelectorAll(':scope > .wb20-rule-row')).find(n=>n._wb20RuleName === rule.name);
+        if (!row) {
+            row=document.createElement('div');row.className='ddbc-combat-attack wb20-feature-option wb20-rule-row';row._wb20RuleName=rule.name;
+            row.innerHTML='<button type="button" class="wb20-feature-option-icon"><svg viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" d="M10 2 18 10 10 18 2 10Z"/></svg></button><div class="ddbc-combat-attack__name"><span class="wb20-rule-label"></span></div><div class="ddbc-combat-attack__range"></div><div class="ddbc-combat-attack__action"></div><div class="ddbc-combat-attack__damage"></div><div class="ddbc-combat-attack__notes"></div>';
+            row.querySelector('button').addEventListener('click',()=>{if(row._wb20RuleOwner === character) wb20ActivateRule(row._wb20RuleName).catch(console.warn);});root.append(row);
+        }
+        row._wb20RuleOwner=character;
+        const pool=rule.operator.pool ? wb20Resource(rule.operator.pool) : rule.operator.stabilize ? wb20Resource(rule.operator.stabilize.pool) : null;
+        const values={name:rule.name,range:'—',action:'—',damage:'—',notes:pool?.remaining !== null && pool ? `${pool.remaining}/${pool.max} ${pool.name}` : rule.operator.pool?'1 '+rule.operator.pool:rule.operator.stabilize?'Stabilize / reroll':'Feature'};
+        for(const [field,value] of Object.entries(values)){const el=row.querySelector(field==='name'?'.wb20-rule-label':'.ddbc-combat-attack__'+field);if(el.textContent!==value)el.textContent=value;}
+        const button=row.querySelector('button');if(button.title!==rule.text){button.title=rule.text;button.setAttribute('aria-label','Use '+rule.name);}
+        const cost=rule.operator.activation || 'special';entries.push({row,name:rule.name,cost,group:cost==='special'?'action':cost});
+    }
+    for(const row of root.querySelectorAll(':scope > .wb20-rule-row'))if(!wanted.has(row._wb20RuleName))row.remove();
+    return entries;
+}
+
+function wb20RuleToolbar(toolbar) {
+    if (toolbar.querySelector('.wb20-feature-rules') || !wb20CurrentFeatureRules().length || character.getSetting('waybeyond20-feature-controls',true)===false) {toolbar.querySelector('.wb20-rule-library')?.remove();return;}
+    const controls=toolbar.querySelector('.wb20-action-list-controls');if(!controls || controls.querySelector('.wb20-rule-library'))return;
+    const button=document.createElement('button');button.type='button';button.className='wb20-rule-library';button.textContent='Feature rules';
+    button.addEventListener('click',()=>{
+        const body=wb20CurrentFeatureRules().map(rule=>`<p><strong>${wb20RuleEscape(rule.name)}</strong><br>${wb20RuleEscape(rule.text)}</p>`).join('');
+        wb20FeatureForm('Feature rules',body,'Done').catch(console.warn);
+    });controls.append(button);
+}

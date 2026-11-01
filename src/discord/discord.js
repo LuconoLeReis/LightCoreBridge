@@ -1,7 +1,7 @@
 //from constants import DISCORD_BOT_API_URL;
 
 async function postToDiscord(secret, request, title, source, attributes, description, attack_rolls, roll_info, damage_rolls, total_damages, open, settings) {
-    secret = (secret || "").trim();
+    secret = typeof secret === "string" ? secret.trim() : "";
     if (!secret) return;
 
     if (request['original-whisper'] !== undefined)
@@ -29,7 +29,8 @@ async function postToDiscord(secret, request, title, source, attributes, descrip
             headers: {
                 'Content-Type': 'application/json; charset=utf-8'
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(3000)
         });
         const json = await response.json();
         if (json.error)

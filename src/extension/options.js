@@ -1,10 +1,8 @@
-var advancedOptions = false;
-
 function createOptionList() {
     $("main .beyond20-options").remove();
     const options = [];
     for (let option in options_list) {
-        const child = createHTMLOption(option, false, options_list, {advanced: advancedOptions});
+        const child = createHTMLOption(option, false, options_list, {advanced: !!options_list[option].advanced});
         if (child)
             options.push(child);
     }
@@ -25,6 +23,7 @@ function save_settings() {
 
 function gotSettings(stored_settings) {
     $("ul").removeClass("disabled");
+    wayBeyond20OrganizeSettings();
 }
 
 function setupHTML() {
@@ -44,11 +43,6 @@ function setupHTML() {
 function setupOptionsMenu() {
     setupHTML();
     $('#save').on('click', save_settings);
-    $('#advanced').on('click', (ev) => {
-        advancedOptions = !advancedOptions;
-        $(ev.target).text(advancedOptions ? "Basic Options" : "Advanced Options");
-        setupHTML();
-    });
     $('#display-current-settings').on('click', wayBeyond20DisplayCurrentSettings);
     $('#copy-current-settings').on('click', () => wayBeyond20CopyTextArea('#settings-report', '#copy-current-settings'));
     $('#close-current-settings').on('click', () => $('#settings-report-panel').addClass('hide'));

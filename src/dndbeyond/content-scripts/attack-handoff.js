@@ -34,9 +34,16 @@ function wb20ContinueCombatHandoff() {
         const pane = $(panes[0]);
         if (pane.find('.ct-sidebar__heading').text().trim() !== request.name) continue;
         const properties = propertyListToDict(pane.find('[role=list] > div'));
-        // A heading alone is not a ready action. Modern action panes need not
-        // contain the old ct-available-actions class. Reuse the real parser.
-        if (!['To Hit','Damage','Attack/Save'].some(key => properties[key] !== undefined)) continue;
+        // A heading alone is not ready. Spell casting/damage controls live
+        // outside the property list; use the inputs consumed by rollSpell().
+        // Physical actions/items still require their actual parsed attack data.
+        const ready = paneClass === 'ct-spell-pane'
+            ? !!(properties['Casting Time'] && properties['Range/Area'] &&
+                pane.find('.ct-spell-detail__level-school-item').text().trim() &&
+                pane.find('.ct-spell-detail__description,div[class*="styles_description"]').text().trim() &&
+                pane.find('.ct-spell-caster').length)
+            : ['To Hit','Damage','Attack/Save'].some(key => properties[key] !== undefined);
+        if (!ready) continue;
         const options = request.options;
         wb20CancelCombatHandoff(); // Claim before execute can trigger mutations.
         Promise.resolve(execute(paneClass, options)).catch(error =>

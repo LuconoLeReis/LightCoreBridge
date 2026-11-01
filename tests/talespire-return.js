@@ -57,6 +57,11 @@ function sheet() {
         const headers={Authorization:'Bearer '+pair.key,'Content-Type':'application/json'};
         assert.equal((await fetch(base+'/state',{method:'POST',headers,body:JSON.stringify(snapshot())})).status,200);
         const live=await (await fetch(base+'/state',{headers})).json(); assert.equal(live.connected,true); assert.equal(live.snapshot.activeIndex,0);
+        assert.equal((await fetch(base+'/receipt',{method:'POST',body:'{}'})).status,401);
+        assert.equal((await fetch(base+'/receipt',{method:'POST',headers,body:JSON.stringify({id:'completed-roll-123'})})).status,200);
+        assert.deepEqual((await (await fetch(base+'/receipts',{headers})).json()).ids,['completed-roll-123']);
+        clock+=31000;
+        assert.deepEqual((await (await fetch(base+'/receipts',{headers})).json()).ids,[],'receipts expire');
         clock+=11000; assert.equal((await (await fetch(base+'/state',{headers})).json()).connected,false,'stale feed is disconnected, not combat ended');
         assert.equal((await fetch(base+'/state',{method:'POST',headers,body:'invalid'})).status,400);
         assert.equal((await fetch(base+'/state',{method:'POST',headers,body:'x'.repeat(131073)})).status,413);

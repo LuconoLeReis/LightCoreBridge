@@ -401,7 +401,7 @@ function wb20FeatureRows(root) {
             root.append(row);
         }
         row._wb20Owner = character;
-        const set = (cls, value) => { const el = row.querySelector(cls); if (el.textContent !== value) el.textContent = value; };
+        const set = (cls, value) => { const el = row.querySelector(cls); if (cls === ".ddbc-combat-attack__range" && typeof wb20SetActionRange === "function") wb20SetActionRange(el,value); else if (el.textContent !== value) el.textContent = value; };
         const healing = name.includes("Healing") || name.includes("Mercy");
         set(".wb20-talent-category", healing ? "Heal Creature" : name.includes("Strike") || name.includes("Flurry") ? "Unarmed Strike" : "Feature");
         set(".ddbc-combat-attack__range", healing ? "Touch" : name.includes("Strike") || name.includes("Flurry") ? "5 ft." : "Self");

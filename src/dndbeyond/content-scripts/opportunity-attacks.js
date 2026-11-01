@@ -37,6 +37,7 @@ function wayBeyond20AttackContextCurrent(context) {
 }
 
 function wayBeyond20LiveFeatureRules() {
+    if (typeof wb20CurrentFeatureRules === "function") return wb20CurrentFeatureRules();
     return Array.from(document.querySelectorAll(".ct-feature-snippet,.ddbc-feature-snippet")).map(node => ({
         name: node.querySelector(".ct-feature-snippet__heading,.ddbc-feature-snippet__heading")?.textContent.trim() || "",
         text: node.textContent.replace(/\s+/g, " ").trim()
@@ -126,8 +127,16 @@ function wayBeyond20ReactiveSpellRule(rules) {
     // A rule capability, not a feat-name lookup. Preserve its full trigger for
     // the player: e.g. leaving reach is narrower than all possible OA triggers.
     return rules.find(rule => /opportunity attack/i.test(rule.text) &&
-        /cast (?:a |the )?spell/i.test(rule.text) && /instead/i.test(rule.text) &&
+        /cast (?:a |the )?spell/i.test(rule.text) && /instead|rather than/i.test(rule.text) &&
         /(?:one|1) action/i.test(rule.text) && /target only (?:that|the) creature/i.test(rule.text));
+}
+
+function wayBeyond20ReactiveSpellTiming(row) {
+    const node=row.querySelector('.ct-spells-spell__activation,.ddbc-spells-spell__activation');
+    const text=(node?.querySelector('[data-original-title]')?.getAttribute('data-original-title') || node?.textContent || '').trim().toLowerCase().replace(/\s+/g,' ');
+    if(/^(?:1|one)\s*(?:a|action)$/.test(text))return true;
+    if(/^(?:1|one)\s*(?:ba|bonus action|r|reaction)$/.test(text) || /\b(?:minutes?|mins?|hours?|hrs?|days?|rounds?)\b/.test(text))return false;
+    return null; // Unknown markup is rechecked against the full native pane.
 }
 
 async function wayBeyond20ChooseReactiveSpell(context) {
@@ -144,22 +153,22 @@ async function wayBeyond20ChooseReactiveSpell(context) {
                     const identity = wayBeyond20NativeSpellIdentity(row);
                     const button = Array.from(row.querySelectorAll(".ct-spells-spell__action button,.ddbc-spells-spell__action button"))
                         .find(button => /^(cast|use)$/i.test(button.textContent.trim()) && !button.disabled);
-                    return {row, identity, button};
-                }).filter(entry => entry.identity && entry.button);
+                    return {row, identity, button, timing:wayBeyond20ReactiveSpellTiming(row)};
+                }).filter(entry => entry.identity && entry.button && entry.timing!==false);
             if (entries.length) break;
             await new Promise(resolve => setTimeout(resolve, 75));
         }
         if (!entries.length) {
-            alertify.warning("No available Cast/Use spell controls were found. Nothing was spent.");
+            alertify.warning("No available one-Action spells were found for Reactive Spell. Nothing was spent.");
             return false;
         }
         const escape = wayBeyond20EscapeFollowupText;
         const response = await dndbeyondDiceRoller._prompter.prompt("Reactive spell", "<form><p>" +
             escape(context.spellRule.text) + "</p><p>Choose a spell and casting level. Its full casting time " +
-            "will be checked before casting. Only the provoking creature may be targeted.</p>" +
+            "will be checked before casting. A cantrip or a spell using a slot can qualify. Only the provoking creature may be targeted; this use spends a Reaction.</p>" +
             '<select name="spell">' + entries.map((entry, index) =>
                 `<option value="${index}">${escape(entry.identity.name)} | ${escape(entry.identity.source)} | ` +
-                `${escape(entry.row.closest(".ct-content-group,.ddbc-content-group")?.querySelector(".ct-content-group__header,.ddbc-content-group__header")?.textContent || "")}</option>`
+                `${escape(entry.row.closest(".ct-content-group,.ddbc-content-group")?.querySelector(".ct-content-group__header,.ddbc-content-group__header")?.textContent || "")}${entry.timing===null?' | Casting time unverified':''}</option>`
             ).join("") + '</select></form>', "Choose spell", "Cancel");
         if (!response || !wayBeyond20AttackContextCurrent(context)) return false;
         const value = response.find('[name="spell"]').val();
@@ -361,8 +370,10 @@ function wayBeyond20OpportunityRow(root) {
     const selected = wayBeyond20DefaultOpportunityEntry(wayBeyond20OpportunityEntries(root));
     const setText = (selector, text) => {
         const cell = row.querySelector(selector);
-        if (cell.textContent !== text) cell.textContent = text;
+        if (selector === ".ddbc-combat-attack__range" && typeof wb20SetActionRange === "function") wb20SetActionRange(cell,text);
+        else if (cell.textContent !== text) cell.textContent = text;
     };
+    row._wb20PresentationSource = selected?.row || null;
     setText(".wb20-talent-category", selected?.name || "Choose an attack");
     setText(".ddbc-combat-attack__range", selected?.range || "—");
     setText(".ddbc-combat-attack__action", selected?.hit || "—");

@@ -148,16 +148,26 @@ function isSupportedVTT(tab) {
 }
 
 function alertSettings(url, title) {
-    if (alertify.Beyond20Settings === undefined)
-        alertify.dialog('Beyond20Settings', function () { return {}; }, false, "alert");
-
-    const popup = chrome.runtime.getURL(url);
-    const img = E.img({ src: chrome.runtime.getURL("images/icons/icon32.png"), style: "margin-right: 3px;" })
-    const iframe = E.iframe({ src: popup, style: "width: 100%; height: 100%;", frameborder: "0", scrolling: "yes" });
-    const dialog = alertify.Beyond20Settings(img.outerHTML + title, iframe);
-    const width = Math.min(720, window.innerWidth / 2); // 720px width or 50% on small screens
-    dialog.set('padding', false).set('resizable', true).set('overflow', false).resizeTo(width, "80%");
-
+    // Settings live in a browser tab, never in a sheet-owned iframe/modal.
+    // The worker obtains the source tab from the sender rather than trusting an ID.
+    const readTheme = () => {
+        const native = document.querySelector('.ct-saving-throws-box,.ddbc-saving-throws-box,.ct-ability-summary,.ddbc-ability-summary') || document.body;
+        const ink = native.querySelector('.ct-signed-number,.ddbc-signed-number') || native;
+        const surface = native.querySelector('.ddbc-box-background svg path[fill]:not([fill="none"]),.ddbc-box-background svg rect[fill]:not([fill="none"])');
+        const style = getComputedStyle(native);
+        return {surface: surface ? getComputedStyle(surface).fill : style.backgroundColor === 'rgba(0, 0, 0, 0)' ? 'Canvas' : style.backgroundColor,
+            text: getComputedStyle(ink).color, accent: style.borderColor};
+    };
+    // Old content handlers may survive an extension reload. They must not throw
+    // when Chrome has removed or invalidated their runtime bridge.
+    const runtime = typeof chrome !== "undefined" ? chrome.runtime : null;
+    const unavailable = () => console.warn("WayBeyond20: Settings could not open. Refresh this sheet after an extension reload.");
+    if (!runtime || typeof runtime.sendMessage !== "function") { unavailable(); return; }
+    try {
+        runtime.sendMessage({action: 'wb20-open-settings-tab', page: url, theme: readTheme()}, () => {
+            if (runtime.lastError) unavailable();
+        });
+    } catch (_) { unavailable(); }
 }
 function alertQuickSettings() {
     alertSettings("popup.html", "WayBeyond20 Quick Settings");

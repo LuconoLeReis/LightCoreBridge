@@ -14,12 +14,13 @@ var settings = null;
 function gotSettings(stored_settings) {
     settings = stored_settings;
     $("ul").removeClass("disabled");
+    wayBeyond20OrganizeSettings();
 }
 
 function createOptionList() {
     const options = [];
     for (let option in options_list) {
-        const child = createHTMLOption(option, true);
+        const child = createHTMLOption(option, false, options_list, {advanced: !!options_list[option].advanced});
         if (child) {
             options.push(child);
         }
@@ -31,12 +32,6 @@ function createOptionList() {
                 E.span({style: "display: flex;"},
                     E.a({ id: "openOptions", href: '#', style: "flex-grow: 1;" },
                         E.h4({}, "More Options")
-                    ),
-                    E.a({ id: "openEffects", href: '#', style: "flex-grow: 1;" },
-                        E.h4({}, "▼ Effects")
-                    ),
-                    E.a({ id: "toggleAdvanced", href: '#', style: "display: none;" },
-                        E.h4({}, "▼ Advanced Options")
                     )
                 )
             )
@@ -49,25 +44,13 @@ function createOptionList() {
         "height": 32
     });
     $("#openOptions").on('click', (ev) => {
-        chrome.runtime.openOptionsPage();
+        ev.preventDefault();
+        // Continue in this settings tab; never send an open-options command to the sheet.
+        if (new URLSearchParams(location.search).has('sourceTab'))
+            window.location.href = chrome.runtime.getURL('options.html') + window.location.hash;
+        else chrome.runtime.openOptionsPage();
     });
 
-    $("#openEffects").on('click', (ev) => {
-        $(".beyond20-options .effects-option").toggle();
-        $(".beyond20-options .advanced-option").hide();
-    }).hide();
-
-    $("#toggleAdvanced").on('click', () => {
-        $(".beyond20-options .advanced-option").toggle();
-        $(".beyond20-options .effects-option").hide();
-    });
-}
-
-function canAlertify(tab_id) {
-    $("#openOptions").off('click').on('click', (ev) => {
-        sendMessageToTab(tab_id, { "action": "open-options" });
-        window.close();
-    });
 }
 
 function save_settings() {
@@ -425,17 +408,12 @@ function populateCharacter(response) {
             $("#beyond20-option-discord-target").addClass("advanced-option");
         
         }
-        options.find(".effects-option").hide();
-        options.find(".advanced-option").hide();
-        $("#toggleAdvanced").show();
+        wayBeyond20OrganizeSettings();
     });
 }
 
 function addMonsterOptions() {
-    const option = options_list["whisper-type-monsters"];
-    option["short"] = "Whisper monster rolls";
-    let e = createHTMLOptionEx("whisper-type-monsters", option, true);
-    $(e).insertAfter($("#whisper-type").parents("li"));
+    // Global monster privacy settings are already present in the shared menu.
     const options = $(".beyond20-options");
     options.append(
         E.li({ class: "list-group-item beyond20-option", style: "text-align: center; padding: 10px;" },
@@ -443,10 +421,6 @@ function addMonsterOptions() {
         )
     );
 
-    e = createHTMLOption("subst-dndbeyond-stat-blocks", false);
-    options.append(e);
-    e = createHTMLOption("handle-stat-blocks", false);
-    options.append(e);
     $('.beyond20-option-input').off('change', save_settings);
     $('.beyond20-option-input').change(save_settings);
     initializeSettings(gotSettings);
@@ -454,7 +428,7 @@ function addMonsterOptions() {
 
 function addEncounterOptions() {
     const options = $(".beyond20-options");
-    options.append(createHTMLOption("sync-combat-tracker", false));
+    // The global control is already rendered once in Sheet and combat.
 }
 
 function tabMatches(tab, url) {
@@ -471,15 +445,8 @@ function actOnCurrentTab(tab) {
                 E.h4({}, ` == ${vtt} Tab Specific Options ==`)
             )
         );
-        let e = null;
-        if (vtt == "Roll20") {
-            e = createHTMLOption("roll20-template", false, undefined, { advanced: true });
-            options.append(e);
-        }
-        e = createHTMLOption("display-conditions", false);
-        options.append(e);
-        e = options_list["vtt-tab"].createHTMLElement("vtt-tab", true);
-        options.append(e);
+        // Replace the existing destination with context-aware World/Tab choices.
+        $("#beyond20-option-vtt-tab").replaceWith(options_list["vtt-tab"].createHTMLElement("vtt-tab", true));
         $('.beyond20-option-input').off('change', save_settings);
         $('.beyond20-option-input').change(save_settings);
         initializeSettings(gotSettings);
@@ -492,12 +459,6 @@ function actOnCurrentTab(tab) {
         addMonsterOptions();
     } else {
         initializeSettings(gotSettings);
-    }
-    // If on Firefox, we can't use the permissions API from the alertify window
-    // so let the "More Options" open the options page in Firefox itself
-    // unless the popup is opened in an alertify dialog already
-    if (getBrowser() !== "Firefox" || !chrome.runtime.openOptionsPage) {
-        canAlertify(tab.id);
     }
     // Do not check for permissions if it's running from inside the page script
     const chromeOrBrowser = getBrowser() === "Firefox" ? browser : chrome;
@@ -536,9 +497,24 @@ function actOnCurrentTab(tab) {
 
 
 setupHTML();
-// Check if the popup is in the browser action or open in alertify from within an active DDB/VTT page
-if (chrome.tabs != undefined) {
-    chrome.tabs.query({ "active": true, "currentWindow": true }, (tabs) => actOnCurrentTab(tabs[0]));
+// A separate settings tab must inspect the originating sheet, not itself or a
+// different sheet the user has since activated. A closed source keeps globals usable.
+const sourceTab = new URLSearchParams(location.search).get('sourceTab');
+if (chrome.tabs && sourceTab !== null) {
+    if (/^\d+$/.test(sourceTab)) {
+        chrome.tabs.get(Number(sourceTab), tab => {
+            if (chrome.runtime.lastError || !tab) initializeSettings(gotSettings);
+            else actOnCurrentTab(tab);
+        });
+    } else initializeSettings(gotSettings);
+} else if (chrome.tabs) {
+    chrome.tabs.query({active:true, currentWindow:true}, tabs => {
+        if (tabs?.[0]) actOnCurrentTab(tabs[0]);
+        else initializeSettings(gotSettings);
+    });
 } else {
-    chrome.runtime.sendMessage({ "action": "get-current-tab" }, actOnCurrentTab);
+    chrome.runtime.sendMessage({action:'get-current-tab'}, tab => {
+        if (chrome.runtime.lastError || !tab) initializeSettings(gotSettings);
+        else actOnCurrentTab(tab);
+    });
 }

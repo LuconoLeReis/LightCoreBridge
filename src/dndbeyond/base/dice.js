@@ -1,9 +1,60 @@
+// One nonmodal, temporary local result panel. It never owns roll execution.
+function wb20CreateLocalRollPanel() {
+    const host = document.createElement('details');
+    host.id = 'wb20-local-rolls'; host.hidden = true;
+    host.setAttribute('aria-label', 'Local roll results');
+    const label = document.createElement('summary');
+    const title = document.createElement('span'); title.textContent = 'Local rolls';
+    const close = document.createElement('button'); close.type = 'button'; close.textContent = 'Close';
+    close.setAttribute('aria-label', 'Dismiss local rolls');
+    const records = document.createElement('div'); records.className = 'wb20-local-roll-records';
+    label.append(title, close); host.append(label, records);
+    let timer = null, fadeTimer = null;
+    const clear = () => { clearTimeout(timer); clearTimeout(fadeTimer); timer = fadeTimer = null; };
+    const outside = event => { if (!host.contains(event.target)) dismiss(); };
+    const escape = event => { if (event.key === 'Escape') dismiss(); };
+    function dismiss() {
+        clear(); host.hidden = true; host.open = false;
+        host.classList.remove('wb20-local-rolls-fading');
+        document.removeEventListener('pointerdown', outside, true);
+        document.removeEventListener('keydown', escape);
+    }
+    function arm() {
+        clear(); host.classList.remove('wb20-local-rolls-fading');
+        const raw = dndbeyondDiceRoller._settings?.['local-roll-display-duration'];
+        const seconds = raw == null || raw === '' ? 5 : Number(raw);
+        const duration = Number.isFinite(seconds) && seconds >= 0 && seconds <= 120 ? seconds : 5;
+        if (!duration || host.hidden || host.matches(':hover') || host.contains(document.activeElement)) return;
+        timer = setTimeout(() => {
+            host.classList.add('wb20-local-rolls-fading');
+            fadeTimer = setTimeout(dismiss, 180);
+        }, duration * 1000);
+    }
+    host.wb20Present = () => {
+        host.hidden = false; host.open = true;
+        document.addEventListener('pointerdown', outside, true);
+        document.addEventListener('keydown', escape);
+        arm();
+    };
+    const pause = () => { clear(); host.classList.remove('wb20-local-rolls-fading'); };
+    host.wb20Dismiss = dismiss;
+    close.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); dismiss(); });
+    host.addEventListener('pointerenter', pause);
+    host.addEventListener('pointerleave', arm);
+    host.addEventListener('focusin', pause);
+    host.addEventListener('focusout', event => { if (!host.contains(event.relatedTarget)) arm(); });
+    window.addEventListener('pagehide', dismiss, {once:true});
+    document.body.append(host);
+    if (typeof wayBeyond20ApplySheetTheme === 'function') wayBeyond20ApplySheetTheme(host, {panel:true});
+    return host;
+}
+
 class DNDBDisplayer {
     constructor() {
         this._error = null;
     }
 
-    postHTML(request, title, html, character, whisper, play_sound, source, attributes, description, attack_rolls, roll_info, damage_rolls, total_damages, open) {
+    postHTML(request, title, html, character, whisper, play_sound, source, attributes, description, attack_rolls, roll_info, damage_rolls, total_damages, open, presentation = {}) {
         let content = "<div class='beyond20-dice-roller'>";
         if (this._error) {
             content += "<div class='beyond20-roller-error'>" +
@@ -15,13 +66,36 @@ class DNDBDisplayer {
         content += "<div class='beyond20-dice-roller-content'>" + html + "</div>" +
             "</div>";
         // Avoid having duplicate results displayed
-        DigitalDiceManager.clearResults();
-        const dlg = alertify.Beyond20Roll(title, content);
-        dlg.set('onclose', () => {
-            dlg.set('onclose', null);
-            dlg.destroy();
-        });
-        const element = $(dlg.elements.content.firstElementChild);
+        if (!presentation.automatic) DigitalDiceManager.clearResults();
+        let root,receipt=null;
+        if(presentation.automatic){
+            // Retain the completed result locally without opening an information
+            // dialog over gameplay. Every result remains accessible through this
+            // temporary, nonmodal panel; a tab match is not a render acknowledgment.
+            let host=document.getElementById('wb20-local-rolls');
+            if (!host) host = wb20CreateLocalRollPanel();
+            const records=host.querySelector('.wb20-local-roll-records');
+            const record=document.createElement('details');record.className='wb20-local-roll-card';record.hidden=true;
+            const summary=document.createElement('summary');summary.textContent=title || 'Roll result';
+            const body=document.createElement('div');body.innerHTML=content;record.append(summary,body);records.prepend(record);root=body.firstElementChild;
+            while(records.children.length>20)records.lastElementChild.remove();
+            // Only the outer panel has a frame; result cards inherit its theme.
+            receipt={show:()=>{
+                // A burst may evict this pending record from the bounded history.
+                // Its completed result is still held by this closure until delivery settles.
+                if(host.isConnected){if(!record.isConnected)records.prepend(record);
+                    for (const previous of records.children) previous.open = false;
+                    record.hidden=false;record.open=true;host.wb20Present();
+                    while(records.children.length>20)records.lastElementChild.remove();}
+            },discard:()=>{record.remove();if(!Array.from(records.children).some(n=>!n.hidden))host.wb20Dismiss();}};
+        } else {
+            const dlg=alertify.Beyond20Roll(title,content);
+            dlg.set('onclose',()=>{dlg.set('onclose',null);dlg.destroy();});
+            root=dlg.elements.content.firstElementChild;
+            const dialog=root.closest?.('.ajs-dialog');
+            if(dialog){dialog.classList.add('wb20-result-dialog');if(typeof wayBeyond20ApplySheetTheme==='function')wayBeyond20ApplySheetTheme(dialog, {panel:true});}
+        }
+        const element = $(root);
         const icon = chrome.runtime.getURL("images/icons/badges/custom20.png");
         element.find(".ct-beyond20-custom-icon").attr('src', icon);
         element.find(".ct-beyond20-custom-roll").on('click', (event) => {
@@ -34,6 +108,7 @@ class DNDBDisplayer {
             request.rollCritical = attack_rolls.some(r => !r.discarded && r["critical-success"])
             dndbeyondDiceRoller.handleRollRequest(request);
         });
+        return receipt;
     }
 
     async sendMessageToDOM(request, title, html, character, whisper, play_sound, source, attributes, description, attack_rolls, roll_info, damage_rolls, total_damages, open) {
@@ -58,38 +133,44 @@ class DNDBDisplayer {
         return req;
     }
     async sendMessage(request, title, html, character, whisper, play_sound, source, attributes, description, attack_rolls, roll_info, damage_rolls, total_damages, open) {
-        // sendRoll waits on this send for a digital-dice roll (brief 1.11, F-L4).
-        const delivery = typeof wayBeyond20RollDeliveries !== "undefined" ? wayBeyond20RollDeliveries.get(request) : null;
-        if (delivery) {
-            wayBeyond20RollDeliveries.delete(request);
-            delivery.invoked = true;
+        const args=[request,title,html,character,whisper,play_sound,source,attributes,description,
+            attack_rolls,roll_info,damage_rolls,total_damages,open];
+        const delivery=typeof wayBeyond20RollDeliveries !== "undefined" ? wayBeyond20RollDeliveries.get(request) : null;
+        if (delivery) {wayBeyond20RollDeliveries.delete(request);delivery.invoked=true;}
+        let receipt;
+        try {
+            this.setError(null);
+            receipt=this.postHTML(...args,{automatic:true});
+        } catch (error) {
+            const shown=typeof wayBeyond20LocalResultFallback === "function" && wayBeyond20LocalResultFallback(title,html);
+            if (!shown) {
+                if (delivery) delivery.resolve({ok:false,error:String(error)});
+                return;
+            }
         }
-        if (request["waybeyond20-local-only"]) {
-            // Nothing is forwarded, including private rolls. Display only on the
-            // originating sheet, using the result already resolved by the renderer.
-            this.postHTML(request, title, html, character, whisper, play_sound, source, attributes, description,
-                attack_rolls, roll_info, damage_rolls, total_damages, open);
-            if (delivery) delivery.resolve({ok: true, local: true});
-            return;
+        // Commit the completed local result before touching any optional bridge.
+        if (delivery) delivery.resolve({ok:true,local:true});
+        // Internal completion is independent of where the result is displayed.
+        // Respect the existing privacy/digital-dice suppression settings on fallback.
+        const displaySettings=dndbeyondDiceRoller._settings || {};
+        const suppressLocal=(whisper === WhisperType.YES && displaySettings['vtt-tab']?.vtt === 'dndbeyond' &&
+            displaySettings['hide-results-on-whisper-to-discord']) ||
+            (displaySettings['use-digital-dice'] && displaySettings['hide-results-with-digital-dice']);
+        const showLocal=()=>{if(!suppressLocal)receipt?.show?.();else receipt?.discard?.();};
+        if (request["waybeyond20-local-only"]) {showLocal();return;}
+        try {
+            const req=await this.sendMessageToDOM(...args);
+            const outcome=await wayBeyond20SendRuntimeMessage(req);
+            // Do not call handleRollError here: it can reroll a raw request or
+            // show the same rendered result twice. A failed send is just a send.
+            if (!outcome.ok || outcome.response?.error || outcome.response?.delivered!==true) {
+                showLocal();
+            } else {
+                receipt?.discard?.();
+            }
+        } catch (error) {
+            showLocal();
         }
-        const req = await this.sendMessageToDOM(request, title, html, character, whisper, play_sound, source, attributes, description, attack_rolls, roll_info, damage_rolls, total_damages, open);
-        console.log("Sending message: ", req);
-        const outcome = await wayBeyond20SendRuntimeMessage(req);
-        if (!outcome.ok && request["waybeyond20-talespire-local-fallback"]) {
-            // A failed protocol/message handoff must not discard a completed roll
-            // or invite a second roll and duplicate resource spending.
-            this.postHTML(request, title, html, character, whisper, play_sound, source, attributes, description,
-                attack_rolls, roll_info, damage_rolls, total_damages, open);
-            console.warn("WayBeyond20: TaleSpire handoff unavailable; the completed roll is displayed on this sheet.", outcome.error);
-            if (delivery) delivery.resolve({ok: true, local: true});
-            return;
-        }
-        if (outcome.ok) beyond20SendMessageFailure(character, outcome.response);
-        else if (!delivery) wayBeyond20NotifyDispatchFailure(outcome.error);
-        if (outcome.ok && outcome.response?.success && outcome.response.vtt?.includes('talespire'))
-            this.postHTML(request, title, html, character, whisper, play_sound, source, attributes, description,
-                attack_rolls, roll_info, damage_rolls, total_damages, open);
-        if (delivery) delivery.resolve(outcome);
     }
     displayError(message) {
         alertify.error(message);
@@ -131,13 +212,18 @@ class DNDBRoller {
             await Promise.all(rolls.map(roll => roll.roll()))
         }
         
+        if (typeof wb20RuleRerollD20 === "function") {
+            try { await wb20RuleRerollD20(rolls,request,this); }
+            catch (error) { console.warn("WayBeyond20: optional feature reroll did not finish; the original result remains available",error); }
+        }
         const rollInfo = {
             name,
             rolls: rolls.map(r => r.toJSON()),
             request
         }
         if (dndbeyondDiceRoller._settings["roll-to-game-log"]) {
-            sendCustomEvent("MBFulfilledRoll", [rollInfo]);
+            try {sendCustomEvent("MBFulfilledRoll", [rollInfo]);}
+            catch (_) {console.warn("WayBeyond20: optional Game Log delivery unavailable; the roll remains local.");}
         }
     }
 }
@@ -181,7 +267,8 @@ dndbeyondDiceRoller.handleRollError = (request, error) => {
             request.damage_rolls, request.total_damages, request.open);
     }
     request['original-whisper'] = request.whisper;
-    request.whisper = WhisperType.NO;
+    // Local fallback retains the chosen audience; missing delivery is never
+    // permission to make a private Discord/Game Log roll public.
     delete request.sendMessage;
     return dndbeyondDiceRoller.handleRollRequest(request);
 }

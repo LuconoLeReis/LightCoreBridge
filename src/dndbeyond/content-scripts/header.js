@@ -52,9 +52,16 @@ function wb20HeaderTheme(header) {
         "--wb20-header-frame": sample.style.backgroundImage || "none",
         "--wb20-header-radius": sample.style.borderRadius || "4px"
     };
+    let paletteChanged = false;
     for (const [name,value] of Object.entries(properties)) {
-        if (value && header.style.getPropertyValue(name) !== value) header.style.setProperty(name,value);
+        if (value && header.style.getPropertyValue(name) !== value) {
+            header.style.setProperty(name,value); paletteChanged = true;
+        }
     }
+    // Reuse the existing native-theme observer. A pure palette attribute change
+    // must refresh our row ink too, without adding another document observer.
+    if (paletteChanged && typeof wayBeyond20MatchActionTypography === 'function')
+        document.querySelectorAll('.ct-actions-list,[class*="styles_actionsList__"]').forEach(wayBeyond20MatchActionTypography);
     if (typeof wb20ThemeResourcePrompt === "function") document.querySelectorAll('.wb20-resource-dialog').forEach(wb20ThemeResourcePrompt);
 }
 
@@ -62,8 +69,11 @@ function wb20RefreshCompactHeader() {
     for (const header of document.querySelectorAll(".ct-character-header-desktop")) {
         const wb20 = header.querySelector(":scope > .ct-character-header-desktop__group--beyond20");
         const share = header.querySelector(":scope > .ct-character-header-desktop__group--share");
-        if (!wb20 || !share || !wb20HeaderNative(header,"short-rest") || !wb20HeaderNative(header,"long-rest") || !wb20HeaderNative(header,"manage")) continue;
+        // Share is optional in DDB's native header. Its absence must not hide
+        // the independent Manage, settings, Rest and Correction controls.
+        if (!wb20 || !wb20HeaderNative(header,"short-rest") || !wb20HeaderNative(header,"long-rest") || !wb20HeaderNative(header,"manage")) continue;
         if (!header.classList.contains("wb20-compact-header")) header.classList.add("wb20-compact-header");
+        if (header.classList.contains("wb20-header-without-share") !== !share) header.classList.toggle("wb20-header-without-share", !share);
         wb20HeaderTheme(header);
         let manage = header.querySelector(":scope > .wb20-header-manage");
         if (manage && !manage._wb20HeaderBound) {manage.remove();manage=null;}
@@ -119,6 +129,8 @@ function wb20RefreshCompactHeader() {
             rest.append(button,menu); header.append(rest);
         }
         const campaign = header.querySelector('[data-testid="campaign-summary"]')?.parentElement;
+        const solo = header.querySelector('[aria-roledescription="Find a group"]')?.parentElement;
+        if (solo?.parentElement === header && solo.getAttribute("data-wb20-header-role") !== "solo") solo.setAttribute("data-wb20-header-role", "solo");
         const showCorrection=typeof character === "undefined" || character?.getSetting("waybeyond20-resource-correction",true) !== false;
         if (!showCorrection) rest.querySelector('.wb20-resource-correction-button')?.remove();
         if (showCorrection && !rest.querySelector('.wb20-resource-correction-button') && typeof wb20CorrectResources === "function") {
@@ -128,7 +140,10 @@ function wb20RefreshCompactHeader() {
         }
         if (campaign?.parentElement === header) {
             if (campaign.getAttribute("data-wb20-header-role") !== "campaign") campaign.setAttribute("data-wb20-header-role","campaign");
-            const log = campaign.querySelector('[role="button"][aria-roledescription="Game Log"]');
+        }
+        const campaignControls = campaign?.parentElement === header ? campaign : solo?.parentElement === header ? solo : null;
+        if (campaignControls) {
+            const log = campaignControls.querySelector('[role="button"][aria-roledescription="Game Log"]');
             if (log && !log.hasAttribute("aria-label")) log.setAttribute("aria-label","Game Log");
             wb20HeaderKeyboard(log);
         }

@@ -748,7 +748,7 @@ if (!window.__beyond20_mb2_initialized__) {
         control: "[role='checkbox'][aria-label='use' i],input[type='checkbox'][aria-label='use' i]",
         row: ".ct-feature-snippet__option,.ddbc-feature-snippet__option,.ct-feature-snippet,.ddbc-feature-snippet," +
             "[class*='ct-feature-snippet--'],[class*='ddbc-feature-snippet--']," +
-            ".ct-combat-attack,.ddbc-combat-attack,.b20-action-pane,.b20-custom-action-pane,.ct-custom-action-pane",
+            ".ct-combat-attack,.ddbc-combat-attack,.b20-action-pane,.b20-custom-action-pane,.ct-custom-action-pane,.b20-item-pane",
         label: B20_LIMITED_USE_LABEL_SELECTOR,
         fallbackLabel: "[class*='heading'],[class*='title'],[class*='name'],[class*='label']"
     };
@@ -779,6 +779,8 @@ if (!window.__beyond20_mb2_initialized__) {
 
     function b20LimitedUseLabelText(element) {
         if (!element) return "";
+        const itemName=element.matches?.('.ct-sidebar__heading') && element.closest('.b20-item-pane') ? element.querySelector('[class*="styles_itemName"]') : null;
+        if (itemName) return b20NormalizeFeatureLabel(itemName.textContent.replace(/\*$/,''));
         const ownText = Array.from(element.childNodes || [])
             .filter(node => node.nodeType === 3)
             .map(node => node.textContent)
@@ -790,6 +792,7 @@ if (!window.__beyond20_mb2_initialized__) {
 
     function b20LimitedUseControlOwnerLabel(control) {
         if (!control?.closest) return "";
+        if (control.closest('.ct-item-slot-manager,.ddbc-item-slot-manager,.ct-attunement__item-action,.ddbc-attunement__item-action')) return "";
         const selectors = B20_LIMITED_USE_SELECTORS;
         const row = control.closest(selectors.row);
         if (row) {

@@ -107,7 +107,7 @@ function postChatMessage(message, character = null) {
     if (!chat || !txt || !btn || !speakingas) 
     {
         console.log("Error: Unabled to post message to chat.")
-        return;
+        return false;
     }
     let set_speakingas = true;
     const old_as = speakingas.value;
@@ -128,6 +128,7 @@ function postChatMessage(message, character = null) {
     btn.click();
     txt.value = old_text;
     speakingas.value = old_as;
+    return true;
 }
 
 function escapeRoll20Macro(text) {
@@ -780,7 +781,7 @@ async function handleRoll(request) {
     }
     roll += displayExtraInfo(request);
     const character_name = request.whisper == WhisperType.HIDE_NAMES ? settings["hidden-monster-replacement"] : request.character.name;
-    postChatMessage(roll, character_name);
+    return postChatMessage(roll, character_name);
 }
 
 async function hookRollDamages(rollDamages, request) {
@@ -940,12 +941,13 @@ async function handleOGLRenderedRoll(request) {
         message += template(request, "dmg", dmg_props) + "\n";
     }
     message += displayExtraInfo(originalRequest);
-    postChatMessage(message, request.character);
+    const delivered=postChatMessage(message, request.character);
     wayBeyond20SendResolvedDamageToDDB(request);
 
     if (rollDamages) {
         hookRollDamages(rollDamages, request);
     }
+    return delivered === true;
 }
 
 async function handleRenderedRoll(request) {
@@ -1007,7 +1009,7 @@ async function handleRenderedRoll(request) {
         if (initiative)
             message += `  [[${initiative.total} &{tracker}]]`;
     }
-    postChatMessage(message, request.character);
+    const delivered=postChatMessage(message, request.character);
     wayBeyond20SendResolvedDamageToDDB(request);
     if (originalRequest.type === "initiative" && settings["initiative-tracker"] && originalRequest.character && originalRequest.character.name) {
         sendCustomEvent("BindSelectedToken", [originalRequest.character.name, "initiative-rendered"]);
@@ -1015,6 +1017,7 @@ async function handleRenderedRoll(request) {
     if (rollDamages) {
         hookRollDamages(rollDamages, request);
     }
+    return delivered === true;
 }
 
 function injectSettingsButton() {
@@ -1125,7 +1128,9 @@ function handleMessage(request, sender, sendResponse) {
         }    
         handleRoll(request);
     } else if (request.action == "rendered-roll") {
-        handleRenderedRoll(request);
+        Promise.resolve().then(()=>handleRenderedRoll(request)).then(
+            delivered=>sendResponse({delivered:delivered === true}),()=>sendResponse({delivered:false}));
+        return true;
     } else if (request.action === "update-combat") {
         sendCustomEvent("CombatTracker", [request.combat, settings]);
     }

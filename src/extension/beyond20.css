@@ -100,6 +100,16 @@
     border-radius: 4px; padding: 4px 8px;
 }
 :is(.wb20-action-sort-control, .wb20-action-view-control) summary::-webkit-details-marker { display: none; }
+/* Use native damage-dice typography for all Hit/DC and Damage values. Native
+   frame markup and click targets are preserved. Only WB20's combined view opts in. */
+[data-wb20-list-view] [data-wb20-list-layout="row"] :is(.ddbc-combat-attack__action,.ct-combat-attack__action,.ddbc-combat-attack__damage,.ct-combat-attack__damage),
+[data-wb20-list-view] [data-wb20-list-layout="row"] :is(.ddbc-combat-attack__action,.ct-combat-attack__action,.ddbc-combat-attack__damage,.ct-combat-attack__damage) :is(button,span) {
+    font-family: var(--wb20-action-value-font-family,inherit) !important;
+    font-size: var(--wb20-action-value-font-size,13px) !important;
+    line-height: var(--wb20-action-value-line-height,1.2) !important;
+    font-weight: 400;
+}
+:is(.wb20-feature-option,.wb20-quick-row,.wb20-rule-row,.wb20-opportunity-attack) :is(.ddbc-combat-attack__range,.ddbc-combat-attack__action,.ddbc-combat-attack__damage,.ddbc-combat-attack__notes) > button { color: inherit; font-family: inherit; }
 .wb20-action-sort-menu {
     position: absolute; z-index: 20; right: 0; top: 100%; min-width: 185px;
     padding: 4px; border: 1px solid #777; border-radius: 4px;
@@ -109,7 +119,7 @@
     display: block; width: 100%; text-align: left; background: transparent; color: inherit;
     border: 0; padding: 7px 8px; cursor: pointer; font: inherit;
 }
-.wb20-action-sort-menu button[aria-pressed="true"]::before { content: "âœ“ "; }
+.wb20-action-sort-menu button[aria-pressed="true"] { font-weight: 700; background-color: #8882; }
 .wb20-action-sort-menu button:hover, .wb20-action-sort-menu button:focus-visible { background: #e8eef8; }
 .wb20-inspire-icon, .wb20-feature-option-icon {
     display: inline-flex; align-items: center; justify-content: center;
@@ -120,6 +130,22 @@
 .wb20-inspire-icon:disabled, .wb20-feature-option-icon:disabled { opacity: .35; cursor: default; }
 .wb20-inspire-icon:focus-visible, .wb20-feature-option-icon:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .wb20-feature-option, .wb20-opportunity-attack { display: flex; align-items: center; padding: 4px 0; }
+.wb20-feature-option-icon svg { display: block; width: 14px; height: 14px; flex: none; }
+.wb20-feature-option-icon .wb20-spell-school-icon { display: block; width: 16px; height: 16px; object-fit: contain; }
+#wb20-local-rolls { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 1000; box-sizing: border-box; width: min(440px,calc(100vw - 32px)); max-height: min(65vh,600px); overflow: hidden; opacity: 1; transition: opacity 180ms ease; font: 14px var(--wb20-heading-font,Roboto,Arial,sans-serif); background: var(--wb20-sheet-surface,Canvas); color: CanvasText; border: 1px solid var(--wb20-sheet-accent,currentColor); border-radius: 6px; }
+#wb20-local-rolls.wb20-local-rolls-fading { opacity: 0; pointer-events: none; }
+#wb20-local-rolls[hidden],.wb20-local-roll-card[hidden] { display: none !important; }
+#wb20-local-rolls > summary { cursor: pointer; padding: 7px 10px; font-weight: 600; color: inherit; border-bottom: 1px solid var(--wb20-sheet-accent,currentColor); }
+#wb20-local-rolls > summary > button { float: right; padding: 1px 7px; border: 1px solid currentColor; border-radius: 4px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.wb20-local-roll-records { max-height: min(55vh,510px); overflow: auto; }
+.wb20-local-roll-card { padding: 8px 10px; margin: 0; border: 0; border-bottom: 1px solid var(--wb20-sheet-accent,currentColor); background: transparent; color: inherit; font: 14px system-ui; }
+.wb20-local-roll-card > summary { cursor: pointer; font-weight: 600; line-height: 1.5; }
+.wb20-local-roll-card > div { padding-top: 6px; }
+@media (prefers-reduced-motion: reduce) { #wb20-local-rolls { transition: none; } }
+:is(.wb20-result-dialog,.wb20-local-roll-card) .beyond20-dice-roller-content { padding: 12px; background: transparent !important; color: inherit; border: 0; }
+:is(.wb20-result-dialog,.wb20-local-roll-card) .beyond20-message { color: inherit; font: inherit; }
+:is(.wb20-result-dialog,.wb20-local-roll-card) .beyond20-roll-total { color: inherit; border-radius: 5px; padding: 8px; font-size: 1.6em; background: color-mix(in srgb,currentColor 8%,transparent); border: 1px solid var(--wb20-sheet-accent,currentColor); }
+:is(.wb20-result-dialog,.wb20-local-roll-card) .beyond20-header { border-bottom: 1px solid var(--wb20-sheet-accent,currentColor); padding-bottom: 7px; margin-bottom: 8px; }
 .wb20-natural-original { display: none !important; }
 .wb20-opportunity-choose { max-width: 100%; white-space: normal; }
 .wb20-opportunity-prompt { display: grid; gap: 14px; min-width: 0; text-align: left; }
@@ -672,10 +698,22 @@ span.dice-roll.beyond20-tooltip-content {
 /* Preserve native defenses on the left; effects get their own readable column. */
 .waybeyond20-defenses-with-buffs {
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: minmax(min-content, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    container: wb20-defenses / inline-size;
     column-gap: 6px;
     align-content: start;
+}
+.wb20-defenses-auto-height { height: auto !important; max-height: none !important; min-height: 90px; overflow: visible !important; }
+.wb20-defenses-auto-height > .ddbc-box-background > svg { width: 100%; height: 100%; }
+.waybeyond20-defenses-with-buffs { height: auto !important; max-height: none !important; overflow: visible !important; }
+.waybeyond20-defenses-with-buffs :is(.ct-defenses-summary,.ddbc-defenses-summary) {
+    height: auto !important; max-height: none !important; overflow: visible !important;
+    white-space: normal !important; overflow-wrap: anywhere; min-width: 0;
+}
+.waybeyond20-defenses-with-buffs :is(.ct-defenses-summary__default,.ddbc-defenses-summary__default) {
+    max-height: none !important; height: auto !important; white-space: normal !important;
+    overflow-wrap: anywhere; max-width: 100%;
 }
 .waybeyond20-defenses-with-buffs > .waybeyond20-effect-header-split {
     grid-column: 1 / -1;
@@ -692,7 +730,7 @@ span.dice-roll.beyond20-tooltip-content {
     grid-row: 2;
     min-width: 0;
     min-height: 0;
-    overflow-y: auto;
+    overflow-y: visible;
     text-align: right;
     line-height: 1.2;
 }
@@ -714,6 +752,10 @@ span.dice-roll.beyond20-tooltip-content {
 .waybeyond20-buff-name:hover,
 .waybeyond20-buff-name:focus-visible {
     text-decoration: underline;
+}
+@container wb20-defenses (max-width: 200px) {
+    .waybeyond20-buffs-list { grid-column: 1 / -1; grid-row: 3; padding-top: 5px; text-align: left; }
+    .waybeyond20-buffs-list .waybeyond20-buff-name { text-align: left; }
 }
 
 .waybeyond20-wizard-tools {
@@ -1198,6 +1240,11 @@ span.dice-roll.beyond20-tooltip-content {
 .waybeyond20-portent-settings input[type="number"] { width: 70px; float: right; }
 .waybeyond20-portent-query button { margin: 4px; padding: 8px 14px; }
 
+.wb20-item-property-controls { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+.wb20-item-property-controls button { padding:5px 10px; border:1px solid currentColor; border-radius:3px; color:inherit; background:transparent; font:inherit; cursor:pointer; }
+.wb20-item-property-controls button:hover { background-color:color-mix(in srgb,currentColor 12%,transparent); }
+.wb20-unarmed-equipment-options { display:flex; flex-direction:column; gap:6px; flex-basis:100%; }
+.wb20-unarmed-equipment-options select { padding:3px 6px; border:1px solid currentColor; border-radius:3px; color:inherit; background:transparent; font:inherit; }
 /* Three compact, aligned rows inside the existing 100px desktop header.
    No React-owned controls are reparented; tablet/mobile keep their native UI. */
 @media (min-width: 1200px) {
@@ -1229,6 +1276,10 @@ span.dice-roll.beyond20-tooltip-content {
     .wb20-compact-header > .wb20-header-manage { grid-row: 1; border-top: 1px solid var(--wb20-header-border,currentColor); border-radius: 4px 4px 0 0; }
     .wb20-compact-header > .ct-character-header-desktop__group--beyond20 { grid-row: 2; background-position: 0 -26px; }
     .wb20-compact-header > .ct-character-header-desktop__group--share { grid-row: 3; background-position: 0 -52px; border-bottom: 1px solid var(--wb20-header-border,currentColor); border-radius: 0 0 4px 4px; }
+    /* Some sheets have no native Share control. Close the existing panel with
+       its two available rows, keeping the same total height and sheet frame. */
+    .wb20-compact-header.wb20-header-without-share > .wb20-header-manage { height:39px; background-size:100% 78px; }
+    .wb20-compact-header.wb20-header-without-share > .ct-character-header-desktop__group--beyond20 { grid-row:2 / 4; height:39px; align-self:end; background-position:0 -39px; border-bottom:1px solid var(--wb20-header-border,currentColor); border-radius:0 0 4px 4px; }
     .wb20-compact-header .wb20-header-manage button,
     .wb20-compact-header > .ct-character-header-desktop__group--beyond20 > div,
     .wb20-compact-header > .ct-character-header-desktop__group--share > div {
@@ -1257,6 +1308,7 @@ span.dice-roll.beyond20-tooltip-content {
         background-color: var(--wb20-header-surface,Canvas); color: var(--wb20-header-ink,CanvasText); box-shadow: 0 4px 12px #0006;
     }
     .wb20-compact-header > [data-wb20-header-role="campaign"] {
+        margin: 0; width: 100%;
         grid-column: 5; grid-row: 1 / 4; display: grid; grid-template-columns: repeat(3,minmax(0,1fr));
         grid-template-rows: 26px 26px minmax(0,1fr); gap: 0;
         min-width: 0; padding: 0 6px; border: 1px solid var(--wb20-header-border,currentColor); border-radius: 4px; box-sizing: border-box;
@@ -1286,10 +1338,23 @@ span.dice-roll.beyond20-tooltip-content {
     [data-wb20-header-role="campaign"] [class*="campaignButton__"] { border: 0; background: transparent; padding: 0; width: auto; height: auto; }
     [data-wb20-header-role="campaign"] [class*="campaignButtonGroup"] { display:flex; align-items:center; justify-content:center; width:100%; height:100%; }
     .ct-character-header-desktop.wb20-compact-header [data-wb20-header-role="campaign"] svg path,
-    .ct-character-header-desktop.wb20-compact-header > .ct-character-header-desktop__group--builder svg path { fill:var(--wb20-header-border,currentColor); }
+    .ct-character-header-desktop.wb20-compact-header > .ct-character-header-desktop__group--builder svg path { fill:var(--wb20-header-ink,currentColor); }
     [data-wb20-header-role="campaign"] svg { width: 12px; height: 12px; }
-    .wb20-compact-header > .ct-character-header-desktop__group--builder { grid-column: 5; grid-row: 3; align-self: center; justify-self: end; width: 57px; margin: 0 7px 0 0; transform: none; z-index: 1; color: var(--wb20-header-ink,inherit); }
-    .wb20-compact-header > .ct-character-header-desktop__group--builder a { display: flex; align-items: center; justify-content: center; }
+    /* Preserve native Find a group and Game Log when there is no campaign. */
+    .wb20-compact-header > [data-wb20-header-role="solo"] {
+        grid-column:5; grid-row:1 / 4; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:26px 26px 26px;
+        min-width:0; padding:0 6px; box-sizing:border-box; border:1px solid var(--wb20-header-border,currentColor); border-radius:4px;
+        color:var(--wb20-header-ink,inherit); background-color:var(--wb20-header-panel-surface,var(--wb20-header-surface,Canvas));
+        background-image:var(--wb20-header-frame,none); background-size:100% 100%; background-repeat:no-repeat;
+    }
+    [data-wb20-header-role="solo"] > a { grid-column:1 / 4; grid-row:1 / 3; display:flex; align-items:center; justify-content:center; color:inherit; text-decoration:none; }
+    [data-wb20-header-role="solo"] > :nth-child(2) { grid-column:2; grid-row:3; display:flex; align-items:center; justify-content:center; }
+    [data-wb20-header-role="solo"] [aria-roledescription="Game Log"] { display:flex; align-items:center; justify-content:center; }
+    [data-wb20-header-role="solo"] [class*="campaignButton"] { border:0; padding:0; background:transparent; color:inherit; }
+    [data-wb20-header-role="solo"] svg { width:12px; height:12px; }
+    [data-wb20-header-role="solo"] svg path { fill:var(--wb20-header-ink,currentColor); }
+    .wb20-compact-header > .ct-character-header-desktop__group--builder { grid-column: 5; grid-row: 3; align-self: center; justify-self: end; width: 57px; margin: 0 7px 0 0; display: flex; align-items: center; justify-content: center; transform: none; z-index: 1; color: var(--wb20-header-ink,inherit); }
+    .wb20-compact-header > .ct-character-header-desktop__group--builder a { width: 100%; margin: 0; display: flex; align-items: center; justify-content: center; }
     .wb20-compact-header > .ct-character-header-desktop__group--builder svg { width: 18px; height: 18px; fill: currentColor; }
     .wb20-compact-header > .wb20-ts-status { grid-column: 6; grid-row: 1 / 4; align-self: center; margin: 0; min-width: 0; width: clamp(180px,22vw,260px); display: flex; flex-wrap: wrap; gap: 5px; }
     .wb20-compact-header .wb20-ts-label { flex-basis: 100%; white-space: normal; overflow-wrap: anywhere; }
@@ -1842,6 +1907,7 @@ span.dice-roll.beyond20-tooltip-content {
 .wb20-compact-header .wb20-header-manage button,
 .wb20-compact-header .ct-character-header-desktop__button,
 .wb20-compact-header [data-wb20-header-role="campaign"] [class*="campaignButton"],
+.wb20-compact-header [data-wb20-header-role="solo"] [class*="campaignButton"],
 .wb20-compact-header [data-wb20-header-role="campaign"] [data-testid="campaign-summary"] {
     background-color:transparent !important; color:var(--wb20-header-ink,inherit) !important;
 }
@@ -1853,6 +1919,7 @@ span.dice-roll.beyond20-tooltip-content {
 .wb20-compact-header .ct-character-header-desktop__button:hover,
 .wb20-compact-header [data-wb20-header-role="campaign"] [role="button"]:hover,
 .wb20-compact-header [data-wb20-header-role="campaign"] a:hover,
+.wb20-compact-header [data-wb20-header-role="solo"] [role="button"]:hover,
 .wb20-compact-header .wb20-header-rest > button:hover {
     background-color:color-mix(in srgb,var(--wb20-header-border,currentColor) 12%,var(--wb20-header-surface,Canvas)) !important;
     color:var(--wb20-header-ink,inherit) !important;
@@ -1862,3 +1929,16 @@ span.dice-roll.beyond20-tooltip-content {
 .wb20-resource-dialog .ajs-content strong,.wb20-resource-dialog .ajs-content h3 {
     color:inherit !important; background-color:transparent !important;
 }
+
+/* Only WB20-owned value cells; native rows and five-column layout stay intact. */
+.wb20-range-main { display: block; }
+.wb20-range-number { font-weight: 700; }
+.wb20-range-units { font-size: var(--wb20-range-label-font-size,10px); font-weight: 400; color: var(--wb20-range-label-color,#75838b); }
+.wb20-range-label { display: block; font-size: var(--wb20-range-label-font-size,10px); line-height: var(--wb20-range-label-line-height,1.1); color: var(--wb20-range-label-color,#75838b); font-weight: 400; }
+.wb20-action-value { display: inline-flex; align-items: center; justify-content: center; gap: 2px; box-sizing: border-box; border: 1px solid var(--wb20-value-border-color,#b7c9da); border-radius: var(--wb20-value-border-radius,3px); background: var(--wb20-value-background-color,transparent); color: inherit; padding: var(--wb20-value-padding-top,4px) var(--wb20-value-padding-right,6px) var(--wb20-value-padding-bottom,4px) var(--wb20-value-padding-left,6px); min-height: var(--wb20-value-min-height,28px); font: inherit; cursor: pointer; }
+.wb20-action-value:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+.wb20-action-value:disabled { opacity: .5; cursor: default; }
+.wb20-action-value [data-wb20-value-icon] { display: inline-flex; flex: none; width: 14px; height: 14px; }
+.wb20-action-value [data-wb20-value-icon] svg { width: 100%; height: 100%; }
+
+[data-wb20-duplicate-weapon] { display: none !important; }

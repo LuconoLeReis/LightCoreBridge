@@ -24,6 +24,7 @@ function normalizeSnapshot(input) {
     const activeIndex = Number.isInteger(input.activeIndex) && input.activeIndex >= 0 && input.activeIndex < order.length ? input.activeIndex : -1;
     const scale = input.units?.numberPerTile;
     return {v:1, boardId:input.boardId, campaignId:label(input.campaignId,128), creatures, order, activeIndex,
+        connection:/^talespire:\/\/symbiote\/[A-Za-z0-9._~%+=/-]{1,512}\/$/.test(input.connection || '') ? input.connection : '',
         tracking:input.tracking === true, activeHidden:input.activeHidden === true,
         targetId:creatures.some(c => c.id === input.targetId) ? input.targetId : '',
         targetRevision:Number.isSafeInteger(input.targetRevision) && input.targetRevision >= 0 ? input.targetRevision : 0,
@@ -33,6 +34,7 @@ function normalizeSnapshot(input) {
 function createBridge({key = crypto.randomBytes(32).toString('hex'), extensionId, now = Date.now} = {}) {
     if (!/^[a-p]{32}$/.test(extensionId || '')) throw Error('A Chrome extension ID is required');
     let snapshot = null, updatedAt = 0, commands = [];
+    const receipts=new Map();
     const server = http.createServer(async (req,res) => {
         const origin = req.headers.origin || '';
         const host = req.headers.host || '';
@@ -51,12 +53,21 @@ function createBridge({key = crypto.randomBytes(32).toString('hex'), extensionId
         if (pairing && req.method === 'GET' && req.headers['x-wb20-extension'] === extensionId) return finish(200,{key});
         if (req.headers.authorization !== `Bearer ${key}`) return finish(401,{error:'Not paired'});
         try {
+            if (req.method === 'GET' && req.url === '/receipts') {
+                for(const [id,time] of receipts)if(now()-time>30000)receipts.delete(id);
+                return finish(200,{ids:[...receipts.keys()]});
+            }
             if (req.method === 'GET' && req.url === '/state') return finish(200,{connected:!!snapshot && now()-updatedAt < 10000, snapshot, updatedAt});
             if (req.method === 'GET' && req.url === '/commands') {const pending = commands; commands=[]; return finish(200,pending);}
-            if (req.method !== 'POST' || !['/state','/command'].includes(req.url)) return finish(404,{error:'Unknown route'});
+            if (req.method !== 'POST' || !['/state','/command','/receipt'].includes(req.url)) return finish(404,{error:'Unknown route'});
             let size=0; const chunks=[];
             for await (const chunk of req) {size+=chunk.length; if (size > 131072) return finish(413,{error:'Too large'}); chunks.push(chunk);}
             const value = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+            if (req.url === '/receipt') {
+                if(!/^[a-zA-Z0-9-]{10,80}$/.test(value?.id || ''))return finish(400,{error:'Invalid receipt'});
+                receipts.set(value.id,now());while(receipts.size>200)receipts.delete(receipts.keys().next().value);
+                return finish(200,{ok:true});
+            }
             if (req.url === '/state') {snapshot=normalizeSnapshot(value); updatedAt=now(); return finish(200,{ok:true});}
             if (value?.type !== 'pick-target' || commands.length >= 10) return finish(400,{error:'Invalid command'});
             commands.push({type:'pick-target', id:crypto.randomUUID()});
@@ -66,11 +77,19 @@ function createBridge({key = crypto.randomBytes(32).toString('hex'), extensionId
     server.requestTimeout=5000; server.headersTimeout=5000;
     return {server,key};
 }
-module.exports={createBridge,normalizeSnapshot,PORT};
+function existingPairingKey(directory) {
+    try {
+        const config=fs.readFileSync(path.join(directory,'local-config.js'),'utf8');
+        return /^\s*var wb20LocalReturnKey\s*=\s*["']([a-f0-9]{64})["'];?\s*$/.exec(config)?.[1];
+    } catch (_) { return undefined; }
+}
+module.exports={createBridge,normalizeSnapshot,PORT,existingPairingKey};
 if (require.main === module) {
     const extensionId=process.argv[2], symbiote=path.resolve(process.argv[3] || '');
     if (!fs.existsSync(path.join(symbiote,'manifest.json'))) throw Error('Pass the installed WB20 Symbiote directory');
-    const bridge=createBridge({extensionId});
+    // Restarting the helper must not invalidate the key already loaded by the
+    // installed Symbiote. A fresh installation still creates a random key.
+    const bridge=createBridge({extensionId,key:existingPairingKey(symbiote)});
     bridge.server.once('error',error=>{console.error(`WB20 return helper: ${error.code || 'failed'}`); process.exitCode=1;});
     bridge.server.listen(PORT,'127.0.0.1',()=>{
         // Generated local configuration is deliberately excluded from source/releases.

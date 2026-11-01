@@ -1,12 +1,119 @@
-## 1.73.27 / 2.20.159 — Portent and theme repair, October 25, 2026
+## 1.73.57
+
+- Preserve the existing five-column action list while matching native range number/unit/Reach/Touch styling.
+- Added value controls use native-style borders and known damage icons, forwarding to the same existing activation, not another attack executor.
+- Remove redundant Action/Bonus Action/Reaction labels from spell Notes; keep accessible/hover costs, duration/components, and source-confirmed material prices (per cast only when consumed).
+- Show identical equipped weapon entries once; keep native inventory, listeners, differing statistics and property variants.
+- No routing, roll/resource accounting, saved destination, or native sheet-frame changes. Retains56 local-result lifetime/header/typography fixes.
+
+## 1.73.56 (development only)
+
+- Correct native campaign margin inside WB20 compact layout; verify equal icon-center spacing with the real margin in the fixture.
+- Carries the55 presentation repairs. Intermittent loading remains unresolved.
+
+## 1.73.55 (development only)
+
+- Restore centered, temporary local results with configurable duration and dismissal.
+- Retain confirmed-delivery suppression and normal local completion semantics.
+- Keep recovery in menus; remove the permanent page button and its theme observers.
+- Use one proportion-preserving native frame for ordinary WB20 result/resource panels.
+- Match action-row typography in light/Underdark; normalize Hit/DC to damage text size.
+- Restore header icon ink and builder-cell centering; refresh added row ink on theme changes.
+- Intermittent loading investigation remains open. Not publication/live acceptance.
+
+## 1.73.54 development - bounded settings readiness
+
+A missing worker settings callback now returns a quiet local-fallback reply after 2.5 seconds, releases retained messages, and cannot send them later. At most64 messages wait. No guessed VTT destination, saved-setting change, or loading-fix claim. Publication remains blocked.
+
+## 1.73.54 / 2.20.186 - native-only startup control, November 1, 2026
+
+52 caught Facebook-targeted child-frame loads at291s and Pinterest/Facebook loads at289s in the passive tab. This is measured late-frame behavior, not proof of its relationship to Chrome status or WB20. Add an explicit private test-tab wb20-native-startup=1 control before recovery boot: no character engine/UI/VTT startup or settings read/write; only the same finite read-only diagnostics. Probe helpers accept an optional log callback, preserving default callers, and late frame replies now log fresh sender-only Chrome status. Real MV3 test proves absence of engine/roller/recovery UI with retained diagnostics and unchanged saved mode, followed by normal startup and recovery checks. These diagnostic flags must be reviewed/removed before publication; no loading fix or release claim.
+
+## 1.73.52 / 2.20.184 - post-load frame evidence, November 1, 2026
+
+Live51 completion traces prove that the native top-level load finishes within2.5-3.6s while Chrome still reports loading at30s, including the passive-startup tab. Continue the passive frame-load listener after that first event, with no polling/long-task observer, at most8 reports for frames finishing10s after native load, and30-minute/pagehide cleanup. Report only origin/form-target origin and timing, never paths, queries or contents. Browser regression covers the cap, late events, privacy, completion/expiry, teardown and already-complete startup. This is evidence collection, NOT a proven cause or loading repair.
+
+## 1.73.51 / 2.20.183 - load completion evidence, November 1, 2026
+
+Add one read-only completion record after the native load event, separately from the existing three startup samples. Capture only slow resource origins, initiator types and timings (last250 resource entries, largest8); never URL paths/queries or data. Idempotent startup; pagehide, completion and a30-minute deadline remove timers/listeners. No polling, network requests, permissions or gameplay changes. Actual delayed-iframe browser regression covers successful and late completion, expiry, already-complete startup, privacy and cleanup. This is diagnostic, not a loading fix.
+
+## 1.73.50 / 2.20.182 - passive startup isolation, November 1, 2026
+
+Add one explicit per-tab diagnostic URL flag to suppress automatic spell discovery and remembered-description native visits. Default behavior, manual visits and casting are unchanged. A composed browser test verifies no automatic timer/visit under the flag, manual visits still work, and the normal URL retains existing behavior. Loading cause remains unproven. Development only.
+
+## 1.73.49 / 2.20.181 - native spell attack handoff, November 1, 2026
+
+Installed48 exposed a real Starry Wisp shortcut defect: its native spell pane has casting metadata in the property list and damage/attack controls in the caster section. The shared handoff incorrectly waited for weapon-only properties and expired. Use the native spell inputs consumed by rollSpell to establish readiness, retaining exact heading/source ownership, cancellation, expiry and the single existing execute boundary. No duplicate attack executor or named-spell exception.
+
+The browser regression models the captured native layout, including a delayed caster section. It fails against48 and passes against49. Full node and focused input/cancellation suites are recorded separately from installed acceptance. Intermittent Chrome loading remains open. Development only; not published.
+
+## 1.73.41 / 2.20.173 - feature snapshot guard, October 31, 2026
+
+Unknown filter state defaults to merge. Even a positively identified All view cannot discard a cached rule still confirmed by the owner feature list merely because its description is missing. Empty snapshots retain the existing nonempty persistence guard. No arbitrary size threshold: any missing still-owned rule is preserved; confirmed ownership removal still prunes stale rules. Added composed tests for absent active CSS marker, no filter bar, incomplete All, empty All and confirmed removal. Candidate pending independent review and live acceptance; no publication.
+
+## 1.73.40 / 2.20.172 - session reliability, October 31, 2026
+
+Restore shared character-sheet links while excluding builders and unrelated pages. Every completed roll remains accessible under collapsed Local rolls, including a destination success without render proof. No automatic result popup or reroll. Filtered Features views retain other owned categories; complete All snapshots remain authoritative. The native Defenses SVG now follows its expanded content and restores its original aspect when buffs end.
+
+No mastery/wondrous conversion, Aura transport or new gameplay feature. Local candidate; independent re-review and live TaleSpire acceptance pending. Real-MV3 browser test environment availability is recorded separately from passing fixture tests.
+
+## 1.73.39 / 2.20.171 â€” requested column-layout rollback, October 29, 2026
+
+Bill explicitly rejected full-width/spanning feature summaries. Restore feature entries to the established NAME, RANGE, HIT/DC, DAMAGE and NOTES columns. Remove added inline descriptions/reminders and the summary-specific grid/hidden-column CSS; return the previous placeholders, Details and existing use counts to their cells. No new information or redesigned display lines in this candidate.
+
+Retain38's yielded refreshes, bounded diagnostics, synchronous rule snapshot and validated-label cache, inner Defenses containment, native spell artwork, duplicate alias correction, functional controls and rule-correct Reactive Spell. Local development rollback only. Installed acceptance and independent review remain pending; not published.
+
+## 1.73.38 / 2.20.170 â€” local diagnostic repair, October 29, 2026
+
+Yield and coalesce document mutation refreshes instead of running the whole sheet pipeline inside every mutation microtask. Keep one pending task, retain the newest native state, adapt delay to measured scan duration, and leave the observer active. Add per-stage time/write counters and bounded mutation-target summaries; pressure reports go to the existing local debug log, at most six per page with ten seconds between reports. No polling timer, new overlay or gameplay change.
+
+Find matching label text before forcing visibility/layout reads; reuse only connected, visible, identity-matched labels and invalidate replaced nodes. Remove the observed native inner Defenses57px height clamp as well as the outer frame limit, allowing the full text and buff names to fit. Synthetic full-pipeline stress and native-structure layout tests are distinct from installed acceptance. The exact source of Bill's live high CPU is still unconfirmed until the diagnostic build is loaded. Not published.
+
+Share one current rule/activation snapshot within each synchronous action-list render, discarding it in finally. The captured native markup replay reduced969 native rule reads across three unchanged renders to3, with no cache across native updates or feature use. The prior build fails the new single-read regression; removed/changed rules are reread next render.
+
+## 1.73.37 / 2.20.169 â€” local development repair, October 29, 2026
+
+Replace36's full inline feature descriptions with short, contextual reminders. Masteries show trigger/effect/expiry or size; shared pools show recovery; activated powers show useful targets/range/save/duration; healing and Luck show their relevant point use. Full native rules remain on name click. No compulsory Range/DC template or mechanical change. Retain the quiet automatic-result display, school artwork, alias deduplication, no-scroll forwarding and observer ownership repair.
+
+Reactive Spell follows War Caster's current rule: use a Reaction to cast an eligible normally one-Action spell at only the provoking creature. Include cantrips and leveled/non-damaging spells; exclude known bonus-action, reaction and longer casting times from the initial chooser. Mark unknown timing and retain strict final native-pane validation, single-target confirmation, native slot cost and shared Reaction accounting. No live cast or publication.
+
+## 1.73.36 / 2.20.168 â€” local development repair, October 28, 2026
+
+Ordinary rolls retain a completed local record without opening an information modal. Confirmed optional VTT delivery keeps that record hidden; local-only/failed delivery exposes one collapsed Local rolls control, with at most 20 retained records. Explicit detail requests still open themed dialogs. Attack outcome prompts and shared resource/Draining flow are unchanged. Existing Roll20 chat independently contained the owner-reported Everflame attack23 / damage17+6, so that report was duplicate local presentation, not a proven routing failure.
+
+Feature shortcuts show their current rules inline instead of empty table cells; detail buttons no longer scroll the native source into view. Protected parent/child aliases share one shortcut. A vector feature symbol replaces squeezed Use text. Spell shortcuts reuse identity-matched native spell-school artwork when available; cache lookup is bounded, failed images fall back once and never block casting. Defenses/Buffs frames can grow, with narrow columns stacking rather than clipping. Full installed acceptance and independent review remain pending. No publication.
+
+## 1.73.35 / 2.20.167 â€” local development repair, October 28, 2026
+
+Stop the composed action-list refresh loop: the native-feature collector now removes only shortcuts it owns. Previously it deleted rows produced by the rule module, which recreated them and triggered another document observer callback indefinitely. A bounded browser regression reproduces the defect on 34 (24 callbacks / 576 mutations at the cutoff) and settles with zero callbacks/mutations after the repair while retaining row identity. Feature opt-out still removes its own rows. No gameplay/resource or routing changes. Installed-sheet confirmation remains pending.
+
+## 1.73.34 / 2.20.166 â€” local development candidate, October 28, 2026
+
+Read current owned feature descriptions across modern DDB markup and retain them per character. Route natural/gauntlet Unarmed Strikes through the existing attack, resource and Draining Attack follow-up flow. Explicit per-item options apply a trained mastery and the approved weapon-damage-bonus exception to gauntlet Unarmed Strikes without adding native weapon bonuses twice. Track ignition/extinguishing with one Bonus Action and include conditional Fire only while active. Shield Bash replaces one Attack-action attack; Spike Salvo uses one Magic action and one native item charge, recharging at dawn.
+
+Control Undead, Abjure Foes and Divine Sense share Channel Divinity. Protected uses native Luck Points for eligible kept-result rerolls or dropping to 1 HP; Guardian Wards and Pack Instinct require explicit eligibility confirmation. Recognize current War Caster Reactive Spell wording and damage-reduction utility spells. Native passives remain authoritative; remote saves, targets, conditions, pushes and summons are resolved by the table. Automated coverage is separate from installed-sheet acceptance and independent review. Development only; not published.
+
+## 1.73.33 / 2.20.165 â€” local development candidate, October 28, 2026
+
+The compact desktop header no longer requires DDB to provide a Share button. Manage, WB20, Rest and Correction continue independently; when Share is absent the two available rows close the themed panel at the existing height. Native campaign and no-campaign (Find a group / Game Log) controls retain their ownership and links. No campaign, party or character ID controls activation. Header browser regressions cover both Share states, both campaign states, light/dark themes and late Share changes. The new regression fails against 32 for the observed missing-Share condition. Local candidate only; installed-browser acceptance and independent review remain pending.
+
+## 1.73.32 / 2.20.164 â€” local development candidate, October 28, 2026
+
+Limit floating recovery UI to character sheets and Roll20 games, share URL scope between loader/worker/toolbar, cap sheet-theme discovery and remove persistent page-wide recovery monitoring. Reorganize existing settings into searchable sections with Send rolls to always visible, preserving stored keys and data. Scope the Foundry bundle, reuse healthy bridges and disconnect stale title callbacks before missing-storage access. Independent review and installed-browser acceptance remain pending; this entry is not publication.
+
+## 1.73.31 / 2.20.163 â€” local development candidate, October 27, 2026
+
+Wait for saved worker settings before forwarding requests; prevent a delayed startup snapshot from replacing a newer settings broadcast. Use portless host permission patterns in worker and toolbar recovery. Automated regression results are distinct from independent review and installed-browser acceptance. One-time Foundry activation remains a documented recovery limitation.
+
+## 1.73.27 / 2.20.159 â€” Portent and theme repair, October 25, 2026
 
 Explicit Portent reroll with confirmation/cancel, independent completed-rest refresh, expired-context guards, themed header silhouette/hover and prompt readability, encoding-safe settings gear. Unit/browser tests and owner-reported Portent functionality are distinct from complete remote-player acceptance. Dice-tray and Musician party-management work excluded.
 
-## 1.73.25 / 2.20.157 — October 25, 2026
+## 1.73.25 / 2.20.157 â€” October 25, 2026
 
 Owner-authorized release of queued attacks and the themed Action menu. Explicit Attack sends one source-aware card; automatic weapon purchases add no duplicate card. Attack outcome uses direct Hit/Miss/Skip-Cancel controls; one total is plain text and critical damage remains driven by the selected roll. Automated verification and live menu/display inspection are distinct from complete live acceptance. No battlefield, movement-path or tactical-advice feature is included.
 
-## 1.73.24 / 2.20.156 — local development candidate, 2026-10-25
+## 1.73.24 / 2.20.156 â€” local development candidate, 2026-10-25
 
 - Combat Attacks displays actual queued attacks / standard attacks per Attack action. Explicit Attack and automatic weapon purchase share resource preflight/commit. Additional Actions are converted only when spent; Haste queues one, separately from standard and feature-bound attacks.
 - Action hover/click/focus menu offers the eleven requested 2024 choices; Haste menu offers its five permitted choices. Attack queues without rolling; Dash adds current Speed; Dodge/Disengage/Help show local turn effects and deliver descriptive cards through the existing route. Dexterity saves benefit from valid Dodge.
@@ -236,7 +343,7 @@ before WB20 appends the world name to its title, and never updated it; filterVTT
 compares that title with the selected "This World", so every roll failed with "Virtual
 Table Top Not Found" while a specific Foundry world was selected. addFVTTTab now replaces
 the snapshot and onTabsUpdated refreshes it on title changes. Found live (Mira, the sample character,
-Chult After Hours, Foundry 14.369). Regression in tests/fvtt-lifecycle.js.
+the test world, Foundry 14.369). Regression in tests/fvtt-lifecycle.js.
 
 ## v1.73.10 - Correction attack pools and target selection, 2026-10-22 (coding update)
 
@@ -833,7 +940,7 @@ Extension version 2.20.87. Compatible new capability; minor-version increment.
 - 18 regression suites and two isolated Chromium fixtures pass. Live sheet/settings layout, rest refresh, tracker spacing and Musician dismissal pass. Live Portent VTT output and Foundry are not claimed.
 - Known double-Smite report remains unresolved and deferred, not fixed. Other creatures' Portent rolls are table-managed; turn enforcement requires known tracker state. Divination Savant spell selection is not automated. Existing Lay on Hands persistence remains open.
 
-## v1.65.16 — Prompt reliability and attack order, 2026-10-14
+## v1.65.16 â€” Prompt reliability and attack order, 2026-10-14
 
 Extension version 2.20.82. Includes the internal-only 1.65.15 ordering repair.
 
@@ -845,9 +952,9 @@ Extension version 2.20.82. Includes the internal-only 1.65.15 ordering repair.
 - Existing Lay on Hands pool persistence and saving-throw damage-only accounting limitations remain. Foundry and broad critical/Draining live coverage are not claimed.
 - Public version classification and separate numeric build identity are now documented under Semantic Versioning and Chrome's manifest rules.
 
-## v1.65.14 — Concentration and native spell casting, 2026-10-13
+## v1.65.14 â€” Concentration and native spell casting, 2026-10-13
 
-Extension version 2.20.80. Full release collecting internal builds 1.65.11–1.65.13; those were not separate public releases.
+Extension version 2.20.80. Full release collecting internal builds 1.65.11â€“1.65.13; those were not separate public releases.
 
 - Damage entered while concentrating opens the editable Concentration Check window, including temporary-HP damage. Unmodified is the default; selecting a damage type opts into known unconditional defenses. Add source combines damage components for one check, without deducting HP again.
 - The actual Constitution save result maintains or ends the tracked concentration effect. Cancellation, missing results and failed execution preserve it.
@@ -857,9 +964,9 @@ Extension version 2.20.80. Full release collecting internal builds 1.65.11–1.6
 - All 17 automated suites passed. Live Chrome/D&D Beyond/Roll20 testing covered attack spells, save/damage spells, healing, utility, self/other buffs, daily Use versus slot Cast, cancellation, double clicks, HP/temp-HP concentration triggers and resolved save outcomes.
 - Limitations remain: conditional defenses are manual; sidebar slot/item-charge controls are not covered by the spell-list bridge; upcast/ritual/temp-HP spell branches have automated but not equivalent live acceptance. Existing Lay on Hands pool persistence and saving-throw damage-only accounting limitations remain. Foundry testing was excluded.
 
-## v1.65.10 — Attack follow-ups and one-click attacks, 2026-10-12
+## v1.65.10 â€” Attack follow-ups and one-click attacks, 2026-10-12
 
-Extension version 2.20.76. Stable release collecting internal builds 1.65.6–1.65.9; those internal versions were not separate public releases.
+Extension version 2.20.76. Stable release collecting internal builds 1.65.6â€“1.65.9; those internal versions were not separate public releases.
 
 - The red-bordered attack icon runs the existing full attack; clicking the name still opens its description. Keyboard activation and hover/focus styling are supported.
 - Qualifying attacks show their result before Hit / Miss confirmation and optional Smite spending. Miss skips on-hit damage/resources without refunding the attack.
@@ -872,15 +979,15 @@ Extension version 2.20.76. Stable release collecting internal builds 1.65.6–1.
 
 The historical sections below retain their original build-specific status; the summary above supersedes their pending statements for the tested paths.
 
-## v1.65.9 — local test candidate, 2026-10-12
+## v1.65.9 â€” local test candidate, 2026-10-12
 
 Extension version 2.20.75. Both Roll20 rendered-card formats now suppress the extra damage link when automatic follow-ups already manage damage. Deferred and ordinary attack-only links are preserved. Not published.
 
-## v1.65.8 — local test candidate, 2026-10-12
+## v1.65.8 â€” local test candidate, 2026-10-12
 
 Extension version 2.20.74. Corrects attack-icon button spacing: centered icon, square border, rounded corners and a clear gap before the name. Styling-only correction; attack behavior unchanged. Not published.
 
-## v1.65.7 — local test candidate, 2026-10-12
+## v1.65.7 â€” local test candidate, 2026-10-12
 
 Extension version 2.20.73. Not published.
 
@@ -888,7 +995,7 @@ Extension version 2.20.73. Not published.
 - Reuses existing attack, damage, hit-confirmation and optional follow-up handling; no second attack engine or changed eligibility rules.
 - All 16 automated suites and both builds passed. Live Chrome/Roll20 checks passed for the shortcut, Hit/No Smite damage, keyboard activation and Miss without damage. Broader follow-up acceptance is not implied.
 
-## v1.65.6 — local test candidate, 2026-10-11
+## v1.65.6 â€” local test candidate, 2026-10-11
 
 Extension version: 2.20.72. Not published or live-accepted.
 
@@ -900,7 +1007,7 @@ Extension version: 2.20.72. Not published or live-accepted.
 
 Documentation reconciled 2026-10-10. Latest published release: v1.65.5 / 2.20.71. Version sections describe their own releases, not current outstanding bugs. v1.65.4 was an internal build; its roll-mode fix shipped publicly in v1.65.5. Known current limitations: Lay on Hands pool persistence, concentration browser prompts, saving-throw damage-only resource accounting, and Draining Attack hit confirmation. Final v1.65.5 live acceptance remains unrecorded; automated/build/package checks passed on 2026-10-04.
 
-## v1.65.5 — Lay on Hands allocation correction
+## v1.65.5 â€” Lay on Hands allocation correction
 
 Prepared: October 4, 2026
 
@@ -916,7 +1023,7 @@ Published October 4, 2026. This stable patch corrects the Lay on Hands chooser i
 - **Healing defaults to one point when appropriate.** A full-health target is not presented with an automatic full-pool allocation; the player explicitly chooses the amount and can adjust it with the controls.
 - **The public package and documentation now agree on the stable patch version.** The Chrome extension is 1.65.5 / 2.20.71; 1.65.4 was an internal emergency build and is not a public release.
 
-## v1.65.3 — Rules corrections and the Lay on Hands window
+## v1.65.3 â€” Rules corrections and the Lay on Hands window
 
 Prepared: October 4, 2026
 Extension version: 2.20.69
@@ -943,7 +1050,7 @@ Corrections drawn from the 2024 rules, each checked against the published text b
 
 - D&D Beyond does not record changes to the Lay on Hands pool, so the number returns on reload. Other behavior has recorded tests, but this statement does not certify every current live path.
 
-## v1.65.2 — Resource accuracy and dispatch safety
+## v1.65.2 â€” Resource accuracy and dispatch safety
 
 Prepared: September 15, 2026
 
@@ -978,7 +1085,7 @@ This release is for group testing. It collects the v1.65 work and two rounds of 
 - **Rolling only a damage die** on a saving-throw action such as Breath Weapon does not spend its use or Action; use the action's own roll button.
 - **Draining Attack cannot tell a hit from a miss** when damage is rolled automatically with the attack, so it awards Temporary HP either way. A confirm-the-hit flow is being built.
 
-## v1.64.1 — Prepared smite discovery correction
+## v1.64.1 â€” Prepared smite discovery correction
 
 Prepared: September 12, 2026
 
@@ -995,7 +1102,7 @@ Based on: Beyond20 2.20.1
 
 This is a corrected prerelease for group testing in D&D Beyond and Roll20. The v1.64 two-spell implementation should not be used as the generalized behavior.
 
-## v1.63 — First Shared Release
+## v1.63 â€” First Shared Release
 
 Prepared: September 11, 2026  
 Extension version: 2.20.63  

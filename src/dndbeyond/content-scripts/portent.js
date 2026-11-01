@@ -251,7 +251,7 @@ async function wayBeyond20InitializePortent(owner) {
     });
 }
 
-function wayBeyond20ApplySheetTheme(node) {
+function wayBeyond20ApplySheetTheme(node, options = {}) {
     if (!node) return;
     const native = document.querySelector('.ct-saving-throws-box,.ddbc-saving-throws-box') ||
         document.querySelector('.ct-ability-summary,.ddbc-ability-summary');
@@ -275,7 +275,7 @@ function wayBeyond20ApplySheetTheme(node) {
         return fill !== 'none' && fill !== 'transparent' && fill !== getComputedStyle(surface || native).fill;
     });
     node.style.setProperty('--wb20-sheet-accent', accent ? getComputedStyle(accent).fill : style.color);
-    node.classList.toggle('waybeyond20-sheet-frame', !!frame);
+    node.classList.toggle('waybeyond20-sheet-frame', !!frame && !options.panel);
     if (frame) {
         const copy = frame.cloneNode(true);
         copy.querySelectorAll('script,foreignObject,image,use,a,animate,set').forEach(item => item.remove());
@@ -286,11 +286,21 @@ function wayBeyond20ApplySheetTheme(node) {
         }
         copy.setAttribute('preserveAspectRatio', 'none');
         const background = `url("data:image/svg+xml,${encodeURIComponent(new XMLSerializer().serializeToString(copy))}")`;
+        if (options.panel) {
+            // Nine-slice this one native Saving Throws/Senses frame. Corners are
+            // not stretched to the entire result and no nested frame is added.
+            node.style.backgroundImage = 'none';
+            node.style.backgroundColor = node.style.getPropertyValue('--wb20-sheet-surface');
+            node.style.border = '10px solid transparent';
+            node.style.borderImage = `${background} 22 fill / 10px / 0 stretch`;
+            node.style.borderRadius = '6px';
+        } else {
         if (node.style.backgroundImage !== background) node.style.backgroundImage = background;
         node.style.backgroundSize = '100% 100%';
         node.style.backgroundRepeat = 'no-repeat';
         node.style.backgroundColor = 'transparent';
         node.style.borderColor = 'transparent';
+        }
     } else {
         node.style.backgroundImage = 'none';
     }

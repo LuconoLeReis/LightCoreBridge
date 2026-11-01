@@ -14,7 +14,8 @@ function fn(file,name,source=read(file)){
 const common='src/common/utils.js',utils='src/dndbeyond/base/utils.js';
 const transport=process.env.WB20_TRANSPORT_SOURCE ? fn(utils,'sendRoll',fs.readFileSync(process.env.WB20_TRANSPORT_SOURCE,'utf8')) : fn(utils,'sendRoll');
 const helpers=[fn(common,'cleanRoll'),fn(common,'reMatchAll'),fn(utils,'damagesToCrits'),
-    fn(utils,'addCustomDamages'),fn('src/dndbeyond/content-scripts/character.js','split_custom_damages'),transport].join('\n');
+    fn(utils,'addCustomDamages'),fn(utils,'wayBeyond20TrackRollDelivery'),
+    fn('src/dndbeyond/content-scripts/character.js','split_custom_damages'),transport].join('\n');
 const options=[
     {kind:'Monster',type:'Monster'},
     {kind:'MonsterExtras',type:'Monster'},
@@ -60,10 +61,18 @@ const options=[
                     function adjustRollAndKeyModifiersWithDisadvantage(req){req.advantage=4;}
                     function wayBeyond20ExtensionContextAvailable(){return true;}
                     function wayBeyond20NotifyDispatchFailure(message){notifications.push(message);}
-                    async function wayBeyond20SendRuntimeMessage(req){requests.push(JSON.parse(JSON.stringify(req)));return {ok:true,response:{success:true}};}
+                    const wayBeyond20RollDeliveries=new WeakMap(),wayBeyond20ResolvedRollHooks=new WeakMap();
+                    async function wayBeyond20SendRuntimeMessage(req){return {ok:true,response:{delivered:true}};}
                     function beyond20SendMessageFailure(){}
                     var dndbeyondDiceRoller={queryWhisper:async()=>1,queryAdvantage:async()=>3,
-                        handleRollRequest:async()=>{throw Error('Unexpected local dice capture');}};
+                        // Local resolution is the current sendRoll boundary. The real
+                        // renderer/receiver composition has its own delivery tests.
+                        handleRollRequest:async req=>{
+                            requests.push(JSON.parse(JSON.stringify(req)));
+                            const delivery=wayBeyond20RollDeliveries.get(req);
+                            delivery.invoked=true;delivery.resolve({ok:true,local:true});
+                            await wayBeyond20SendRuntimeMessage(req);
+                        }};
                     var DigitalDiceManager={isEnabled:()=>false};
                 `});
                 await page.addScriptTag({content:helpers});
@@ -173,8 +182,8 @@ const options=[
             const result=await failed.run(),retry=await failed.run();
             return {cancelled,again,result,retry,attempts,sent:requests.length-count,notifications};
         });
-        assert.deepEqual(failures,{cancelled:false,again:false,result:false,retry:false,
-            attempts:1,sent:0,notifications:['test transport failure']});
-        console.log('PASS privacy cancellation and failed transport cannot repeat a dispatch');
+        assert.deepEqual(failures,{cancelled:false,again:false,result:true,retry:true,
+            attempts:1,sent:1,notifications:[]});
+        console.log('PASS privacy cancellation sends nothing; failed optional transport preserves one completed local dispatch');
     } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

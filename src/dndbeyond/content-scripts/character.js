@@ -1,6 +1,10 @@
 console.log("WayBeyond20: D&D Beyond module loaded.");
 
 async function sendRollWithCharacter(rollType, fallback, args) {
+    const reduction=typeof wb20RuleReductionRoll === "function" && wb20RuleReductionRoll(rollType,args);
+    if (reduction) {rollType=reduction.type;fallback=reduction.fallback;args=reduction.args;}
+    if (["attack","spell-attack"].includes(rollType) && typeof wb20PrepareItemRules === "function" && !await wb20PrepareItemRules(args)) return false;
+    if (["attack","spell-attack"].includes(rollType) && typeof wb20RulePrepareAttack === "function" && !await wb20RulePrepareAttack(args)) return false;
     if (typeof wb20CreateCharacterAttackWorkflow === "function" &&
         character.getGlobalSetting?.("waybeyond20-secondary-attacks", false) &&
         ["attack", "spell-attack"].includes(rollType) && args && !args["waybeyond20-followup-phase"] &&
@@ -763,6 +767,7 @@ function wayBeyond20RollIsUnarmedStrike(rollProperties, actionName = "") {
     if (rollProperties["waybeyond20-unarmed-damage-mode"]) return true;
     // A spell is never an Unarmed Strike, even when its text mentions natural weapons (Alter Self).
     if (rollProperties["attack-source"] === "spell") return false;
+    if (typeof wb20RuleIsUnarmed === "function" && wb20RuleIsUnarmed(rollProperties,actionName)) return true;
 
     const normalize = value => String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
     if (normalize(rollProperties["attack-type"]) === "unarmed strike") return true;
@@ -787,6 +792,7 @@ function wayBeyond20NormalizeAttackSemantics(roll_properties, actionName) {
 }
 
 function wayBeyond20ApplyDrainingAttackIntent(roll_properties, actionName) {
+    const parsedSource = typeof wb20RuleDrainingSource === "function" ? wb20RuleDrainingSource() : null;
     const hasDrainingAttack = !!(character && character.hasRacialTrait("Draining Attack", true));
     const hasNaturalAttack = !!(character && character.hasRacialTrait("Natural Attack", true));
     const qualifies = !!(roll_properties && roll_properties["waybeyond20-unarmed-strike"] === true);
@@ -797,13 +803,13 @@ function wayBeyond20ApplyDrainingAttackIntent(roll_properties, actionName) {
         hasNaturalAttack,
         qualifies
     });
-    if (!roll_properties || !character || !hasDrainingAttack || !hasNaturalAttack || !qualifies) return;
+    if (!roll_properties || !character || !(parsedSource || hasDrainingAttack && hasNaturalAttack) || !qualifies) return;
     roll_properties["waybeyond20-temp-hp-on-hit"] = {
         mode: "damage-dealt",
-        source: "Draining Attack",
+        source: parsedSource || "Draining Attack",
         attack: actionName
     };
-    addEffect(roll_properties, "Draining Attack: gain Temporary HP equal to damage dealt");
+    addEffect(roll_properties, `${parsedSource || "Draining Attack"}: gain Temporary HP equal to damage dealt`);
     wayBeyond20CharacterDebug("Draining Attack intent attached", {
         actionName,
         intent: roll_properties["waybeyond20-temp-hp-on-hit"]
@@ -967,7 +973,7 @@ function wayBeyond20LimitedUseSelectors() {
         control: "[role='checkbox'][aria-label='use' i],input[type='checkbox'][aria-label='use' i]",
         row: ".ct-feature-snippet__option,.ddbc-feature-snippet__option,.ct-feature-snippet,.ddbc-feature-snippet," +
             "[class*='ct-feature-snippet--'],[class*='ddbc-feature-snippet--']," +
-            ".ct-combat-attack,.ddbc-combat-attack,.b20-action-pane,.b20-custom-action-pane,.ct-custom-action-pane",
+            ".ct-combat-attack,.ddbc-combat-attack,.b20-action-pane,.b20-custom-action-pane,.ct-custom-action-pane,.b20-item-pane",
         label,
         fallbackLabel: "[class*='heading'],[class*='title'],[class*='name'],[class*='label']"
     };
@@ -993,12 +999,16 @@ function wayBeyond20LimitedUseLabelsWithin(node, selectors, control) {
 
 function wayBeyond20LimitedUseLabelText(element) {
     if (!element) return "";
+    const itemName=element.matches?.('.ct-sidebar__heading') && element.closest('.b20-item-pane') ? element.querySelector('[class*="styles_itemName"]') : null;
+    if (itemName) return wayBeyond20NormalizeFeatureLabel(itemName.textContent.replace(/\*$/,''));
     return wayBeyond20NormalizeFeatureLabel(wayBeyond20ElementOwnText(element) || element.textContent);
 }
 
 function wayBeyond20LimitedUseControlOwnerLabel(control) {
     const element = control && control.jquery ? control[0] : control;
     if (!element || !element.closest) return "";
+    // Inventory/attunement use-shaped boxes equip items; they are never charges.
+    if (element.closest('.ct-item-slot-manager,.ddbc-item-slot-manager,.ct-attunement__item-action,.ddbc-attunement__item-action')) return "";
     const selectors = wayBeyond20LimitedUseSelectors();
     const row = element.closest(selectors.row);
     if (row) {
@@ -1410,7 +1420,8 @@ function wayBeyond20FillHitDieChoices(row, snippet, name) {
     // controls. Do not turn the target's Hit Die into a fixed damage statistic.
     for (const [field, text] of [["range", "5 ft Touch"], ["action", "--"]]) {
         const cell = row.querySelector(`.ddbc-combat-attack__${field}`);
-        if (cell.textContent !== text || cell.querySelector("button")) cell.textContent = text;
+        if (field === "range") wb20SetActionRange(cell,text);
+        else if (cell.textContent !== text || cell.querySelector("button")) cell.textContent = text;
     }
     const damage = row.querySelector(".ddbc-combat-attack__damage");
     let use = damage.querySelector(".wb20-hit-die-use");
@@ -1480,7 +1491,11 @@ function wayBeyond20FillHitDieChoices(row, snippet, name) {
 function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
     const normalize = value => String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
     const names = new Set(existingRows.map(entry => normalize(entry.name)));
-    const previous = Array.from(root.querySelectorAll(':scope > .wb20-feature-option:not(.wb20-feature-row)'));
+    // Only retire shortcuts this collector created. Other feature producers use
+    // the same visual class; deleting their rows makes them recreate the rows
+    // on every document observer callback and prevents the page from settling.
+    const previous = Array.from(root.querySelectorAll(':scope > .wb20-feature-option'))
+        .filter(row => row._wb20FeatureSource);
     const retained = new Set();
     const linkedFeatures = new Set();
     const entries = [];
@@ -1511,7 +1526,6 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
                         if (link._wb20Owner !== character || !source?.isConnected || !link.isConnected) return;
                         const label = source.querySelector('.ct-feature-snippet__heading,.ddbc-feature-snippet__heading');
                         (label?.querySelector('a,button,[role="button"]') || label)?.click();
-                        source.scrollIntoView({block: "center"});
                     });
                     notesCell.append(link);
                 }
@@ -1552,12 +1566,14 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
                 const openDetails = () => {
                     if (row._wb20FeatureOwner !== character || !snippet.isConnected || !row.isConnected) return;
                     (heading.querySelector('a,button,[role="button"]') || heading).click();
-                    snippet.scrollIntoView({block: "center"});
                 };
                 label.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); openDetails(); });
                 icon.addEventListener("click", event => {
                     event.preventDefault(); event.stopPropagation();
                     if (row._wb20FeatureOwner !== character || !snippet.isConnected || !row.isConnected) return;
+                    if (typeof wb20RuleCanActivate === "function" && wb20RuleCanActivate(name)) {
+                        wb20ActivateRule(name).catch(console.warn);return;
+                    }
                     const use = snippet.querySelector('.waybeyond20-blood-and-bone-button[data-waybeyond20-label="Use"]');
                     if (use) { if (!use.disabled) use.click(); }
                     else openDetails();
@@ -1571,7 +1587,8 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
             const disabled = !!use?.disabled;
             if (icon.disabled !== disabled) icon.disabled = disabled;
             const costLabel = {action: "Action", bonusAction: "Bonus Action", reaction: "Reaction", special: "Free / Special"}[meta.cost];
-            const title = `${costLabel}: ${use ? "Use" : "Open details for"} ${name}`;
+            const canUseRule=typeof wb20RuleCanActivate === "function" && wb20RuleCanActivate(name);
+            const title = `${costLabel}: ${use || canUseRule ? "Use" : "Open details for"} ${name}`;
             if (icon.title !== title) { icon.title = title; icon.setAttribute("aria-label", title); }
             // Bill's display category is independent of action cost and rules.
             // Do not infer a gameplay restriction or invent unknown categories.
@@ -1582,6 +1599,8 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
             const notes = row.querySelector(".ddbc-combat-attack__notes");
             const slots = Array.from(snippet.querySelectorAll('[role="checkbox"][aria-checked]'));
             const uses = slots.length ? `${slots.filter(el => el.getAttribute("aria-checked") === "false").length}/${slots.length} uses · ` : "";
+            // Preserve the established NAME/RANGE/HIT-DC/DAMAGE/NOTES cells.
+            // Native rule prose belongs in details, not across the table row.
             const note = `${uses}${use ? "Use" : "Details"}`;
             if (!wayBeyond20FillHitDieChoices(row, snippet, name) && notes.textContent !== note)
                 notes.textContent = note;
@@ -1593,6 +1612,102 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
     for (const link of root.querySelectorAll(".wb20-linked-feature"))
         if (!linkedFeatures.has(link)) link.remove();
     return entries;
+}
+
+// Presentation only: keep the existing row activator and all five columns.
+// Each producer supplies its unformatted range, so a refresh cannot strip and
+// recreate these spans in an observer feedback loop.
+function wb20SetActionRange(cell, raw) {
+    raw = String(raw || "—").trim();
+    if (cell.dataset.wb20Range === raw && cell.querySelector('.wb20-range-main')) return;
+    const match = raw.match(/^(\d+(?:\.\d+)?)\s*(ft\.?|feet|foot|miles?|mi\.?|meters?)\s*(.*)$/i);
+    const main = document.createElement('span'); main.className = 'wb20-range-main';
+    if (match) {
+        const number = document.createElement('span'); number.className = 'wb20-range-number'; number.textContent = match[1];
+        const units = document.createElement('span'); units.className = 'wb20-range-units'; units.textContent = match[2];
+        main.append(number, document.createTextNode(' '), units);
+        cell.replaceChildren(main);
+        if (match[3]) { const label = document.createElement('span'); label.className = 'wb20-range-label'; label.textContent = match[3]; cell.append(document.createTextNode(' '),label); }
+    } else { main.classList.add('wb20-range-label'); main.textContent = raw; cell.replaceChildren(main); }
+    cell.dataset.wb20Range = raw;
+}
+
+function wb20DecorateActionValues(root, owned) {
+    const nativeRows = Array.from(root.querySelectorAll('.ddbc-combat-attack,.ct-combat-attack')).filter(row => !row.matches(owned));
+    const nativeButton = nativeRows.map(row => row.querySelector('.ddbc-combat-attack__tohit button,.ct-combat-attack__tohit button')).find(Boolean);
+    if (nativeButton) {
+        const style = getComputedStyle(nativeButton);
+        for (const property of ['border-color','border-radius','background-color','padding-top','padding-right','padding-bottom','padding-left','min-height']) {
+            const key = '--wb20-value-' + property, value = style.getPropertyValue(property);
+            if (root.style.getPropertyValue(key) !== value) root.style.setProperty(key,value);
+        }
+    }
+    const rangeLabel = root.querySelector('.ddbc-combat-attack:not(.wb20-quick-row):not(.wb20-feature-option):not(.wb20-opportunity-attack) .ddbc-combat-attack__range-label');
+    if (rangeLabel) for (const property of ['color','font-size','line-height']) {
+        const key='--wb20-range-label-'+property,value=getComputedStyle(rangeLabel).getPropertyValue(property);
+        if(root.style.getPropertyValue(key)!==value)root.style.setProperty(key,value);
+    }
+    for (const row of root.querySelectorAll(owned)) {
+        const range = row.querySelector(".ddbc-combat-attack__range");
+        if (range && !range.dataset.wb20Range && range.textContent.trim()) wb20SetActionRange(range,range.textContent);
+        const activate = row.querySelector('.wb20-feature-option-icon,.wb20-inspire-icon');
+        const spell = row._wb20PresentationSpell;
+        const source = row._wb20PresentationSource || nativeRows.find(native =>
+            native.querySelector('.ddbc-combat-attack__label,.ct-combat-attack__label')?.textContent.trim() === spell?.name);
+        const type = spell?.damageType;
+        const sourceIcon = source?.querySelector('.ddbc-damage-type-icon,.ct-damage-type-icon') ||
+            (type && Array.from(document.querySelectorAll('.ddbc-damage-type-icon,.ct-damage-type-icon')).find(icon =>
+                !icon.closest(owned) && icon.getAttribute('aria-label')?.toLowerCase() === type.toLowerCase()+' damage'));
+        for (const field of ['action','damage']) {
+            const cell=row.querySelector('.ddbc-combat-attack__'+field); if(!cell)continue;
+            const raw=cell.textContent.trim();
+            // Save DCs and non-roll effects remain plain text. Never give a
+            // placeholder, use count, or passive rule a false roll affordance.
+            const rollable=field==='action'?/^[+\-\u2212]\s*\d+$/.test(raw):/\b\d*d\d+\b/i.test(raw);
+            if(!rollable || !activate)continue;
+            let control=cell.querySelector('.wb20-action-value');
+            if(!control && !cell.querySelector('button')) {
+                control=document.createElement('button');control.type='button';control.className='wb20-action-value';
+                const value=document.createElement('span');value.className=field==='damage'?'ddbc-damage__value':'wb20-hit-value';
+                value.textContent=raw;control.append(value);cell.replaceChildren(control);
+                // Forward to the row's existing guarded activation. This is not
+                // a second attack/cast/damage executor or a native dice button.
+                control.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();if(row.isConnected&&!activate.disabled)activate.click();});
+            }
+            if(!control)continue;
+            const help=(activate.getAttribute('aria-label') || activate.title || 'Use this feature')+' — uses the same activation as the left icon';
+            if(control.getAttribute('aria-label')!==help)control.setAttribute('aria-label',help);
+            if(control.title!==help)control.title=help;
+            if(control.disabled!==activate.disabled)control.disabled=activate.disabled;
+            if(field==='damage') {
+                const prior=control.querySelector('[data-wb20-value-icon]');
+                const key=sourceIcon?.outerHTML || '';
+                if(control.dataset.wb20ValueIconKey!==key){
+                    prior?.remove();
+                    if(sourceIcon){const copy=sourceIcon.cloneNode(true);copy.setAttribute('data-wb20-value-icon','true');copy.setAttribute('aria-hidden','true');control.append(copy);}
+                    control.dataset.wb20ValueIconKey=key;
+                }
+            }
+        }
+    }
+}
+
+// Duplicate equipped weapons are presentation copies, not extra options.
+// Keep native nodes/listeners/inventory intact. Different stats/properties stay.
+function wb20MarkDuplicateWeapons(entries) {
+    const seen=new Set();
+    for(const entry of entries){
+        const row=entry.row;
+        const meta=Array.from(row.querySelectorAll('.ddbc-combat-attack__meta-item,.ct-combat-attack__meta-item')).map(n=>n.textContent.trim()).join(' ');
+        let duplicate=false;
+        if(!row.matches('.wb20-feature-option,.wb20-quick-row,.wb20-rule-row,.wb20-opportunity-attack,.waybeyond20-bardic-feature-row') && /\bweapon\b/i.test(meta)){
+            const fields=['range','action','damage','notes'].map(field=>row.querySelector('.ddbc-combat-attack__'+field+',.ct-combat-attack__'+field)?.textContent.replace(/\s+/g,' ').trim() || '');
+            const types=Array.from(row.querySelectorAll('.ddbc-damage-type-icon,.ct-damage-type-icon')).map(n=>n.getAttribute('aria-label') || '');
+            const key=JSON.stringify([entry.name,entry.cost,meta,fields,types]);
+            duplicate=seen.has(key);seen.add(key);
+        }
+        if(row.hasAttribute('data-wb20-duplicate-weapon')!==duplicate)row.toggleAttribute('data-wb20-duplicate-weapon',duplicate);
+    }
 }
 
 function wayBeyond20MatchActionTypography(root) {
@@ -1607,13 +1722,36 @@ function wayBeyond20MatchActionTypography(root) {
     // row/button instead picks up the site's generic font, not the sheet font.
     for (const label of root.querySelectorAll(
         '.wb20-feature-option-name,.waybeyond20-bardic-feature-identity strong')) {
-        for (const property of ["font-family", "font-size", "font-weight", "line-height", "letter-spacing"]) {
+        for (const property of ["font-family", "font-size", "font-weight", "line-height", "letter-spacing", "color"]) {
             const value = style.getPropertyValue(property);
             // Called from a mutation observer; keep repeated refreshes inert.
             if (label.style.getPropertyValue(property) !== value)
                 label.style.setProperty(property, value);
         }
     }
+    const owned = '.wb20-feature-option,.wb20-quick-row,.wb20-rule-row,.wb20-opportunity-attack,.waybeyond20-bardic-feature-row';
+    const nativeCell = selector => Array.from(root.querySelectorAll(selector)).find(cell => !cell.closest(owned));
+    const damage = nativeCell('.ddbc-combat-attack__damage .ddbc-damage__value,.ct-combat-attack__damage .ct-damage__value,.ddbc-combat-attack__damage,.ct-combat-attack__damage');
+    if (damage) {
+        const damageStyle = getComputedStyle(damage);
+        for (const property of ['font-family','font-size','line-height']) {
+            const name = '--wb20-action-value-' + property, value = damageStyle.getPropertyValue(property);
+            if (root.style.getPropertyValue(name) !== value) root.style.setProperty(name,value);
+        }
+    }
+    for (const column of ['range','action','damage','notes']) {
+        const selector = `.ddbc-combat-attack__${column},.ct-combat-attack__${column}`;
+        const sample = nativeCell(selector);
+        if (!sample) continue;
+        const sampleStyle = getComputedStyle(sample);
+        for (const row of root.querySelectorAll(owned)) for (const cell of row.querySelectorAll(selector)) {
+            for (const property of ['font-family','font-size','font-weight','line-height','color']) {
+                const value = sampleStyle.getPropertyValue(property);
+                if (cell.style.getPropertyValue(property) !== value) cell.style.setProperty(property,value);
+            }
+        }
+    }
+    wb20DecorateActionValues(root, owned);
     const subtitle = Array.from(root.querySelectorAll(
         '.ct-combat-attack__meta-item,.ddbc-combat-attack__meta-item'))
         .find(el => !el.closest('.wb20-feature-option,.waybeyond20-bardic-feature-row'));
@@ -1654,6 +1792,10 @@ function wayBeyond20RefreshNaturalAttackIcons() {
 }
 
 function wayBeyond20RefreshCombinedActions() {
+    const priorRules=typeof wb20RuleRenderState==='undefined'?null:wb20RuleRenderState;
+    const ownRules=typeof wb20RuleRenderState!=='undefined'&&!priorRules;
+    if(ownRules)wb20RuleRenderState={owner:character,rules:wb20CurrentFeatureRules()};
+    try {
     wayBeyond20RefreshNaturalAttackIcons();
     if (typeof wb20QuickObserveSpells === "function") wb20QuickObserveSpells();
     const groupSelector = '.ct-actions-list,[class*="styles_actionsList__"]';
@@ -1708,6 +1850,7 @@ function wayBeyond20RefreshCombinedActions() {
                 }
             }
             rows.push(...wayBeyond20CollectFeatureOptions(root, groups, rows));
+            if (typeof wb20RuleRows === "function") rows.push(...wb20RuleRows(root,rows));
             if (typeof wb20FeatureRows === "function") rows.push(...wb20FeatureRows(root));
             if (typeof wayBeyond20OpportunityRow === "function")
                 rows.push(wayBeyond20OpportunityRow(root));
@@ -1833,6 +1976,7 @@ function wayBeyond20RefreshCombinedActions() {
             }
             toolbar._wb20Owner = character;
             if (typeof wb20FeatureToolbar === "function") wb20FeatureToolbar(toolbar);
+            if (typeof wb20RuleToolbar === "function") wb20RuleToolbar(toolbar);
             let extendedLegend = toolbar.querySelector(".wb20-extended-legend");
             if (rows.some(entry => entry.cost === "extended" && (typeof wb20QuickIsHidden !== "function" || !wb20QuickIsHidden(entry)))) {
                 if (!extendedLegend) {
@@ -1880,6 +2024,7 @@ function wayBeyond20RefreshCombinedActions() {
                 if (left === null || right === null) return left === right ? 0 : left === null ? 1 : -1;
                 return right - left;
             });
+            wb20MarkDuplicateWeapons(rows);
             for (const [index, entry] of rows.entries()) {
                 mark(entry.row, "row", index);
                 if (typeof wb20QuickRowKey === "function") {
@@ -1914,11 +2059,13 @@ function wayBeyond20RefreshCombinedActions() {
         element.removeAttribute("data-wb20-list-layout");
         element.removeAttribute("data-wb20-list-view");
         element.removeAttribute("data-wb20-user-hidden");
+        element.removeAttribute("data-wb20-duplicate-weapon");
         element.removeAttribute("data-wb20-action-cost");
         element.style.removeProperty("--wb20-list-order");
         for (const link of element.querySelectorAll(".wb20-linked-feature")) link.remove();
         if (element.matches('.wb20-action-list-sort,.wb20-feature-option,.wb20-opportunity-attack,.wb20-quick-row,.wb20-action-fallback-header')) element.remove();
     }
+    } finally {if(ownRules)wb20RuleRenderState=priorRules;}
 }
 
 async function wayBeyond20ChooseHitDie() {
@@ -2902,10 +3049,10 @@ function wayBeyond20ParseTalentDuration(duration="", description="") {
         result.updateMode = "instantaneous";
         return result;
     }
-    const match = text.match(/(?:up to\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(round|rounds|minute|minutes|hour|hours|day|days|year|years|second|seconds)/);
+    const match = text.match(/(?:up to\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(rounds?|minutes?|mins?|hours?|hrs?|days?|years?|seconds?)\b/);
     if (match) {
         result.value = wayBeyond20WordToNumber(match[1]);
-        result.unit = match[2].replace(/s$/, "");
+        result.unit = match[2].replace(/s$/, "").replace(/^min$/,"minute").replace(/^hr$/,"hour");
         result.updateMode = match[2].toLowerCase();
     } else if (result.concentration) {
         result.updateMode = "special";
@@ -5110,6 +5257,14 @@ function wayBeyond20IsInsideTransientPanel(element) {
 function wayBeyond20FindVisibleTextElement(label, options = {}) {
     const normalized = String(label || "").trim().toUpperCase();
     if (!normalized) return $();
+    const key=normalized+'|'+!!options.avoidTransientPanels+'|'+!!options.preferCompact;
+    const cache=wayBeyond20FindVisibleTextElement.cache ||= new Map();
+    const cached=cache.get(key);
+    if(cached?.isConnected &&
+        (wayBeyond20ElementOwnText(cached)||String(cached.textContent||'').trim()).toUpperCase()===normalized &&
+        wayBeyond20IsVisibleElement(cached) &&
+        (!options.avoidTransientPanels||!wayBeyond20IsInsideTransientPanel(cached)))return $(cached);
+    cache.delete(key);
 
     // Keep this bounded because it can be called after D&D Beyond sheet mutations. Use own text
     // when available so our injected BUFFS/CONCENTRATION badges do not make the DEFENSES or
@@ -5123,14 +5278,14 @@ function wayBeyond20FindVisibleTextElement(label, options = {}) {
     const matches = [];
 
     for (const element of candidates) {
-        if (!wayBeyond20IsVisibleElement(element)) continue;
-        if (options.avoidTransientPanels && wayBeyond20IsInsideTransientPanel(element)) continue;
-
         const ownText = wayBeyond20ElementOwnText(element);
         const fullText = String(element.textContent || "").replace(/\s+/g, " ").trim();
         const textToCheck = ownText || fullText;
         if (!textToCheck || textToCheck.length > 40) continue;
         if (textToCheck.toUpperCase() !== normalized) continue;
+        // Resolve cheap identity first; only matching labels require layout.
+        if (!wayBeyond20IsVisibleElement(element)) continue;
+        if (options.avoidTransientPanels && wayBeyond20IsInsideTransientPanel(element)) continue;
 
         matches.push(element);
     }
@@ -5147,6 +5302,7 @@ function wayBeyond20FindVisibleTextElement(label, options = {}) {
         return (aRect.left || 0) - (bRect.left || 0);
     });
 
+    if(cache.size<24)cache.set(key,matches[0]);
     return $(matches[0]);
 }
 
@@ -5325,6 +5481,13 @@ function wayBeyond20InjectBuffsBadge(effects) {
     if (!Array.isArray(effects) || effects.length === 0) {
         $(".waybeyond20-buffs-list").remove();
         $(".waybeyond20-defenses-with-buffs").removeClass("waybeyond20-defenses-with-buffs");
+        $(".wb20-defenses-auto-height > .ddbc-box-background > svg[data-wb20-frame-aspect]").each(function() {
+            const original = this.getAttribute("data-wb20-frame-aspect");
+            if (original === "") this.removeAttribute("preserveAspectRatio");
+            else this.setAttribute("preserveAspectRatio", original);
+            this.removeAttribute("data-wb20-frame-aspect");
+        });
+        $(".wb20-defenses-auto-height").removeClass("wb20-defenses-auto-height");
         const anchors = existing.parent();
         existing.remove();
         anchors.each(function() {
@@ -5339,6 +5502,19 @@ function wayBeyond20InjectBuffsBadge(effects) {
     if (defenseHeader.length === 0) return;
     wayBeyond20UpsertEffectBadge(defenseHeader, "waybeyond20-buffs-badge", "BUFFS", "Active Buffs", () => wayBeyond20GetTrackedSpellEffects());
     const group = defenseHeader.parent().addClass("waybeyond20-defenses-with-buffs");
+    const conditionsHeader=wayBeyond20FindVisibleTextElement("CONDITIONS",{avoidTransientPanels:true,preferCompact:true});
+    if (conditionsHeader.length) {
+        const panel = group.parents().filter(function() { return this.contains(conditionsHeader[0]); }).first();
+        panel.addClass("wb20-defenses-auto-height");
+        // Native frames have a fixed-ratio SVG. Growing only the surrounding box
+        // leaves the visible border above the last buff. Stretch this frame alone,
+        // preserving its theme and original aspect setting for removal.
+        panel.find("> .ddbc-box-background > svg").each(function() {
+            if (!this.hasAttribute("data-wb20-frame-aspect"))
+                this.setAttribute("data-wb20-frame-aspect", this.getAttribute("preserveAspectRatio") || "");
+            if (this.getAttribute("preserveAspectRatio") !== "none") this.setAttribute("preserveAspectRatio", "none");
+        });
+    }
     let list = group.find("> .waybeyond20-buffs-list").first();
     if (!list.length) {
         list = $("<div>").addClass("waybeyond20-buffs-list").attr("aria-label", "Active buffs");
@@ -5686,16 +5862,26 @@ let waybeyond20_effect_badge_refresh_timer = 0;
 
 function wayBeyond20RefreshActiveEffectBadges() {
     waybeyond20_effect_badge_refresh_timer = 0;
+    const step=(name,callback)=>typeof wb20SheetStage==='function'?wb20SheetStage(name,callback):callback();
+    const measured=typeof wb20SheetStage==='function',started=performance.now();
+    const previousProbe=measured?wb20SheetMonitor.probe:null;
+    if(measured&&!previousProbe){wb20SheetMonitor.probe=new MutationObserver(()=>{});
+        wb20SheetMonitor.probe.observe(document,{subtree:true,childList:true,characterData:true});}
+    try {
     if (typeof wayBeyond20InjectPortent === "function") wayBeyond20InjectPortent();
     const effects = wayBeyond20GetTrackedSpellEffects();
     const concentration = wayBeyond20GetConcentrationEffect();
-    wayBeyond20ApplyActiveEffectMechanics(effects);
-    wayBeyond20InjectBuffsBadge(effects);
-    wayBeyond20InjectMageArmorBadge(effects);
-    wayBeyond20InjectConcentrationBadge(concentration);
-    wayBeyond20InjectWizardHelpers();
-    wayBeyond20InjectTurnResourceTracker(effects);
-    wayBeyond20InjectHitDiceTracker();
+    step('wayBeyond20ApplyActiveEffectMechanics',()=>wayBeyond20ApplyActiveEffectMechanics(effects));
+    step('wayBeyond20InjectBuffsBadge',()=>wayBeyond20InjectBuffsBadge(effects));
+    step('wayBeyond20InjectMageArmorBadge',()=>wayBeyond20InjectMageArmorBadge(effects));
+    step('wayBeyond20InjectConcentrationBadge',()=>wayBeyond20InjectConcentrationBadge(concentration));
+    step('wayBeyond20InjectWizardHelpers',()=>wayBeyond20InjectWizardHelpers());
+    step('wayBeyond20InjectTurnResourceTracker',()=>wayBeyond20InjectTurnResourceTracker(effects));
+    step('wayBeyond20InjectHitDiceTracker',()=>wayBeyond20InjectHitDiceTracker());
+    } finally {
+        if(measured&&!previousProbe){wb20SheetMonitor.probe?.disconnect();wb20SheetMonitor.probe=null;
+            wb20SheetReport(performance.now()-started>50);}
+    }
 }
 
 function wayBeyond20ScheduleActiveEffectBadgeRefresh() {
@@ -8118,7 +8304,7 @@ function wayBeyond20NotifyHealingReceived(detail) {
 
 // Heals this character through D&D Beyond's Heal control, the way a player does, instead of
 // writing Hit Points directly; D&D Beyond then caps at the maximum and handles 0 HP itself.
-async function wayBeyond20ApplyHealingToSelf(amount, { source = "" } = {}) {
+async function wayBeyond20ApplyHealingToSelf(amount, { source = "", notify = true } = {}) {
     const requested = Math.max(0, parseInt(amount) || 0);
     const before = wayBeyond20CurrentHitPoints();
     const adjuster = requested ? wayBeyond20FindHitPointsAdjuster() : null;
@@ -8136,7 +8322,7 @@ async function wayBeyond20ApplyHealingToSelf(amount, { source = "" } = {}) {
     }
     const alreadyFull = before.max !== null && before.current >= before.max;
     const applied = after.current !== null && (after.current > before.current || alreadyFull);
-    if (applied) {
+    if (applied && notify) {
         wayBeyond20NotifyHealingReceived({ amount: requested, regained: Math.max(0, after.current - before.current), source });
     }
     return { applied, before: before.current, after: after.current };
@@ -10536,7 +10722,67 @@ function executeQuickRoll(paneClass) {
     quick_roll = false;
 }
 
+// Bounded diagnostics: no polling timer, DOM diagnostic panel or unbounded log.
+// Observe our synchronous stages separately without consuming the real observer's
+// records. This identifies which producer changed the DOM, not just its victim.
+const wb20SheetMonitor = {callbacks:0, runs:0, mutations:0, timer:0, delay:75,
+    stages:new Map(), targets:new Map(), reports:0, lastReport:0, pending:null};
+function wb20SheetSnapshot() {
+    return {callbacks:wb20SheetMonitor.callbacks,runs:wb20SheetMonitor.runs,
+        mutations:wb20SheetMonitor.mutations,delay:wb20SheetMonitor.delay,
+        stages:[...wb20SheetMonitor.stages].map(([name,s])=>({name,calls:s.calls,
+            ms:Math.round(s.ms),maxMs:Math.round(s.maxMs),writes:s.writes}))
+            .sort((a,b)=>b.ms-a.ms).slice(0,24),
+        mutationTargets:[...wb20SheetMonitor.targets].sort((a,b)=>b[1]-a[1]).slice(0,12)};
+}
+function wb20SheetReport(slow=false) {
+    const now=performance.now();
+    if(wb20SheetMonitor.reports>=6 || (wb20SheetMonitor.reports && now-wb20SheetMonitor.lastReport<10000) ||
+        (!slow && wb20SheetMonitor.callbacks<100))return;
+    wb20SheetMonitor.lastReport=now;wb20SheetMonitor.reports++;
+    console.info('WayBeyond20: bounded sheet refresh diagnostic', JSON.stringify(wb20SheetSnapshot()));
+    if(typeof wayBeyond20DebugLog==='function')
+        wayBeyond20DebugLog('sheet-performance','Refresh pressure',wb20SheetSnapshot(),true);
+}
+function wb20SheetStage(name,callback) {
+    const start=performance.now();let watcher=null;
+    // One watcher for a whole refresh; each stage drains only this diagnostic
+    // watcher's records. The real observer still receives all native changes.
+    if(wb20SheetMonitor.probe)watcher=wb20SheetMonitor.probe;
+    try{return callback();}finally{
+        const duration=performance.now()-start,records=watcher?watcher.takeRecords():[];
+        let stage=wb20SheetMonitor.stages.get(name);
+        if(!stage && wb20SheetMonitor.stages.size<24){stage={calls:0,ms:0,maxMs:0,writes:0};wb20SheetMonitor.stages.set(name,stage);}
+        if(stage){stage.calls++;stage.ms+=duration;stage.maxMs=Math.max(stage.maxMs,duration);stage.writes+=records.length;}
+    }
+}
+function wb20QueueSheetRefresh(records,observer) {
+    wb20SheetMonitor.callbacks++;wb20SheetMonitor.mutations+=records.length;
+    for(const record of records.slice(0,40)){
+        const node=record.target.nodeType===3?record.target.parentElement:record.target;
+        const hint=(node?.nodeName||'node')+'.'+String(node?.className||'').split(/\s+/).slice(0,2).join('.');
+        if(wb20SheetMonitor.targets.has(hint)||wb20SheetMonitor.targets.size<24)
+            wb20SheetMonitor.targets.set(hint,(wb20SheetMonitor.targets.get(hint)||0)+1);
+    }
+    // Do not retain MutationRecords/DOM subtrees, debounce forever, or execute
+    // expensive sheet scans inside a mutation microtask. One pending task yields
+    // to input/painting even if a producer keeps writing unchanged information.
+    wb20SheetMonitor.pending=observer;
+    if(wb20SheetMonitor.timer)return;
+    wb20SheetMonitor.timer=setTimeout(()=>{
+        wb20SheetMonitor.timer=0;const current=wb20SheetMonitor.pending;wb20SheetMonitor.pending=null;
+        documentModified(undefined,current);
+    },wb20SheetMonitor.delay);
+}
+
 function documentModified(mutations, observer) {
+    const measured=typeof wb20SheetStage==='function';
+    const step=(name,callback)=>measured?wb20SheetStage(name,callback):callback();
+    const started=performance.now();
+    const previousProbe=measured?wb20SheetMonitor.probe:null;
+    if(measured&&!previousProbe){wb20SheetMonitor.runs++;wb20SheetMonitor.probe=new MutationObserver(()=>{});
+        wb20SheetMonitor.probe.observe(document,{subtree:true,childList:true,characterData:true});}
+    try {
     if (isExtensionDisconnected()) {
         if (typeof wb20CancelCombatHandoff === "function") wb20CancelCombatHandoff();
         deactivateQuickRolls();
@@ -10544,26 +10790,27 @@ function documentModified(mutations, observer) {
         return;
     }
 
-    character.updateInfo();
-    injectRollToSpellAttack();
-    injectRollToSnippets();
-    injectSettingsButton();
-    if (typeof wb20RefreshCompactHeader === "function") wb20RefreshCompactHeader();
-    wayBeyond20InjectCombatMenuAction();
+    step('character',()=>character.updateInfo());
+    step('spell-attack controls',()=>injectRollToSpellAttack());
+    step('snippet dice',()=>injectRollToSnippets());
+    step('settings',()=>injectSettingsButton());
+    step('item controls',()=>{if(typeof wb20InjectItemRuleControls==='function')wb20InjectItemRuleControls();});
+    step('header',()=>{if(typeof wb20RefreshCompactHeader==='function')wb20RefreshCompactHeader();});
+    step('combat menu',()=>wayBeyond20InjectCombatMenuAction());
     wayBeyond20ScheduleActiveEffectBadgeRefresh();
-    injectCustomRollButton();
-    wayBeyond20InjectBloodAndBoneAction();
-    wayBeyond20InjectBardicInspirationButton();
-    wayBeyond20InjectLayOnHandsControls();
-    activateQuickRolls();
-    wayBeyond20RefreshCombinedActions();
+    step('custom dice',()=>injectCustomRollButton());
+    step('hit-die controls',()=>wayBeyond20InjectBloodAndBoneAction());
+    step('inspiration',()=>wayBeyond20InjectBardicInspirationButton());
+    step('healing controls',()=>wayBeyond20InjectLayOnHandsControls());
+    step('quick rolls',()=>activateQuickRolls());
+    step('action rows',()=>wayBeyond20RefreshCombinedActions());
     if (character._features_needs_refresh && !character._features_refresh_warning_displayed) {
         character._features_refresh_warning_displayed = true;
         alertify.alert("This is a new or recently leveled-up character sheet and WayBeyond20 needs to parse its information. <br/>Please select the <strong>'Features &amp; Traits'</strong> panel on your DnDBeyond Character Sheet for WayBeyond20 to parse this character's features and populate the character-specific options.");
     }
 
 
-    const customRoll = DigitalDiceManager.updateNotifications();
+    const customRoll = step('dice notifications',()=>DigitalDiceManager.updateNotifications());
     if (customRoll && settings['use-digital-dice']) {
         dndbeyondDiceRoller.sendCustomDigitalDice(character, customRoll);
     }
@@ -10601,7 +10848,7 @@ function documentModified(mutations, observer) {
 
     function handlePane(paneClass) {
         console.log("WayBeyond20: New side panel is : " + paneClass);
-        injectRollButton(paneClass);
+        step('sidebar controls',()=>injectRollButton(paneClass));
         if (typeof wb20ContinueCombatHandoff === "function" && wb20ContinueCombatHandoff()) return;
         // A prior sidebar may still be mounted during the new pane's handoff.
         if (quick_roll_mode_target && (character !== quick_roll_mode_target.owner ||
@@ -10696,6 +10943,12 @@ function documentModified(mutations, observer) {
                 handlePane(paneClass);
             }
         }
+    }
+    } finally {
+        if(measured&&!previousProbe){wb20SheetMonitor.probe?.disconnect();wb20SheetMonitor.probe=null;
+            const elapsed=performance.now()-started;
+            wb20SheetMonitor.delay=Math.max(75,Math.min(1000,Math.ceil(elapsed*4)));
+            wb20SheetReport(elapsed>50);}
     }
 }
 
@@ -11278,6 +11531,8 @@ function installDDBRollHijack() {
 var settings = getDefaultSettings();
 var character = new Character(settings);
 var creature = null;
+wb20StartSheetLoadDiagnostics();
+wb20WatchSheetLoadCompletion();
 updateSettings();
 installDDBRollHijack();
 wayBeyond20InstallSmiteSpellStateTracker();
@@ -11285,7 +11540,7 @@ wayBeyond20InstallNativeSpellCasting();
 wayBeyond20InstallLongRestTracker();
 wayBeyond20InstallGameLogDebugRelay();
 chrome.runtime.onMessage.addListener(handleMessage);
-observer = new window.MutationObserver(documentModified);
+observer = new window.MutationObserver(wb20QueueSheetRefresh);
 observer.observe(document, { subtree: true, childList: true, characterData: true });
 chrome.runtime.sendMessage({ "action": "activate-icon" });
 sendCustomEvent("disconnect");

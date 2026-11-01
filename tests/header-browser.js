@@ -2,8 +2,10 @@
 const {chromium}=require(process.env.WB20_PLAYWRIGHT || "playwright");
 const path=require("node:path"),assert=require("node:assert/strict");
 const root=path.resolve(__dirname,"..");
+const headerSource=process.env.WB20_HEADER_SOURCE || path.join(root,"src/dndbeyond/content-scripts/header.js");
+const headerCSS=process.env.WB20_HEADER_CSS || path.join(root,"src/extension/beyond20.css");
 const group=(name,text)=>`<div class="ct-character-header-desktop__group ct-character-header-desktop__group--${name}"><div class="ct-character-header-desktop__button" role="button" tabindex="0"><span class="ct-character-header-desktop__button-label">${text}</span></div></div>`;
-const html=`<div class="ct-character-header-desktop">
+const html=`<style>.native-campaign { margin-left:20px; }</style><div class="ct-character-header-desktop">
 <div class="ct-character-header-desktop__group-tidbits"><div class="ddbc-character-tidbits"><div class="name">Dr. Rhonen</div><div class="ddbc-character-tidbits__menu-callout"><button>Manage</button></div><div>M Elf Monk 3</div><small>Level 3</small></div></div>
 <div class="ct-character-header-desktop__group--gap"></div>
 <div class="ct-character-header-desktop__group--beyond20-hotkeys"></div>
@@ -16,11 +18,87 @@ ${group("share","Share")}${group("short-rest","Short Rest")}${group("long-rest",
 (async()=>{
     const browser=await chromium.launch({channel:"chrome",headless:true});
     try {
+        // Native optional controls must not decide whether unrelated controls
+        // work. Cover different campaign states, both palettes and late Share.
+        for (const hasShare of [false,true]) for (const hasCampaign of [true,false]) for (const dark of [false,true]) {
+            const optional=await browser.newPage({viewport:{width:1440,height:700}});
+            await optional.route('https://wb20.test/**',route=>route.fulfill({body:'<html></html>',contentType:'text/html'}));
+            await optional.goto('https://wb20.test/characters/123456789');
+            await optional.setContent(html);
+            await optional.addStyleTag({content:'body{margin:0;background:#252525;color:#fff;font:12px Arial}.ct-character-header-desktop{box-sizing:border-box;margin:auto;max-width:1200px;height:100px}'});
+            await optional.addStyleTag({path:headerCSS});
+            await optional.evaluate(({hasShare,hasCampaign,dark})=>{
+                if(!hasShare) document.querySelector('.ct-character-header-desktop__group--share').remove();
+                if(!hasCampaign) document.querySelector('.native-campaign').innerHTML='<a role="button" aria-roledescription="Find a group" href="/find-a-group">Find a group</a><div><span><div role="button" aria-roledescription="Game Log"><svg><path fill="white" d="M0 0H10V10H0Z"/></svg></div></span></div>';
+                if(dark){const surface=document.querySelector('.ct-saving-throws-box');surface.style.color='rgb(240, 235, 230)';surface.querySelector('rect').setAttribute('fill','rgb(30, 35, 45)');}
+                window.calls={manage:0,wb20:0,short:0,long:0,correction:0,log:0};
+                window.wb20CorrectResources=async()=>{calls.correction++;};
+                const bind=(selector,key)=>document.querySelector(selector).addEventListener('click',()=>calls[key]++);
+                bind('.ddbc-character-tidbits__menu-callout button','manage');bind('.ct-beyond20-settings-button','wb20');
+                bind('.ct-character-header-desktop__group--short-rest > div','short');bind('.ct-character-header-desktop__group--long-rest > div','long');bind('[aria-roledescription="Game Log"]','log');
+                window.nativeParents=Array.from(document.querySelector('.ct-character-header-desktop').children).map(n=>[n,n.parentElement]);
+            },{hasShare,hasCampaign,dark});
+            await optional.addScriptTag({path:path.join(root,'src/dndbeyond/content-scripts/portent.js')});
+            await optional.addScriptTag({path:headerSource});
+            await optional.evaluate(()=>{for(let i=0;i<5;i++)wb20RefreshCompactHeader();});
+            assert.equal(await optional.locator('.wb20-compact-header').count(),1,`compact layout: share=${hasShare}, campaign=${hasCampaign}`);
+            assert.equal(await optional.locator('.wb20-header-without-share').count(),hasShare?0:1);
+            assert.equal(await optional.locator('.ct-character-header-desktop__group--share').count(),hasShare?1:0,'never invent native Share');
+            await optional.getByRole('button',{name:'Manage',exact:true}).click();
+            await optional.waitForFunction(()=>calls.manage===1);
+            await optional.getByRole('button',{name:'WB20',exact:true}).press('Enter');
+            await optional.getByRole('button',{name:'Correction',exact:true}).click();
+            await optional.getByRole('button',{name:'Game Log',exact:true}).press('Enter');
+            await optional.getByRole('button',{name:'Rest',exact:true}).click();
+            assert.equal(await optional.evaluate(()=>calls.short+calls.long),0,'opening menu never completes a rest');
+            await optional.getByRole('menuitem',{name:'Short Rest',exact:true}).click();
+            await optional.waitForFunction(()=>calls.short===1);
+            await optional.getByRole('button',{name:'Rest',exact:true}).click();
+            await optional.getByRole('menuitem',{name:'Long Rest',exact:true}).click();
+            await optional.waitForFunction(()=>calls.long===1);
+            assert.deepEqual(await optional.evaluate(()=>calls),{manage:1,wb20:1,short:1,long:1,correction:1,log:1});
+            assert.equal(await optional.evaluate(()=>nativeParents.every(([n,p])=>n.parentElement===p)),true,'optional layouts keep native ownership');
+            const geometry=await optional.evaluate(()=>{
+                const rect=s=>{const r=document.querySelector(s).getBoundingClientRect();return{x:r.x,y:r.y,bottom:r.bottom,height:r.height,right:r.right};};
+                return{manage:rect('.wb20-header-manage'),wb20:rect('.ct-character-header-desktop__group--beyond20'),campaign:rect('[data-wb20-header-role]'),header:rect('.ct-character-header-desktop'),ink:getComputedStyle(document.querySelector('.wb20-header-rest-menu')).color,scroll:document.documentElement.scrollWidth};
+            });
+            assert.equal(geometry.wb20.x,geometry.manage.x);
+            if(!hasShare){assert.equal(geometry.manage.height,39);assert.equal(geometry.wb20.height,39);assert.equal(geometry.manage.bottom,geometry.wb20.y);assert.equal(geometry.wb20.bottom-geometry.manage.y,geometry.campaign.height);}
+            assert.equal(geometry.ink,dark?'rgb(240, 235, 230)':'rgb(32, 40, 48)');
+            if(!hasCampaign) assert.equal(await optional.locator('[aria-roledescription="Find a group"]').evaluate(el=>getComputedStyle(el).color),geometry.ink,'native solo link follows sheet text color');
+            assert.ok(geometry.scroll<=1440);
+            const iconStyle=await optional.evaluate(()=>{
+                const builder=document.querySelector('.ct-character-header-desktop__group--builder');
+                const svg=builder.querySelector('svg'),box=builder.getBoundingClientRect(),icon=svg.getBoundingClientRect();
+                return {fill:getComputedStyle(svg.querySelector('path')).fill,centerDelta:Math.abs((icon.left+icon.width/2)-(box.left+box.width/2))};
+            });
+            assert.equal(iconStyle.fill,geometry.ink,'builder follows sheet ink, not decorative accent');
+            assert.ok(iconStyle.centerDelta<1,'builder icon is centered in its own cell: '+JSON.stringify(iconStyle));
+            if(hasCampaign){
+                const centers=await optional.evaluate(()=>{
+                    const mid=e=>{const r=e.getBoundingClientRect();return r.x+r.width/2;};
+                    const campaign=document.querySelector('[data-wb20-header-role="campaign"]');
+                    return{maps:mid(campaign.querySelector('a')),log:mid(campaign.querySelector('[aria-roledescription="Game Log"]')),builder:mid(document.querySelector('.ct-character-header-desktop__group--builder svg'))};
+                });
+                assert.ok(Math.abs((centers.log-centers.maps)-(centers.builder-centers.log))<1,'all three icon cells are evenly spaced despite native20px margin: '+JSON.stringify(centers));
+            }
+
+
+            if(process.env.WB20_HEADER_EVIDENCE && !hasShare && dark) await optional.screenshot({path:path.join(process.env.WB20_HEADER_EVIDENCE,hasCampaign?'no-share-campaign.png':'no-share-solo.png')});
+            if(!hasShare){
+                await optional.evaluate(markup=>{document.querySelector('.ct-character-header-desktop').insertAdjacentHTML('beforeend',markup);wb20RefreshCompactHeader();},group('share','Share'));
+                assert.equal(await optional.locator('.wb20-header-without-share').count(),0,'late Share restores three rows');
+                await optional.evaluate(()=>{document.querySelector('.ct-character-header-desktop__group--share').remove();wb20RefreshCompactHeader();});
+                assert.equal(await optional.locator('.wb20-header-without-share').count(),1,'removing Share preserves compact controls');
+                assert.equal(await optional.locator('.wb20-header-manage').count(),1,'no duplicate controls after native changes');
+            }
+            await optional.close();
+        }
         const page=await browser.newPage({viewport:{width:1440,height:700}});
         await page.route("https://wb20.test/**",route=>route.fulfill({body:"<html></html>",contentType:"text/html"}));
         await page.goto("https://wb20.test/characters/123456789"); await page.setContent(html);
         await page.addStyleTag({content:"body{margin:0;background:#252525;color:#fff;font:12px Arial}.ct-character-header-desktop{box-sizing:border-box;margin:auto;max-width:1200px;height:100px}.ct-character-header-desktop__button{border:1px solid #4f7e61}.name{font-size:20px}.wb20-ts-status button{font-size:10px}"});
-        await page.addStyleTag({path:path.join(root,"src/extension/beyond20.css")});
+        await page.addStyleTag({path:headerCSS});
         await page.evaluate(()=>{
             window.nativeClicks={manage:0,wb20:0,share:0,short:0,long:0,log:0};
             window.corrections=0;window.wb20CorrectResources=async()=>{corrections++;};
@@ -36,20 +114,28 @@ ${group("share","Share")}${group("short-rest","Short Rest")}${group("long-rest",
             window.originalParents=Array.from(document.querySelectorAll(".ct-character-header-desktop > *")).map(node=>[node,node.parentElement]);
         });
         await page.addScriptTag({path:path.join(root,"src/dndbeyond/content-scripts/portent.js")});
-        await page.addScriptTag({path:path.join(root,"src/dndbeyond/content-scripts/header.js")});
+        await page.evaluate(()=>{
+            document.body.insertAdjacentHTML('beforeend','<div class="ct-actions-list"><div class="ddbc-combat-attack__label">Native attack</div><button class="wb20-feature-option-name">Added attack</button></div>');
+            window.paletteTypographyRefreshes=0;
+            window.wayBeyond20MatchActionTypography=root=>{paletteTypographyRefreshes++;root.querySelector('.wb20-feature-option-name').style.color=getComputedStyle(document.querySelector('.ct-saving-throws-box')).color;};
+        });
+        await page.addScriptTag({path:headerSource});
         await page.evaluate(()=>{wb20RefreshCompactHeader();for(let i=0;i<5;i++)wb20RefreshCompactHeader();});
         assert.equal(await page.locator(".wb20-header-manage").count(),1);
         assert.equal(await page.locator(".wb20-header-rest").count(),1);
         await page.getByRole('button',{name:'Correction',exact:true}).click();assert.equal(await page.evaluate(()=>corrections),1);
         const icons=await page.evaluate(()=>[...document.querySelectorAll('[data-wb20-header-role="campaign"] svg,.ct-character-header-desktop__group--builder svg')].map(el=>({center:el.getBoundingClientRect().y+el.getBoundingClientRect().height/2,fill:getComputedStyle(el.querySelector('path')).fill})));
         assert.ok(Math.max(...icons.map(x=>x.center))-Math.min(...icons.map(x=>x.center))<=1,'all three icons vertically centered');
-        assert.ok(icons.every(x=>x.fill==='rgb(40, 100, 80)'),'native white paths follow selected sheet accent');
+        assert.ok(icons.every(x=>x.fill==='rgb(32, 40, 48)'),'icons follow sheet text ink rather than decorative accent');
         assert.equal(await page.locator(".wb20-header-caption").count(),0,"icons have no added visible captions");
         const colors=()=>page.locator(".wb20-header-rest-menu").evaluate(el=>({ink:getComputedStyle(el).color,surface:getComputedStyle(el).backgroundColor}));
         assert.deepEqual(await colors(),{ink:"rgb(32, 40, 48)",surface:"rgb(244, 240, 224)"});
         await page.evaluate(()=>{const native=document.querySelector('.ct-saving-throws-box');native.style.color='rgb(240, 235, 230)';native.querySelector('rect').setAttribute('fill','rgb(30, 35, 45)');native.querySelector('path').setAttribute('fill','rgb(180, 130, 70)');});
         await page.waitForFunction(()=>getComputedStyle(document.querySelector('.wb20-header-rest-menu')).backgroundColor==='rgb(30, 35, 45)');
         assert.deepEqual(await colors(),{ink:"rgb(240, 235, 230)",surface:"rgb(30, 35, 45)"},"theme changes refresh foreground and opaque menu surface");
+        assert.equal(await page.locator('.wb20-feature-option-name').evaluate(e=>getComputedStyle(e).color),'rgb(240, 235, 230)','attribute-only theme change refreshes added row ink through the existing observer');
+        assert.equal(await page.evaluate(()=>paletteTypographyRefreshes),2,'unchanged header refreshes do not repeatedly resample typography');
+
         assert.equal(await page.locator('.wb20-header-manage').evaluate(el=>getComputedStyle(el).backgroundImage.includes('data:image/svg+xml')),true,"native sheet frame reused");
         assert.equal(await page.locator('[data-testid="campaign-summary"] > span:last-child').evaluate(el=>getComputedStyle(el).borderBottomWidth),'1px');
         assert.equal(await page.evaluate(()=>originalParents.every(([node,parent])=>node.parentElement===parent)),true,"native nodes never reparented");

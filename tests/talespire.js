@@ -10,7 +10,7 @@ const prefix = 'talespire://symbiote/test-prefix/';
 function sender() {
     const updates = [];
     const chrome = {runtime: {lastError: null}, tabs: {update: (id, data, cb) => {updates.push({id, ...data}); cb();}}};
-    const c = vm.createContext({chrome, settings: {'talespire-url': prefix}, crypto, TextEncoder, btoa});
+    const c = vm.createContext({chrome, settings: {'talespire-url': prefix}, crypto, TextEncoder, btoa, setTimeout});
     vm.runInContext(source, c);
     return {c, updates, chrome};
 }
@@ -100,7 +100,8 @@ function message(whisper = 0) {
     assert.equal(answer.vtt[0],'dndbeyond');
     assert.equal(s.updates.length,0,'idle connector never launches a protocol');
     s.c.settings['talespire-url'] = savedPrefix;
-    s.c.wayBeyond20SendTaleSpire(m, {tab: {id: 7}}, result => answer = result);
+    s.c.wb20TaleSpireReturnRequest=async()=>({ids:[packet.id]});
+    answer=await new Promise(resolve=>s.c.wayBeyond20SendTaleSpire(m,{tab:{id:7}},resolve));
     assert.equal(answer.success, true); assert.equal(s.updates.length, 1); assert.equal(s.updates[0].id, 7);
     assert(s.updates[0].url.startsWith(prefix));
     s.chrome.runtime.lastError = {message: 'Protocol rejected'};
@@ -127,5 +128,29 @@ function message(whisper = 0) {
     const manifest = JSON.parse(fs.readFileSync(path.join(root, 'companions/talespire/WayBeyond20/manifest.json')));
     assert.equal(manifest.api.subscriptions.urls.onUrlMessage, 'wb20TaleSpireMessage');
     assert.equal(manifest.api.subscriptions.symbiote.onStateChangeEvent, 'wb20TaleSpireState');
+    // Compose sender -> URL receiver -> native API -> real authenticated helper -> receipt.
+    const {createBridge}=require('../companions/talespire/local-bridge.cjs');
+    const bridge=createBridge({extensionId:'a'.repeat(32)});
+    await new Promise(resolve=>bridge.server.listen(0,'127.0.0.1',resolve));
+    try {
+        const base='http://127.0.0.1:'+bridge.server.address().port;
+        const headers={Authorization:'Bearer '+bridge.key,'Content-Type':'application/json'};
+        const linkedSender=sender(),linkedGame=game();
+        linkedSender.c.wb20TaleSpireReturnRequest=async route=>{
+            const r=await fetch(base+route,{headers});if(!r.ok)throw Error('helper failed');return r.json();};
+        linkedGame.c.wb20ReturnFetch=async(route,data)=>{
+            const r=await fetch(base+route,{method:'POST',headers,body:JSON.stringify(data)});return r.json();};
+        let releaseNative,receipt;
+        linkedGame.TS.dice.sendDiceResult=()=>new Promise(resolve=>{releaseNative=resolve;});
+        linkedSender.chrome.tabs.update=(_id,data,cb)=>{
+            linkedGame.c.wb20TaleSpireMessage({kind:'urlMessageReceived',payload:{str:data.url.slice(prefix.length)}});cb();};
+        linkedSender.c.wayBeyond20SendTaleSpire(message(),{tab:{id:7}},r=>receipt=r);
+        await new Promise(resolve=>setTimeout(resolve,50));
+        assert.equal(receipt,undefined,'protocol acceptance does not confirm native delivery');
+        assert.deepEqual((await (await fetch(base+'/receipts',{headers})).json()).ids,[]);
+        releaseNative('native-result-id');
+        await new Promise(resolve=>setTimeout(resolve,350));
+        assert.equal(receipt.delivered,true,'native completion receipt reaches the real sender');
+    } finally {await new Promise(resolve=>bridge.server.close(resolve));}
     console.log('PASS TaleSpire resolved-result URL handoff, Unicode/formulas/types, private audience, no reroll, duplicate/reload/concurrency, protocol failure, validation and no passive writes. Mock game API only.');
 })().catch(e => {console.error(e); process.exitCode = 1;});

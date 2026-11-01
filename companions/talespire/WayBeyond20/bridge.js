@@ -83,6 +83,8 @@ async function wb20TaleSpireReceive(packet) {
     const history = document.getElementById('history');
     history.prepend(item);
     while (history.children.length > 12) history.lastElementChild.remove();
+    if (typeof wb20ReturnFetch === 'function')
+        wb20ReturnFetch('/receipt',{id:packet.id}).catch(()=>{});
     wb20TaleSpireStatus('Received from WB20. No additional dice rolled.');
     // Small opt-in-to-install diagnostic, no character data or formula dump.
     try { await TS.debug.log({event: 'wb20-received', id: packet.id, rows: packet.rows.length, audience: packet.audience}); } catch (_) {}
