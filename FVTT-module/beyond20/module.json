@@ -1,8 +1,8 @@
 {
     "name": "beyond20",
     "id": "beyond20",
-    "title": "WayBeyond20 companion module",
-    "description": "This module allows the WayBeyond20 rolls to display properly in the main FVTT window and for other players who do not have WayBeyond20 installed",
+    "title": "LightCore Bridge companion module",
+    "description": "Displays LightCore Bridge rolls in Foundry VTT, including for players without the extension. Compatible with existing Beyond20 integrations.",
     "version": "1.5.5",
     "author": "KaKaRoTo",
     "systems": [

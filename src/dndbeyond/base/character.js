@@ -573,7 +573,7 @@ class Character extends CharacterBase {
             const shown = parsed.slice(0, 6);
             const remaining = parsed.length - shown.length;
             const details = shown.join(", ") + (remaining > 0 ? `, and ${remaining} more` : "");
-            const message = `WayBeyond20 parsed new feature information${details ? `: ${details}` : ""}.`;
+            const message = `LightCore Bridge parsed new feature information${details ? `: ${details}` : ""}.`;
             if (typeof alertify !== "undefined" && alertify && alertify.message) {
                 alertify.message(message);
             } else {

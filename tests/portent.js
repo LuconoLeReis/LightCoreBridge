@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const read = file => fs.readFileSync(path.join(__dirname, "..", file), "utf8");
-const portent = read("src/dndbeyond/content-scripts/portent.js");
+const portent = process.env.WB20_PORTENT_SOURCE ? fs.readFileSync(process.env.WB20_PORTENT_SOURCE,'utf8') : read("src/dndbeyond/content-scripts/portent.js");
 const utils = read("src/dndbeyond/base/utils.js");
 let passed = 0;
 async function test(name, run) { await run(); passed++; console.log("PASS " + name); }
@@ -241,6 +241,45 @@ function setup() {
             t.c.wayBeyond20UsePortentOnOtherRoll(t.owner,'a'),
             t.c.wayBeyond20UsePortentOnOtherRoll(t.owner,'a')])),[true,false]);
         assert.equal(t.prompts.length,1,'duplicate right-click cannot spend twice');
+    });
+    await test('Correction restores a used die without rerolling, dispatching, arming it or changing its value',async()=>{
+        const t=setup();t.c.wayBeyond20GetTurnTrackerState=()=>({inCombat:true,combatStartedAt:9,localTurnNumber:1});
+        assert.equal(await t.c.wayBeyond20PortentDispatch(t.owner,t.request(),async()=>true),true);
+        const before=t.c.wayBeyond20PortentState(t.owner);assert.equal(before.lastDie,'a');
+        t.c.crypto.getRandomValues=()=>{throw Error('Correction must not reroll');};
+        assert.equal(await t.c.wayBeyond20CorrectPortent(t.owner,before,[{id:'a',used:false}]),true);
+        const after=t.values['waybeyond20-portent'];assert.deepEqual(after.dice,[{id:'a',value:17,used:false},{id:'b',value:3,used:false}]);
+        assert.equal(after.selected,null);assert.equal(after.lastTurn,null);assert.equal(after.lastDie,null);assert.equal(t.results.length,0);
+        assert.equal(await t.c.wayBeyond20UsePortentOnOtherRoll(t.owner,'b'),true,'corrected turn use does not falsely block the intended use');
+    });
+    await test('Correction of an older die cannot unlock a different die used this turn',async()=>{
+        const t=setup();t.c.wayBeyond20GetTurnTrackerState=()=>({inCombat:true,combatStartedAt:9,localTurnNumber:1});
+        Object.assign(t.values['waybeyond20-portent'],{dice:[{id:'a',value:17,used:true},{id:'b',value:3,used:true}],lastTurn:'9:1',lastDie:'b',selected:null});
+        assert.equal(await t.c.wayBeyond20CorrectPortent(t.owner,t.c.wayBeyond20PortentState(t.owner),[{id:'a',used:false}]),true);
+        assert.equal(t.values['waybeyond20-portent'].lastTurn,'9:1');assert.equal(t.values['waybeyond20-portent'].lastDie,'b');
+        assert.equal(await t.c.wayBeyond20UsePortentOnOtherRoll(t.owner,'a'),false);
+    });
+    await test('Legacy pools keep values and allow explicit correction of an ambiguous turn-use record',async()=>{
+        const t=setup();t.c.wayBeyond20GetTurnTrackerState=()=>({inCombat:true,combatStartedAt:9,localTurnNumber:1});
+        Object.assign(t.values['waybeyond20-portent'],{dice:[{id:'a',value:17,used:true},{id:'b',value:3,used:true}],lastTurn:'9:1',selected:null});
+        assert.equal(await t.c.wayBeyond20CorrectPortent(t.owner,t.c.wayBeyond20PortentState(t.owner),[{id:'a',used:false}]),true);
+        assert.equal(t.values['waybeyond20-portent'].lastTurn,'9:1','unknown last die is never guessed');
+        assert.equal(await t.c.wayBeyond20CorrectPortent(t.owner,t.c.wayBeyond20PortentState(t.owner),[],{clearTurn:true}),true);
+        assert.equal(t.values['waybeyond20-portent'].lastTurn,null);assert.equal(t.values['waybeyond20-portent'].dice[1].used,true);
+    });
+    await test('Correction rejects a replaced pool, concurrent spend/restore, changed turn or changed owner',async()=>{
+        for(const change of [t=>t.values['waybeyond20-portent'].dice[0].id='new-rest',t=>t.values['waybeyond20-portent'].dice[0].used=false,t=>t.c.character={},t=>t.c.wayBeyond20GetTurnTrackerState=()=>({inCombat:true,localTurnNumber:2})]){
+            const t=setup();t.values['waybeyond20-portent'].dice[0].used=true;const before=t.c.wayBeyond20PortentState(t.owner),turn=t.c.wayBeyond20PortentTurnKey();change(t);
+            const expected=JSON.stringify(t.values);assert.equal(await t.c.wayBeyond20CorrectPortent(t.owner,before,[{id:'a',used:false}],{turn}),false);assert.equal(JSON.stringify(t.values),expected);
+        }
+        const t=setup();t.values['waybeyond20-portent'].dice[0].used=true;const before=t.c.wayBeyond20PortentState(t.owner);
+        assert.deepEqual(Array.from(await Promise.all([t.c.wayBeyond20CorrectPortent(t.owner,before,[{id:'a',used:false}]),t.c.wayBeyond20CorrectPortent(t.owner,before,[{id:'a',used:false}])])),[true,false]);
+    });
+    await test('Correction handles Greater Portent, equal values and manual used markers by stable die identity',async()=>{
+        const t=setup();t.values['waybeyond20-portent'].dice.push({id:'c',value:17,used:false});
+        const before=t.c.wayBeyond20PortentState(t.owner);assert.equal(await t.c.wayBeyond20CorrectPortent(t.owner,before,[{id:'a',used:true}]),true);
+        assert.equal(t.values['waybeyond20-portent'].selected,null);assert.equal(t.values['waybeyond20-portent'].dice[2].used,false);assert.equal(t.values['waybeyond20-portent'].dice[2].value,17);
+        const exact=JSON.stringify(t.values);assert.equal(await t.c.wayBeyond20CorrectPortent(t.owner,t.c.wayBeyond20PortentState(t.owner),[]),true);assert.equal(JSON.stringify(t.values),exact);
     });
     console.log(`Portent: ${passed} checks passed. Live sheet/VTT acceptance is separate.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});

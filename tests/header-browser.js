@@ -5,11 +5,11 @@ const root=path.resolve(__dirname,"..");
 const headerSource=process.env.WB20_HEADER_SOURCE || path.join(root,"src/dndbeyond/content-scripts/header.js");
 const headerCSS=process.env.WB20_HEADER_CSS || path.join(root,"src/extension/beyond20.css");
 const group=(name,text)=>`<div class="ct-character-header-desktop__group ct-character-header-desktop__group--${name}"><div class="ct-character-header-desktop__button" role="button" tabindex="0"><span class="ct-character-header-desktop__button-label">${text}</span></div></div>`;
-const html=`<style>.native-campaign { margin-left:20px; }</style><div class="ct-character-header-desktop">
+const html=`<style>.native-campaign { margin-left:20px; } [data-testid="campaign-summary"] > span:first-child {margin-right:5px} [data-testid="campaign-summary"] > span:last-child {max-width:150px} .ct-character-header-desktop__button-label {text-transform:uppercase !important;}</style><div class="ct-character-header-desktop">
 <div class="ct-character-header-desktop__group-tidbits"><div class="ddbc-character-tidbits"><div class="name">Dr. Rhonen</div><div class="ddbc-character-tidbits__menu-callout"><button>Manage</button></div><div>M Elf Monk 3</div><small>Level 3</small></div></div>
 <div class="ct-character-header-desktop__group--gap"></div>
 <div class="ct-character-header-desktop__group--beyond20-hotkeys"></div>
-<div class="ct-character-header-desktop__group--beyond20"><div class="ct-character-header-desktop__button ct-beyond20-settings-button">WB20</div></div>
+<div class="ct-character-header-desktop__group--beyond20"><div class="ct-character-header-desktop__button ct-beyond20-settings-button"><span class="ct-character-header-desktop__button-label">LightCore</span></div></div>
 ${group("share","Share")}${group("short-rest","Short Rest")}${group("long-rest","Long Rest")}
 <div class="native-campaign"><div data-testid="campaign-summary"><span>Campaign:</span><span>Chult After Hours</span></div><span><a href="/games/8097217" aria-label="Launch Game"><div class="styles_campaignButtonGroup__fixture"><div class="styles_campaignButton__fixture"><svg aria-hidden="true"><path fill="white" d="M0 0H10V10H0Z"/></svg></div></div></a></span><div><span><div role="button" aria-roledescription="Game Log" class="styles_campaignButtonGroup__fixture"><div class="styles_campaignButton__fixture"><svg aria-hidden="true"><path fill="white" d="M0 0H10V10H0Z"/></svg></div></div></span></div></div>
 <div class="ct-character-header-desktop__group--builder"><a href="#builder" aria-label="Go to builder"><svg aria-hidden="true"><path fill="white" d="M0 0H10V10H0Z"/></svg></a></div>
@@ -42,11 +42,12 @@ ${group("share","Share")}${group("short-rest","Short Rest")}${group("long-rest",
             await optional.addScriptTag({path:headerSource});
             await optional.evaluate(()=>{for(let i=0;i<5;i++)wb20RefreshCompactHeader();});
             assert.equal(await optional.locator('.wb20-compact-header').count(),1,`compact layout: share=${hasShare}, campaign=${hasCampaign}`);
+            assert.equal(await optional.locator('.ct-beyond20-settings-button .ct-character-header-desktop__button-label').evaluate(n=>getComputedStyle(n).textTransform),'none','LightCore mixed case survives the native uppercase label rule');
             assert.equal(await optional.locator('.wb20-header-without-share').count(),hasShare?0:1);
             assert.equal(await optional.locator('.ct-character-header-desktop__group--share').count(),hasShare?1:0,'never invent native Share');
             await optional.getByRole('button',{name:'Manage',exact:true}).click();
             await optional.waitForFunction(()=>calls.manage===1);
-            await optional.getByRole('button',{name:'WB20',exact:true}).press('Enter');
+            await optional.getByRole('button',{name:'LightCore',exact:true}).press('Enter');
             await optional.getByRole('button',{name:'Correction',exact:true}).click();
             await optional.getByRole('button',{name:'Game Log',exact:true}).press('Enter');
             await optional.getByRole('button',{name:'Rest',exact:true}).click();
@@ -67,6 +68,14 @@ ${group("share","Share")}${group("short-rest","Short Rest")}${group("long-rest",
             assert.equal(geometry.ink,dark?'rgb(240, 235, 230)':'rgb(32, 40, 48)');
             if(!hasCampaign) assert.equal(await optional.locator('[aria-roledescription="Find a group"]').evaluate(el=>getComputedStyle(el).color),geometry.ink,'native solo link follows sheet text color');
             assert.ok(geometry.scroll<=1440);
+            const labels=await optional.evaluate(()=>{
+                const n=document.querySelector('.wb20-resource-correction-button'),box=n.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(n);const text=range.getBoundingClientRect();
+                const summary=document.querySelector('[data-testid="campaign-summary"]');
+                return{offset:Math.abs(text.x+text.width/2-box.x-box.width/2),dividers:summary?[...summary.children].map(n=>{const r=n.getBoundingClientRect(),p=summary.getBoundingClientRect();return{width:r.width,parent:p.width,left:r.x-p.x,right:p.right-r.right};}):[]};
+            });
+            assert.ok(labels.offset<0.6,'Correction text is centered even when the native label exceeds its old padded content width');
+            for(const line of labels.dividers){assert.ok(Math.abs(line.width-line.parent)<0.6 && Math.abs(line.left)<0.6 && Math.abs(line.right)<0.6,'both campaign divider lines span the full inner frame');}
+            if(process.env.WB20_HEADER_SCREENSHOT_DIR && hasCampaign && !hasShare)await optional.screenshot({path:path.join(process.env.WB20_HEADER_SCREENSHOT_DIR,dark?'header-dark.png':'header-light.png')});
             const iconStyle=await optional.evaluate(()=>{
                 const builder=document.querySelector('.ct-character-header-desktop__group--builder');
                 const svg=builder.querySelector('svg'),box=builder.getBoundingClientRect(),icon=svg.getBoundingClientRect();
@@ -140,7 +149,7 @@ ${group("share","Share")}${group("short-rest","Short Rest")}${group("long-rest",
         assert.equal(await page.locator('[data-testid="campaign-summary"] > span:last-child').evaluate(el=>getComputedStyle(el).borderBottomWidth),'1px');
         assert.equal(await page.evaluate(()=>originalParents.every(([node,parent])=>node.parentElement===parent)),true,"native nodes never reparented");
         await page.getByRole("button",{name:"Manage",exact:true}).click();
-        await page.getByRole("button",{name:"WB20",exact:true}).press("Enter");
+        await page.getByRole("button",{name:"LightCore",exact:true}).press("Enter");
         await page.getByRole("button",{name:"Share",exact:true}).click();
         await page.getByRole("button",{name:"Game Log",exact:true}).press("Space");
         assert.deepEqual(await page.evaluate(()=>nativeClicks),{manage:1,wb20:1,share:1,short:0,long:0,log:1});

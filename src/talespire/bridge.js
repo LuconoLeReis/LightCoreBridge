@@ -4,7 +4,7 @@ function wayBeyond20TaleSpirePrefix(value) {
     const prefix = String(value || '').trim();
     if (!/^talespire:\/\/symbiote\/[A-Za-z0-9._~%+=/-]{1,512}\/$/.test(prefix) ||
         prefix.includes('/../') || /%0[ad]/i.test(prefix))
-        throw new Error('Open the WayBeyond20 Symbiote in TaleSpire, copy its connection, and paste it into WB20 settings.');
+        throw new Error('Open the LightCore Bridge Symbiote in TaleSpire, copy its connection, and paste it into LightCore settings.');
     return prefix;
 }
 

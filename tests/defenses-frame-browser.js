@@ -13,7 +13,8 @@ function fn(name){const start=source.search(new RegExp(`^function ${name}\\(`,'m
  await page.evaluate(()=>{
   window.wayBeyond20FindVisibleTextElement=label=>$(label==='DEFENSES'?'#defenses':'#conditions');
   window.wayBeyond20UpsertEffectBadge=anchor=>{anchor.addClass('waybeyond20-effect-header-split');if(!anchor.find('.waybeyond20-buffs-badge').length)anchor.append('<span class="waybeyond20-buffs-badge waybeyond20-effect-badge">BUFFS</span>');};
-  window.wayBeyond20EffectKey=e=>e.id;window.wayBeyond20GetTrackedSpellEffects=()=>[];window.wayBeyond20OpenEffectsPopout=()=>{};
+  window.effects=[{id:'fire',name:'Everflame — Flames'},{id:'ward',name:'A longer protective effect with a wrapping name'}];
+  window.wayBeyond20EffectKey=e=>e.id;window.wayBeyond20GetTrackedSpellEffects=()=>effects;window.wayBeyond20OpenEffectsPopout=(button,title,items)=>{window.opened={title,items};};
  });
  await page.addScriptTag({content:fn('wayBeyond20InjectBuffsBadge')});
  for(const width of [340,408,600]){
@@ -26,13 +27,17 @@ function fn(name){const start=source.search(new RegExp(`^function ${name}\\(`,'m
   });
   for(const t of bounds.texts)assert.ok(t.left>=bounds.frame.left&&t.right<=bounds.frame.right&&t.top>=bounds.frame.top&&t.bottom<=bounds.frame.bottom,'visible painted frame must contain glyphs: '+JSON.stringify(bounds));
   assert.equal(bounds.aspect,'none');
+  const columns=await page.evaluate(()=>{const group=document.querySelector('.waybeyond20-defenses-with-buffs').getBoundingClientRect(),defense=document.querySelector('.ct-defenses-summary').getBoundingClientRect(),buff=document.querySelector('.waybeyond20-buffs-list').getBoundingClientRect();return{middle:(group.left+group.right)/2,defenseRight:defense.right,buffLeft:buff.left,defenseTop:defense.top,buffTop:buff.top,column:getComputedStyle(document.querySelector('.waybeyond20-buffs-list')).gridColumnStart};});
+  assert.ok(columns.buffLeft>=columns.middle,'buff stays on BUFFS side at '+width+': '+JSON.stringify(columns));assert.ok(columns.defenseRight<columns.buffLeft,'native defenses keep separate left column');assert.equal(columns.column,'2');assert.equal(columns.buffTop,columns.defenseTop,'buffs do not stack beneath native defenses');
+  assert.equal(await page.locator('.waybeyond20-buff-name').first().innerText(),'Everflame','short label does not repeat Flames');
  }
+ await page.locator('.waybeyond20-buff-name').first().click();assert.deepEqual(await page.evaluate(()=>opened.items),[{id:'fire',name:'Everflame — Flames'}],'short label preserves original effect identity and details lookup');
  const unchanged=await page.evaluate(async()=>{const changes=[];const observer=new MutationObserver(r=>changes.push(...r));observer.observe(document.querySelector('#panel'),{attributes:true,childList:true,subtree:true});wayBeyond20InjectBuffsBadge([{id:'fire',name:'Everflame — Flames'},{id:'ward',name:'A longer protective effect with a wrapping name'}]);await Promise.resolve();observer.disconnect();return changes.filter(r=>r.target.tagName==='svg'||r.type==='childList').length;});
  assert.equal(unchanged,0,'unchanged frame refresh must not write SVG or rebuild rows');
  await page.evaluate(()=>wayBeyond20InjectBuffsBadge([]));
  assert.equal(await page.locator('svg').getAttribute('preserveAspectRatio'),null,'native default restored when effects end');
  await page.evaluate(()=>{document.querySelector('svg').setAttribute('preserveAspectRatio','xMidYMin meet');wayBeyond20InjectBuffsBadge([{id:'fire',name:'Flames'}]);wayBeyond20InjectBuffsBadge([]);});
  assert.equal(await page.locator('svg').getAttribute('preserveAspectRatio'),'xMidYMin meet','explicit original setting restored too');
- assert.deepEqual(errors,[]);console.log('PASS real fixed-viewBox frame contains defense/buff glyphs at340/408/600px; stable repeated render; native aspect restored on removal.');
+ assert.deepEqual(errors,[]);console.log('PASS Everflame short label on BUFFS side at340/408/600px, original identity/details retained, fixed-viewBox contains glyphs, stable repeated render and native aspect restored on removal.');
  if(process.env.WB20_PRESENTATION_EVIDENCE){await page.evaluate(()=>wayBeyond20InjectBuffsBadge([{id:'fire',name:'Everflame — Flames'}]));await page.screenshot({path:path.join(process.env.WB20_PRESENTATION_EVIDENCE,'defenses-frame.png')});}
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

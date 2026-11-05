@@ -48,7 +48,7 @@ const root=path.resolve(__dirname,'..');
         assert.equal(await page.locator('.beyond20-dice-roller').count(),1,'one local result without a VTT');
         const before=await page.evaluate(()=>JSON.stringify({settings:store.settings,character:store['character-7']}));
         await page.addScriptTag({path:path.join(root,'build/chrome/dist/recovery_popup.js')});
-        await page.getByRole('button',{name:'Restore WB20',exact:true}).click();
+        await page.getByRole('button',{name:'Restore LightCore',exact:true}).click();
         assert.equal(await page.evaluate(()=>store['wb20-beyond20-mode']),false);
         assert.equal(await page.evaluate(()=>JSON.stringify({settings:store.settings,character:store['character-7']})),before);
         // Toolbar still works when character runtime messaging is completely broken.

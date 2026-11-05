@@ -16,7 +16,7 @@ function wayBeyond20PortentState(owner) {
     const dice = Array.isArray(raw.dice) ? raw.dice.filter(die => die &&
         Number.isInteger(die.value) && die.value >= 1 && die.value <= 20 && typeof die.id === "string")
         .map(die => ({ id: die.id, value: die.value, used: die.used === true })) : [];
-    return { dice, selected: raw.selected || null, lastTurn: raw.lastTurn || null };
+    return { dice, selected: raw.selected || null, lastTurn: raw.lastTurn || null, lastDie: raw.lastDie || null };
 }
 
 function wayBeyond20SavePortent(owner, state) {
@@ -87,6 +87,7 @@ async function wayBeyond20UsePortentOnOtherRoll(owner, dieId) {
         currentDie.used = true;
         if (current.selected === dieId) current.selected = null;
         current.lastTurn = turn;
+        current.lastDie = dieId;
         await wayBeyond20SavePortent(owner, current);
         return true;
     });
@@ -211,9 +212,41 @@ async function wayBeyond20PortentDispatch(owner, req, dispatch) {
             die.used = true;
             state.selected = null;
             state.lastTurn = turn;
+            state.lastDie = die.id;
             await wayBeyond20SavePortent(owner, state);
         }
         return sent;
+    });
+}
+
+// Correction changes availability only. Never reroll, replay, or undo a
+// previously delivered game result. Use the same lock as spends and rests.
+async function wayBeyond20CorrectPortent(owner, snapshot, updates, {turn = wayBeyond20PortentTurnKey(), clearTurn = false} = {}) {
+    if (owner !== character || !wayBeyond20HasPortent(owner) || !snapshot || !Array.isArray(updates)) return false;
+    if (!updates.length && !clearTurn) return true;
+    return wayBeyond20PortentLock(owner, async () => {
+        if (owner !== character || !wayBeyond20HasPortent(owner) || turn !== wayBeyond20PortentTurnKey()) return false;
+        const state = wayBeyond20PortentState(owner);
+        // A rest/reroll creates new IDs. Never overwrite a replacement pool.
+        if (state.dice.length !== snapshot.dice.length || !snapshot.dice.every(die =>
+            state.dice.some(current => current.id === die.id && current.value === die.value))) return false;
+        const ids = new Set();
+        for (const update of updates) {
+            const before = snapshot.dice.find(die => die.id === update.id), current = state.dice.find(die => die.id === update.id);
+            if (ids.has(update.id) || !before || !current || typeof update.used !== 'boolean' || current.used !== before.used) return false;
+            ids.add(update.id);
+        }
+        if (clearTurn && (state.lastTurn !== snapshot.lastTurn || state.lastDie !== snapshot.lastDie)) return false;
+        const usedBefore = state.dice.filter(die => die.used), restored = updates.filter(update => !update.used && state.dice.find(die => die.id === update.id)?.used);
+        const undoLatest = state.lastDie ? restored.some(update => update.id === state.lastDie) :
+            usedBefore.length > 0 && usedBefore.every(die => restored.some(update => update.id === die.id));
+        for (const update of updates) {
+            state.dice.find(die => die.id === update.id).used = update.used;
+            if (update.used && state.selected === update.id) state.selected = null;
+        }
+        if (undoLatest || clearTurn) { state.lastTurn = null; state.lastDie = null; }
+        await wayBeyond20SavePortent(owner, state);
+        return true;
     });
 }
 

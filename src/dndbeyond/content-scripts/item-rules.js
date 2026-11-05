@@ -133,7 +133,7 @@ async function wb20ActivateItemProperty(item, property) {
             if(sent===true && wb20RuleCurrent(owner,turn))await wb20SetItemFlames(item,!active,owner);
             return sent;
         }
-        if(!await wb20FeatureForm(name,`<p>${wb20RuleEscape(item.text)}</p><p>${property.kind==='bash'?'Uses one attack from the Attack action. It is a shield attack, not an Unarmed Strike.':'Uses one Magic action and the item charge; resolve each creature’s save, half damage on success. Recharges at dawn, not by a WB20 long-rest reset.'}</p>`,'Use property') || !wb20RuleCurrent(owner,turn))return false;
+        if(!await wb20FeatureForm(name,`<p>${wb20RuleEscape(item.text)}</p><p>${property.kind==='bash'?'Uses one attack from the Attack action. It is a shield attack, not an Unarmed Strike.':'Uses one Magic action and the item charge; resolve each creature’s save, half damage on success. Recharges at dawn, not by a LightCore long-rest reset.'}</p>`,'Use property') || !wb20RuleCurrent(owner,turn))return false;
         const str=Number(owner.getAbility('STR')?.mod)||0,pb=Number(owner._proficiency)||0;
         const damages=[property.dice+(property.kind==='bash'?`+${str+wb20ItemMeleeBonus()}`:'')],types=[property.type],changes={},effects=[];
         const props=property.kind==='bash'?{'Attack Type':'Melee',Reach:'5 ft.','Damage Type':property.type}:{};

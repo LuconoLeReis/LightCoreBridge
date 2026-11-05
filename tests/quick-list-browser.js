@@ -18,7 +18,7 @@ function fn(name) {
         await page.goto("https://wb20.test/");
         await page.setContent('<button role="radio" aria-checked="true">Actions</button><button role="radio" aria-checked="false">Spells</button><div id="spells"></div><div id="actions"></div><div id="prompt"></div>');
         await page.addScriptTag({path:path.join(root,"libs/jquery-3.4.1.min.js")});
-        await page.addStyleTag({path:path.join(root,"src/extension/beyond20.css")});
+        await page.addStyleTag({path:process.env.WB20_PICKER_CSS || path.join(root,"src/extension/beyond20.css")});
         await page.addScriptTag({content:`
             var saved={},casts=[],rolls=[],warnings=[],fail=false,refreshes=0;
             var character={getSetting:(k,d)=>saved[k]??d,mergeCharacterSettings:(p,cb)=>{Object.assign(saved,p);if(cb)cb();}};
@@ -107,8 +107,8 @@ function fn(name) {
         await page.waitForFunction(()=>document.querySelector('[role=radio]').getAttribute("aria-checked")==="true");
         assert.equal(await page.evaluate(()=>casts.length),0,"Changing selection does not cast");
         await page.evaluate(()=>document.querySelector('#empty-sidebar').remove());
-        assert.equal(await row.locator('.wb20-spell-choice-caption').textContent(),'Test Mend','Closed control shows only the name');
-        assert.match(await row.locator('select').getAttribute('title'),/Native rules for Test Mend/,'Hover uses native description');
+        assert.equal(await row.locator('.wb20-spell-choice-caption').textContent(),'1st · Test Mend','Closed control shows only the name');
+        assert.equal(await row.locator('select').getAttribute('title'),'1st · Test Mend','Hover title is exactly the displayed name');
         assert.equal(await page.evaluate(()=>{
             const other=wb20QuickSession().spells.find(s=>s.name==='Test Mend'&&s.source==='Cleric');
             return wb20QuickSettings().descriptions?.[other.key]||null;
@@ -127,15 +127,21 @@ function fn(name) {
         const beforeHover=await row.locator('select').boundingBox();
         assert.equal(await row.locator('select').evaluate(e=>getComputedStyle(e).borderTopColor),'rgba(0, 0, 0, 0)');
         await row.locator('select').hover();
+        await page.addStyleTag({content:'.wb20-quick-row select:hover,.wb20-quick-row select:focus {color:rgb(250,250,250) !important;-webkit-text-fill-color:rgb(250,250,250) !important;}'});
+        assert.equal(await row.locator('select').evaluate(e=>getComputedStyle(e).webkitTextFillColor),'rgba(0, 0, 0, 0)','native hover cannot expose the long selected option behind the short label');
+        assert.notEqual(await row.locator('select option').nth(1).evaluate(e=>getComputedStyle(e).webkitTextFillColor),'rgba(0, 0, 0, 0)','opened choices remain legible');
+        assert.equal(await row.locator('select').getAttribute('title'),await row.locator('.wb20-spell-choice-caption').textContent());
+        assert.match(await row.locator('select option').nth(1).textContent(),/Test Mend · Bard · Level 1/,'detailed source/level remains in the dropdown options');
         assert.notEqual(await row.locator('select').evaluate(e=>getComputedStyle(e).borderTopColor),'rgba(0, 0, 0, 0)');
         assert.deepEqual(await row.locator('select').boundingBox(),beforeHover,'Hover border does not shift layout');
         assert.equal(await page.evaluate(()=>casts.length),0,'Hover never casts');
         await page.setViewportSize({width:375,height:800});
-        assert.equal(await row.locator('.wb20-spell-choice-caption').textContent(),'Test Mend');
+        assert.equal(await row.locator('.wb20-spell-choice-caption').textContent(),'1st · Test Mend');
         assert.ok((await row.locator('select').boundingBox()).width<=375,'Dropdown stays bounded on a narrow viewport');
         await page.setViewportSize({width:900,height:800});
         await page.mouse.move(890,790);
         await row.locator('select').focus();
+        assert.equal(await row.locator('select').evaluate(e=>getComputedStyle(e).webkitTextFillColor),'rgba(0, 0, 0, 0)','keyboard focus also keeps one visible label');
         assert.notEqual(await row.locator('select').evaluate(e=>getComputedStyle(e).borderTopColor),'rgba(0, 0, 0, 0)','Keyboard focus reveals the border');
         assert.equal(await row.locator(".ddbc-combat-attack__range").textContent(),"60 ft.");
         await row.locator("button").click();

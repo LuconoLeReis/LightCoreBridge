@@ -43,7 +43,7 @@ card('Channel Divinity','You have 2 uses per Long Rest.','<div class="ct-feature
    window.domCallbacks=0;window.fixtureObserver=new MutationObserver(()=>{domCallbacks++;wb20RuleRows(document.querySelector('#rows'));wb20RuleToolbar(document.querySelector('.ct-actions'));wb20InjectItemRuleControls();});fixtureObserver.observe(document.body,{childList:true,subtree:true,characterData:true});
    for(let i=0;i<20;i++){wb20RuleRows(document.querySelector('#rows'));wb20RuleToolbar(document.querySelector('.ct-actions'));wb20InjectItemRuleControls();}
   });
-  assert.equal(await page.getByRole('button',{name:'Use Control Undead',exact:true}).count(),1);assert.equal(await page.getByRole('button',{name:'Use Protected',exact:true}).count(),1);
+  assert.equal(await page.getByRole('button',{name:'Use Control Undead',exact:true}).count(),1);assert.equal(await page.getByRole('button',{name:'Use Protected',exact:true}).count(),0,'triggered Luck has no stand-alone activation row');assert.equal(await page.evaluate(()=>wb20CurrentFeatureRules().some(r=>r.name==='Protected')),true,'the owned Luck rule remains available to its normal triggers');
   assert.equal(await page.getByRole('button',{name:'Shield Bash',exact:true}).count(),1);assert.equal(await page.getByRole('button',{name:'Spike Salvo',exact:true}).count(),1);
   assert.equal(await page.getByRole('button',{name:'Feature rules',exact:true}).count(),1,'non-Monk character has a rules reference');
   await page.waitForTimeout(120);

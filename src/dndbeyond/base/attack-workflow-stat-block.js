@@ -2,7 +2,7 @@
 // Their builders still own parsing/form riders; sendRoll still owns privacy and
 // destination dice. No reliable creature target/resource owner exists yet, so
 // hit/damage remain destination-owned, explicitly recorded in local context.
-function wb20CreateStatBlockAttackWorkflow(actor, fallback, args, caller) {
+function wb20CreateStatBlockAttackWorkflow(actor, fallback, args, caller, isCurrent = null) {
     const identity = () => JSON.stringify([actor.type(), actor._id, actor._name, actor._creatureType]);
     const originalIdentity = identity();
     const parent = actor._parent_character;
@@ -13,7 +13,7 @@ function wb20CreateStatBlockAttackWorkflow(actor, fallback, args, caller) {
     };
     const destination = route();
     const adapter = {
-        isCurrent: () => identity() === originalIdentity && actor._parent_character === parent &&
+        isCurrent: () => (!isCurrent || isCurrent()) && identity() === originalIdentity && actor._parent_character === parent &&
             sourceNodes.every(node => node.isConnected) && JSON.stringify(route()) === JSON.stringify(destination),
         prepare: async () => true,
         needsHit: () => false,
@@ -27,10 +27,10 @@ function wb20CreateStatBlockAttackWorkflow(actor, fallback, args, caller) {
         destination, hitOwner: "destination", resourceOwner: null, targetKey: null}, adapter);
 }
 
-async function wb20SendStatBlockAttack(actor, fallback, args, caller) {
+async function wb20SendStatBlockAttack(actor, fallback, args, caller, isCurrent = null) {
     if (!actor.getGlobalSetting("waybeyond20-secondary-attacks", false))
-        return sendRoll(actor, "attack", fallback, args);
-    const workflow = wb20CreateStatBlockAttackWorkflow(actor, fallback, args, caller);
+        return sendRoll(actor, "attack", fallback, args, isCurrent);
+    const workflow = wb20CreateStatBlockAttackWorkflow(actor, fallback, args, caller, isCurrent);
     try { return await workflow.run(); }
     finally { console.debug("WayBeyond20: secondary attack", caller, workflow.context.trace); }
 }

@@ -283,7 +283,7 @@ async function wayBeyond20SyncCoreStats(core) {
         const old = integrants[key];
         if (old && Number(old.valueFormula?.flatValue) === value && old._enabled !== false) return;
         changes[key] = old ? { valueFormula: { flatValue: value }, _enabled: true } : {
-            _enabled: true, _label: "WayBeyond20 " + label, arrayPosition: position,
+            _enabled: true, _label: "LightCore Bridge " + label, arrayPosition: position,
             builderDisplayName: "",
             calculation: type === "Sense" ? "Set Base" : "Set Value",
             childIDs: "[]", createdTime: Date.now(), name: type === "Sense" ? label : "",

@@ -129,7 +129,7 @@ class DigitalDice {
             for (const detail of rolldetails.toArray()) {
                 const rolltype = $(detail.nextElementSibling);
                 if (!rolltype.hasClass("dice_result__rolltype")) continue;
-                $(detail).text("WayBeyond20: ")
+                $(detail).text("LightCore Bridge: ")
                 rolltype.text(this._name);
             }
         }

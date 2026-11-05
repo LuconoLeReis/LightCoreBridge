@@ -11,7 +11,7 @@
     if (header) header.after(box); else document.body.prepend(box);
     chrome.storage.local.get({[key]:false},saved=>{
         const mode=saved[key]===true;
-        button.textContent=mode?'Restore WB20':'Use Beyond20 mode';
+        button.textContent=mode?'Restore LightCore':'Use Beyond20 mode';
         button.addEventListener('click',()=>{
             button.disabled=true;
             chrome.storage.local.set({[key]:!mode},()=>{

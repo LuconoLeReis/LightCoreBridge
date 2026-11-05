@@ -74,7 +74,7 @@ function wb20TSApplySnapshot(snapshot, continuous = false) {
 function wb20TSLinkMini() {
     const owner=character, feed=wb20TSFeed;
     if (!feed || !wb20TSConnected) {wb20TSRenderStatus(); return;}
-    const form=$('<form>').append($('<p>').text('Choose your mini. This saves only the WB20 link; it does not move or change the mini.'));
+    const form=$('<form>').append($('<p>').text('Choose your mini. This saves only the LightCore link; it does not move or change the mini.'));
     const select=$('<select>').attr({name:'ts-mini','aria-label':'TaleSpire character mini'}).append($('<option>').val('').text('Select your mini'));
     const binding=owner.getSetting('waybeyond20-talespire-mini',null);
     feed.creatures.forEach(c=>select.append($('<option>').val(c.id).text(c.name+' · '+c.id.slice(-6))));

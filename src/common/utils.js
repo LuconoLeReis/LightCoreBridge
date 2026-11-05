@@ -170,10 +170,10 @@ function alertSettings(url, title) {
     } catch (_) { unavailable(); }
 }
 function alertQuickSettings() {
-    alertSettings("popup.html", "WayBeyond20 Quick Settings");
+    alertSettings("popup.html", "LightCore Bridge Quick Settings");
 }
 function alertFullSettings() {
-    alertSettings("options.html", "WayBeyond20 Settings");
+    alertSettings("options.html", "LightCore Bridge Settings");
 }
 
 function isListEqual(list1, list2) {
@@ -398,7 +398,7 @@ function wayBeyond20Prompt(title, html, ok_label = "OK", cancel_label = "Cancel"
 }
 
 function initializeAlertify() {
-    alertify.set("alert", "title", "WayBeyond20");
+    alertify.set("alert", "title", "LightCore Bridge");
     alertify.set("notifier", "position", "top-center");
 
     alertify.defaults.transition = "zoom";

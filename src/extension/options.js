@@ -106,7 +106,7 @@ function wayBeyond20AppendCurrentSettingsSection(lines, heading, values, definit
 
 function wayBeyond20BuildCurrentSettingsReport(storage) {
     const lines = [
-        "WayBeyond20 Current Settings",
+        "LightCore Bridge Current Settings",
         `Generated: ${new Date().toLocaleString()}`,
         `Version: ${chrome.runtime.getManifest().version}`,
         ""
@@ -183,7 +183,7 @@ async function wayBeyond20CopyTextArea(textareaSelector, buttonSelector) {
 function wayBeyond20FormatDebugLog(entries) {
     const rows = Array.isArray(entries) ? entries : [];
     const lines = [
-        "WayBeyond20 Debug Log",
+        "LightCore Bridge Debug Log",
         `Displayed: ${new Date().toLocaleString()}`,
         `Version: ${chrome.runtime.getManifest().version}`,
         `Entries: ${rows.length}`,

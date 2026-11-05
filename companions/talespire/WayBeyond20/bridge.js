@@ -19,7 +19,7 @@ async function wb20TaleSpireCall(promise) {
     return result;
 }
 function wb20TaleSpireResultValue(result, depth = 0, budget = {nodes: 0}) {
-    if (!result || depth > 45 || ++budget.nodes > 180) throw new Error('Invalid WB20 dice detail.');
+    if (!result || depth > 45 || ++budget.nodes > 180) throw new Error('Invalid LightCore dice detail.');
     if (Object.keys(result).length === 1 && Number.isInteger(result.value) && Math.abs(result.value) <= 2147483647) return result.value;
     if (Object.keys(result).length === 2 && /^d(4|6|8|10|12|20|100)$/.test(result.kind) &&
         Array.isArray(result.results) && result.results.length > 0 && result.results.length <= 100 &&
@@ -30,19 +30,19 @@ function wb20TaleSpireResultValue(result, depth = 0, budget = {nodes: 0}) {
         const right = wb20TaleSpireResultValue(result.operands[1], depth + 1, budget);
         return result.operator === '+' ? left + right : left - right;
     }
-    throw new Error('Invalid WB20 dice detail.');
+    throw new Error('Invalid LightCore dice detail.');
 }
 function wb20TaleSpireValidate(packet) {
     if (!packet || packet.v !== 1 || !/^[a-zA-Z0-9-]{10,80}$/.test(packet.id) ||
         !['board', 'gms'].includes(packet.audience) || !Array.isArray(packet.rows) || packet.rows.length > 20)
-        throw new Error('Invalid WB20 message.');
+        throw new Error('Invalid LightCore message.');
     for (const key of ['who', 'title'])
-        if (typeof packet[key] !== 'string' || packet[key].length > 160) throw new Error('Invalid WB20 label.');
+        if (typeof packet[key] !== 'string' || packet[key].length > 160) throw new Error('Invalid LightCore label.');
     for (const row of packet.rows) {
         if (!row || typeof row.name !== 'string' || row.name.length > 160 ||
             typeof row.formula !== 'string' || row.formula.length > 500 ||
             !Number.isInteger(row.total) || Math.abs(row.total) > 2147483647)
-            throw new Error('Invalid WB20 result.');
+            throw new Error('Invalid LightCore result.');
         if (row.diceResult != null && wb20TaleSpireResultValue(row.diceResult) !== row.total)
             throw new Error('WB20 dice detail does not match its total.');
     }
@@ -85,7 +85,7 @@ async function wb20TaleSpireReceive(packet) {
     while (history.children.length > 12) history.lastElementChild.remove();
     if (typeof wb20ReturnFetch === 'function')
         wb20ReturnFetch('/receipt',{id:packet.id}).catch(()=>{});
-    wb20TaleSpireStatus('Received from WB20. No additional dice rolled.');
+    wb20TaleSpireStatus('Received from LightCore. No additional dice rolled.');
     // Small opt-in-to-install diagnostic, no character data or formula dump.
     try { await TS.debug.log({event: 'wb20-received', id: packet.id, rows: packet.rows.length, audience: packet.audience}); } catch (_) {}
     return true;
@@ -96,7 +96,7 @@ function wb20TaleSpireMessage(event) {
     wb20TaleSpireQueue = wb20TaleSpireQueue.then(async () => {
         await wb20TaleSpireReady;
         if (typeof encoded !== 'string' || encoded.length > 7500 || !/^[A-Za-z0-9_-]+$/.test(encoded))
-            throw new Error('Invalid WB20 URL payload.');
+            throw new Error('Invalid LightCore URL payload.');
         const bytes = Uint8Array.from(atob(encoded.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
         await wb20TaleSpireReceive(JSON.parse(new TextDecoder().decode(bytes)));
     }).catch(error => { wb20TaleSpireStatus(`Not sent: ${String(error.message || error)}. No automatic retry.`); });
@@ -116,18 +116,18 @@ function wb20TaleSpireState(event) {
         const copy = document.getElementById('copy');
         copy.disabled = false;
         copy.onclick = async () => {
-            try { await wb20TaleSpireCall(TS.system.clipboard.setText(prefix)); wb20TaleSpireStatus('Connection copied. Paste it into WB20 settings.'); }
+            try { await wb20TaleSpireCall(TS.system.clipboard.setText(prefix)); wb20TaleSpireStatus('Connection copied. Paste it into LightCore settings.'); }
             catch (_) { document.getElementById('connection').select(); wb20TaleSpireStatus('Select and copy the connection above.'); }
         };
         const test = document.getElementById('test');
         test.disabled = false;
         test.onclick = async () => {
             test.disabled = true;
-            try { await wb20TaleSpireReceive({v: 1, id: crypto.randomUUID(), who: 'WB20 connector test', title: 'Fixed diagnostic result', audience: 'board', rows: [{name: 'Test only', formula: '20 (fixed, not rolled)', total: 20}]}); }
+            try { await wb20TaleSpireReceive({v: 1, id: crypto.randomUUID(), who: 'LightCore connector test', title: 'Fixed diagnostic result', audience: 'board', rows: [{name: 'Test only', formula: '20 (fixed, not rolled)', total: 20}]}); }
             catch (error) { wb20TaleSpireStatus(`Test failed: ${String(error.message || error)}`); }
             finally { test.disabled = false; }
         };
-        wb20TaleSpireStatus('Ready. Copy the connection into WB20.');
+        wb20TaleSpireStatus('Ready. Copy the connection into LightCore.');
         try { await TS.debug.log({event: 'wb20-ready', prefix}); } catch (_) {}
     })().catch(error => { wb20TaleSpireStatus(`Connection unavailable: ${String(error.message || error)}`); throw error; });
     return wb20TaleSpireReady;

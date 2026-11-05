@@ -36,7 +36,7 @@ function wb20QuickClassify(spell) {
     const text = `${spell.effect} ${spell.description || ""}`.toLowerCase();
     const categories = new Set();
     if (/\b(?:revival|resurrection|resurrect|return.{0,30}to life|restore.{0,30}to life)\b/.test(text)) categories.add("Resurrect");
-    if (/\b(?:healing|regain.{0,35}hit points|restore.{0,35}hit points)\b/.test(text)) categories.add("Healing");
+    if (spell.damageType === 'Healing' || /\b(?:healing|regain.{0,35}hit points|restore.{0,35}hit points)\b/.test(text)) categories.add("Healing");
     // A title vocabulary is only a display hint. It grants no trigger/cost rule.
     if (/\bsmite\b/i.test(spell.name)) categories.add("Smite");
     if (spell.attack || spell.damage || /\bdamage\b/.test(text)) categories.add("Attack");
@@ -67,16 +67,22 @@ function wb20QuickReadSpells() {
         const timing = row.querySelector(".ct-spells-spell__activation [data-original-title],.ddbc-spells-spell__activation [data-original-title]");
         const hit = text(row, "attacking"), effect = text(row, "damage");
         const damageNode = row.querySelector(".ddbc-damage__value,.ct-damage__value,.ddbc-spell-damage-effect__damage");
-        const healing = !!row.querySelector('[aria-label*="healing" i],[data-original-title*="healing" i]') || /\bhealing\b/i.test(row.innerText);
+        const healing = !!row.querySelector('.ddbc-healing-icon,.ct-healing-icon,[aria-label*="healing" i],[data-original-title*="healing" i]') || /\bhealing\b/i.test(row.innerText);
+        const effectIcon = row.querySelector('.ddbc-damage-type-icon,.ct-damage-type-icon,.ddbc-healing-icon,.ct-healing-icon');
+        // Capture only geometry from the native icon while Spells is mounted.
+        // No markup, events, URLs or hidden tooltip text enter a roll value.
+        const svg = effectIcon?.querySelector('svg');
+        const iconShape = svg ? {viewBox:svg.getAttribute('viewBox'), parts:Array.from(svg.querySelectorAll('path,circle,ellipse,rect,polygon,polyline,line')).map(node=>({tag:node.tagName.toLowerCase(),attrs:Object.fromEntries(['d','cx','cy','r','rx','ry','x','y','x1','x2','y1','y2','width','height','points','fill-rule','clip-rule'].filter(key=>node.hasAttribute(key)).map(key=>[key,node.getAttribute(key)]))}))} : null;
         const spell = {
             name: identity.name, source: identity.source, level: identity.level,
             key: JSON.stringify([identity.name, identity.source, identity.level]),
             ...wb20QuickTiming(timing?.getAttribute("data-original-title") || text(row, "activation")),
             range: text(row, "range") || "—", hit: hit || "—",
-            effect: healing ? `${effect} Healing` : effect || "Effect",
+            effect: damageNode?.textContent.trim() || effect || "Effect",
             damage: !healing && damageNode ? damageNode.textContent.trim() : "",
             attack: /^[+−-]?\s*\d/.test(hit), notes: text(row, "notes"),
-            damageType: row.querySelector(".ddbc-damage-type-icon,.ct-damage-type-icon")?.getAttribute("aria-label")?.replace(/ damage$/i, "") || "",
+            damageType: healing ? "Healing" : effectIcon?.getAttribute('aria-label')?.replace(/ damage$/i, '') || effectIcon?.querySelector('[data-original-title]')?.getAttribute('data-original-title') || "",
+            iconShape,
             action, row
         };
         result.push(spell);
@@ -89,6 +95,9 @@ function wb20QuickObserveSpells() {
     const session = wb20QuickSession(), live = wb20QuickReadSpells();
     wb20QuickRememberOpenDescription();
     if (!live.length) return;
+    // Refresh the existing slot cache only while its native controls are
+    // already mounted. Notes never initiates a visit or another observer.
+    if(typeof wayBeyond20AvailableSpellSlots==='function')wayBeyond20AvailableSpellSlots();
     // Do not persist DOM nodes or trust last-session metadata to cast.
     session.spells = live.map(({row, ...spell}) => spell);
     session.scanned = true;
@@ -247,8 +256,10 @@ async function wb20QuickVisitSpells(callback) {
         return false;
     } finally {
         // Never yank the user back if they navigated away during discovery.
-        if (owner === character && wayBeyond20ActiveCharacterSheetTab()?.textContent.trim().toLowerCase() === "spells")
+        if (owner === character && wayBeyond20ActiveCharacterSheetTab()?.textContent.trim().toLowerCase() === "spells") {
+            wb20QuickObserveSpells();
             wayBeyond20RestoreCharacterSheetTab(previous);
+        }
     }
 }
 
@@ -438,7 +449,25 @@ function wb20QuickSpellNotes(spell, settings = wb20QuickSettings()) {
         if(price){material=price[1]+' '+price[2].toUpperCase()+(consumed?'/cast':' material');break;}
         if(consumed && /\b(?:costly|worth|value|cost)\b/i.test(clause)){material='Costly material/cast';break;}
     }
-    return {text:[material,notes].filter(Boolean).join(' · '),title:components || (material?clauses.join(' '):'')};
+    let slots='';
+    // Read the existing native slot cache; never visit another tab or infer a
+    // slot spend just to draw Notes. Unknown counts are not shown as zero.
+    if(Number(spell.level)>0 && /^cast$/i.test(String(spell.action || '').trim()) && typeof wayBeyond20AvailableSpellSlots==='function'){
+        const available=wayBeyond20AvailableSpellSlots();
+        if(typeof wayBeyond20SpellSlotCache!=='undefined' && Array.isArray(wayBeyond20SpellSlotCache)){
+            const count=available.find(pool=>pool.level===Number(spell.level))?.available || 0;
+            slots=`${count} slot${count===1?'':'s'} left`;
+        }
+    }
+    return {text:[material,slots,notes].filter(Boolean).join(' · '),title:components || (material?clauses.join(' '):'')};
+}
+
+async function wb20QuickOpenDetails(key) {
+    const owner=character,spell=wb20QuickSession().spells.find(spell=>spell.key===key);if(!spell)return;
+    await wb20QuickLoadDescription(key);
+    if(owner!==character)return;
+    const text=wb20QuickSettings().descriptions?.[key] || wb20QuickDescriptionText(spell);
+    if(typeof wb20OpenFeatureDetails==='function')return wb20OpenFeatureDetails(spell.name,text);
 }
 
 function wb20QuickRows(root) {
@@ -472,19 +501,19 @@ function wb20QuickRows(root) {
             if (selector === ".ddbc-combat-attack__range" && typeof wb20SetActionRange === "function") wb20SetActionRange(el,value);
             else if (el.textContent !== value) el.textContent = value;
         };
-        set(".wb20-feature-option-name", definition.name);
+        const mainLabel = row.querySelector('.wb20-feature-option-name');
         const subtitle = row.querySelector(".wb20-talent-category");
         let selected;
         if (!definition.custom) {
             const key = settings.selected?.[definition.key];
             selected = definition.spells.find(spell => spell.key === key);
-            let select = subtitle.querySelector("select");
+            let select = mainLabel.querySelector("select");
             if (!select) {
                 select = document.createElement("select");
                 const caption = document.createElement("span");
                 caption.className = "wb20-spell-choice-caption"; caption.setAttribute("aria-hidden", "true");
-                subtitle.classList.add("wb20-spell-choice");
-                subtitle.replaceChildren(select, caption);
+                mainLabel.classList.add("wb20-spell-choice");
+                mainLabel.replaceChildren(select, caption);
                 select.addEventListener("change", event => {
                     event.stopPropagation();
                     if (row._wb20Owner !== character) return;
@@ -503,13 +532,16 @@ function wb20QuickRows(root) {
             const accessible = `${definition.name} (${definition.time})`;
             if (select.getAttribute("aria-label") !== accessible) select.setAttribute("aria-label", accessible);
             if (select.value !== (selected?.key || "")) select.value = selected?.key || "";
-            const caption = subtitle.querySelector(".wb20-spell-choice-caption");
-            const captionText = selected?.name || "Select a spell";
+            const caption = mainLabel.querySelector(".wb20-spell-choice-caption");
+            const level = Number(selected?.level);
+            const ordinal = level === 1 ? '1st' : level === 2 ? '2nd' : level === 3 ? '3rd' : `${level}th`;
+            const captionText = selected ? `${level > 0 ? ordinal + ' · ' : ''}${selected.name}` : "Select a spell";
             if (caption.textContent !== captionText) caption.textContent = captionText;
+            set('.wb20-talent-category', definition.name);
             const help = selected ? wb20QuickDescriptionText(selected) : "Select a spell to see its description.";
-            if (select.title !== help) select.title = help;
+            if (select.title !== captionText) select.title = captionText;
             if (select.getAttribute("aria-description") !== help) select.setAttribute("aria-description", help);
-        } else set(".wb20-talent-category", "Custom roll");
+        } else { set('.wb20-feature-option-name', definition.name); set(".wb20-talent-category", "Custom roll"); }
         row._wb20Selected = selected?.key || null;
         row._wb20PresentationSpell = selected || null;
         const icon = row.querySelector("button");
@@ -525,8 +557,10 @@ function wb20QuickRows(root) {
         const sortFormula = definition.custom ? definition.formula : selected?.damage || "";
         if (row.dataset.wb20SortFormula !== sortFormula) row.dataset.wb20SortFormula = sortFormula;
         const displayNotes=definition.custom?{text:definition.notes || "",title:""}:wb20QuickSpellNotes(selected,settings);
-        set(".ddbc-combat-attack__notes", displayNotes.text);
         const notesCell=row.querySelector('.ddbc-combat-attack__notes');
+        if(!definition.custom && selected && typeof wb20SetActionNote==='function'){
+            wb20SetActionNote(notesCell,displayNotes.text || 'Read spell',()=>{if(row._wb20Owner===character)return wb20QuickOpenDetails(row._wb20Selected);},'Read '+selected.name+' — full details');
+        } else set(".ddbc-combat-attack__notes", displayNotes.text);
         if(notesCell.title!==displayNotes.title)notesCell.title=displayNotes.title;
         retained.add(row);
         entries.push({row, name: definition.name, key: definition.key, cost: definition.cost, defaultVisible: definition.defaultVisible,

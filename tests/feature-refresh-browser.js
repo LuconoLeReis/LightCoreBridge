@@ -10,8 +10,8 @@ function fn(name){const start=source.search(new RegExp(`^(?:async )?function ${n
  await page.setContent('<div class="ct-actions"><div class="ct-actions-list"><h3>Actions • Attacks per Action: 2</h3><div><section><header>Attack</header><div><div class="ddbc-combat-attack"><div class="ddbc-combat-attack__name"><span class="ddbc-combat-attack__label">Sword</span></div><div class="ddbc-combat-attack__damage">1d6+4</div></div></div></section></div></div></div>');
  await page.addScriptTag({path:path.join(root,'libs/jquery-3.4.1.min.js')});
  await page.evaluate(()=>{
-  window.saved={'waybeyond20-feature-rules':[{name:'Guardian Wards',text:'You automatically succeed on saves against magical effects that would make you Incapacitated, Stunned, or Unconscious.'},{name:'Pack Instinct',text:'When an ally is next to a creature at the start of your turn, you have Advantage on attacks against it.'}]};
-  window.character={_class_features:[],_racial_traits:['Guardian Wards','Pack Instinct'],_feats:[],getSetting:(k,d)=>saved[k]??d};
+  window.saved={'waybeyond20-feature-rules':[{name:'Guardian Wards',text:'You automatically succeed on saves against magical effects that would make you Incapacitated, Stunned, or Unconscious.'},{name:'Control Undead',text:'As an action, spend one Channel Divinity to control one undead.'}]};
+  window.character={_class_features:['Control Undead'],_racial_traits:['Guardian Wards'],_feats:[],getSetting:(k,d)=>saved[k]??d};
   window.wb20ResourceId=v=>String(v).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();window.wb20Resource=()=>null;
  });
  await page.addScriptTag({path:path.join(root,'src/dndbeyond/content-scripts/feature-rules.js')});
@@ -30,7 +30,7 @@ function fn(name){const start=source.search(new RegExp(`^(?:async )?function ${n
   for(const row of original)if(!row.isConnected)replaced++;
   return{callbacks,mutations,replaced,rows:document.querySelectorAll('.wb20-rule-row').length,nativeRows:document.querySelectorAll('.ct-actions-list .ddbc-combat-attack').length};
  });
- assert.deepEqual(errors,[]);assert.ok(result.callbacks<=3,'refresh must settle, not feed its own observer: '+JSON.stringify(result));assert.equal(result.replaced,0,'native collector must not remove another producer\'s feature rows');assert.equal(result.rows,2);assert.equal(result.nativeRows,1);
+ assert.deepEqual(errors,[]);assert.ok(result.callbacks<=3,'refresh must settle, not feed its own observer: '+JSON.stringify(result));assert.equal(result.replaced,0,'native collector must not remove another producer\'s feature rows');assert.equal(result.rows,1);assert.equal(result.nativeRows,1);
  await page.evaluate(()=>{saved['waybeyond20-feature-rules'][0].text='This no longer grants automatic saves.';wayBeyond20RefreshCombinedActions();});assert.equal(await page.locator('.wb20-rule-row').count(),1,'snapshot is discarded before the next native rule update');
  await page.evaluate(()=>{saved['waybeyond20-feature-controls']=false;wayBeyond20RefreshCombinedActions();});assert.equal(await page.locator('.wb20-rule-row').count(),0,'owning producer still removes disabled feature rows');
  console.log('PASS composed action refresh settles, retains producer-owned row identity, preserves native rows and respects feature opt-out. '+JSON.stringify(result));

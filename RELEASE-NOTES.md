@@ -1,88 +1,39 @@
-# WayBeyond20 1.73.57
+# LightCore Bridge 1.73.72
 
-Published November 1, 2026. Browser build: **2.20.189**.
+First LightCore Bridge release. Browser build **2.20.204**.
 
-This release brings the reliability and display repairs made since 1.73.29 into one stable download. The existing five-column Actions list and shared attack/resource processing remain in place.
+LightCore Bridge is the new name for WayBeyond20. It connects a D&D Beyond character to local tabletop play, Roll20, Foundry VTT, TaleSpire and optional Discord output. A VTT is not required. The name, approved artwork and compact LightCore control are updated; existing saved character data, connections and compatibility identifiers are retained.
+
+## Included since WayBeyond20 1.73.57
+
+- Updated Actions presentation: consistent main names/subtitles, spell level choices, range/value cells, damage-type indicators and concise contextual Notes.
+- Remembered Opportunity Attack/War Caster choices and clearer feature/resource controls, with native rules/eligibility reminders retained.
+- Portent used-state correction, compact item-buff display and header alignment improvements.
+- Active Find Steed and Summon Undead controls using cast-level/type-specific stats and separate creature actors on the existing attack pathway. Companion rolls do not borrow the caster's personal reroll resources or attack riders.
+- Animate Dead tracking for creation and renewal, separate creature identities/HP/control hours, and one Bonus Action group command.
+- Manual companion tracking accepts normal native-sidebar dismissal while rejecting another character or replacement spell pane. This repairs the renewal defect found in pre-release live testing.
+
+## Using companions
+
+For Animate Dead, open the desired Skeleton and Zombie reference entries in DDB Extras once to load their native definitions. Normal casting can register the selected creatures; Track an existing summon adds controls for a creature already present without casting or spending another slot. When a definition is unavailable, Continue without tracking keeps the ordinary spell available.
+
+Click the creature's action icon to roll. Click its name or Notes for details, HP/control corrections or End tracking. Renewal retains the same creature and HP. Existing orders continue until completed; individual creature attacks do not cost another caster Bonus Action.
+
+Control hours are manually advanced game time. Multiattack shows the attack count; each click rolls one attack. Initiative/positions, aura eligibility, automatic target conditions and native companion-HP synchronization are not automated. Details preserve the rules for table adjudication. No claim that every homebrew feature is automated.
+
+## Installation and compatibility
+
+The Chrome archive uses the existing WayBeyond20 folder wrapper for compatibility, while the extension displays LightCore Bridge. Retain the existing extension/settings when updating. Native DDB and optional destination companions remain separate applications; this release does not provision a Discord server or redeploy a remote VTT module. Existing third-party licenses and Beyond20 attribution remain included.
+
+## Verified scope and remaining limits
+
+Independent offline review approved the mainline changes from 1.73.57 through 1.73.72. Automated regression suites, companion composition tests, syntax checks and Chrome/Firefox builds passed. Live checks verified manual renewal preserves HP and identity, and native Animate Dead and Summon Undead casts each commit their companion effect and spend exactly one slot. Test resources were restored. Earlier bounded steed checks verified creature rolls without spending the caster's personal Luck Points.
+
+This is not a claim that every homebrew feature or destination was live-tested. The separate experimental mastery/rider branch is not included. Existing digital-dice privacy settings can suppress a local card; old destination companions or late acknowledgments may produce an extra local copy. Intermittent loading indicators remain under investigation; reopening a sheet after an extension update avoids stale scripts.
 
 ## Download and update
 
-- [Chrome extension ZIP](https://github.com/LuconoLeReis/WayBeyond20/releases/download/v1.73.57/WayBeyond20-chrome-v1_73_57.zip) — install this package.
-- [Corresponding source ZIP](https://github.com/LuconoLeReis/WayBeyond20/releases/download/v1.73.57/WayBeyond20-source-v1_73_57.zip) — for source inspection, not installation.
+- [Chrome extension ZIP](https://github.com/LuconoLeReis/WayBeyond20/releases/download/v1.73.72/LightCore-Bridge-chrome-v1_73_72.zip) — install this package.
+- [Corresponding source ZIP](https://github.com/LuconoLeReis/WayBeyond20/releases/download/v1.73.72/LightCore-Bridge-source-v1_73_72.zip) — source and build inputs.
 
-To update without losing your settings:
-
-1. Finish pending rolls and close your D&D Beyond and VTT tabs.
-2. Back up your currently loaded WayBeyond20 folder.
-3. Extract the Chrome ZIP. Copy the contents of its `WayBeyond20` folder into the **same folder Chrome already loads**. Do not remove and reinstall the extension to update it.
-4. Open `chrome://extensions` and reload WayBeyond20.
-5. Reopen your character sheets and VTTs. Confirm your saved destination and connection are still selected.
-
-For a first installation, enable Developer mode on Chrome's Extensions page, choose **Load unpacked**, and select the extracted `WayBeyond20` folder containing `manifest.json`. GitHub's automatic Source code archives are not installable Chrome packages. Keep only one Beyond20/WayBeyond20 copy enabled for the same sheets.
-
-## Rolls and VTT delivery
-
-- **Automatic** looks for available VTT destinations and sends the same completed result to them. A confirmed delivery suppresses the extra WB20 local result; unavailable, failed or unconfirmed delivery uses local fallback, subject to your existing display/privacy settings.
-- Optional VTT discovery and delivery do not hold up normal roll/action completion. A missing target list or VTT connection must not prevent an underlying attack or spell roll.
-- Delivery retries do not reroll the dice or spend the action's resources again. Explicit destination and private-audience choices remain in effect.
-- Worker startup waits for saved destination settings before forwarding. The wait is bounded, so an unavailable settings callback cannot leave requests queued indefinitely or replay them later.
-- Foundry discovery checks current live tabs and their permitted origins instead of relying only on a sleeping worker's old tab cache.
-- The native spell shortcut handoff recognizes the spell pane's own casting controls rather than waiting for weapon-only fields.
-
-Digital dice, Game Log and local-result suppression retain their separate settings. **A missing local card alone is not proof of VTT delivery.**
-
-## Actions list
-
-- Keep the established **Name, Range, Hit/DC, Damage and Notes** columns.
-- Range numbers are bold, with a space before smaller units and a smaller Reach/Touch label where applicable.
-- Hit/DC text matches the damage value's size. Added clickable values use native-style borders and known native damage-type icons. They forward to the row's existing activation; they do not introduce another attack or damage executor.
-- Identical equipped weapon copies appear once. Copies with different statistics or properties stay separate. This changes the display, not your inventory or equipment.
-- Spell Notes no longer repeat Action, Bonus Action or Reaction costs already indicated by the left border. Hover/accessibility information retains the cost. Useful components and duration details remain.
-- A costly material component can be indicated when the source supplies it. A per-cast label appears only when consumption is confirmed; a reusable priced component is not described as consumed.
-- Added entries use the selected sheet's text colors in light and Underdark modes. Native D&D Beyond frames remain intact.
-
-## Local results, settings and recovery
-
-- Local results appear in a centered, nonmodal, sheet-themed panel and fade after **five seconds** by default.
-- **Duration of Local Rolls display**, under **Display and privacy**, offers 3, 5, 10, 15 or 30 seconds, or **Until dismissed**. Hover or keyboard focus pauses the fade. Close, Escape or an outside click dismisses the panel without undoing a roll or resource use.
-- WB20 Settings opens in a normal browser tab, with search, grouped sections and **Send rolls to** near the top.
-- **Use Beyond20 mode** remains in Settings and the extension menu. The permanent page button has been removed so it cannot cover Combat or local results. Switching modes reloads supported pages and retains saved connections, dice and character resources.
-- The TaleSpire connection field shows the saved link at a readable width. The installed Symbiote connection is reused across boards; you do not need a separate saved URL for each board. Keep the Symbiote open on the board you are using.
-- Compact header icons use the sheet's text color, with corrected spacing and builder-icon centering. The blue dot beside Game Log is D&D Beyond's new-message indicator.
-
-## Other reliability repairs included
-
-- Shared character-sheet links load the appropriate sheet code; builders and unrelated pages are excluded from that recovery/startup scope.
-- Filtered or incomplete Features views retain rules for features the character still owns instead of silently replacing them with a partial snapshot. Confirmed ownership removal can still prune a saved rule.
-- The action-list collector preserves rows belonging to other feature modules, fixing a reproduced delete/rebuild observer loop.
-- Sheet refreshes combine mutation bursts and yield to browser input. Repeated rule reads share a snapshot for the current render. These repairs address reproduced refresh problems; they do not establish the cause of every loading report.
-- The Defenses/Buffs panel accommodates its expanded content and restores its native frame behavior when cleanup runs.
-
-## What was verified
-
-- Full automated suite, focused browser regressions, Chrome and Firefox builds, 82 compiled JavaScript syntax checks, and 40 executable manifest references passed. Recovery/fallback checks also ran with a real extension in a disposable browser profile.
-- Independent review covered the final display changes and the carried worker/delivery behavior.
-- Bill confirmed that fresh Calan and Rhonen sheets opened and displayed correctly after loading 1.73.57.
-- Bounded live tests on a separate test character covered Actions-tab idle behavior, skill rolls, weapon attacks, Hit confirmation, damage, Smite and Elemental Strike prompts. Exactly one first-level spell slot was spent and then restored to its recorded baseline.
-- With the test-board Symbiote connected, a skill roll received one authenticated receipt. An attack and its damage received exactly two authenticated receipts, one per packet, with no duplicate or additional slot spending. These are Symbiote acknowledgments after its API calls; native TaleSpire chat was not separately verified by screenshot.
-
-Automated fixtures, independent review and live checks are distinct forms of evidence. Full live Forge coverage, every class/rules combination, and new 1.73.57 Calan/Rhonen attack tests are not claimed.
-
-## Known limitations
-
-- **Intermittent X/Stop-loading behavior remains under investigation.** Reopen affected sheets after an extension update rather than continuing with old injected scripts. A fresh successful load is a workaround, not proof of the complete cause.
-- A `talespire://` handoff caused an automation navigation/screenshot timeout while the tested page remained complete and responsive. That observation does not establish the cause of the loading indicator.
-- If D&D Beyond's digital-dice audience control is unavailable, several warnings may describe one fallback event while the action continues using the fallback dice engine. This is separate from a missing TaleSpire mini or target list.
-- **Hide roll results on D&D Beyond when using Digital Dice** can suppress a local card even when VTT delivery is unavailable. Check this setting if you want the local fallback card visible.
-- Old companions and late acknowledgments may leave an extra local fallback copy. Use the matching companion/helper versions for confirmed-delivery behavior.
-- The combat tracker is advisory. AC estimates depend on confirmed hit/miss observations; damage history does not synchronize native enemy HP. Direct distances do not account for movement paths, cover or opportunity-attack adjudication. Native TaleSpire mini HP is not synchronized.
-- English rule text, native D&D Beyond markup, VTT permissions and companion availability remain external dependencies. This release is not a claim that all game rules or remote effects are automated.
-
-## Verified release files
-
-| File | Bytes | SHA256 |
-| --- | ---: | --- |
-| Chrome ZIP | 2,435,298 | `98648e824c83a2b5af5d769511700a2d678b9ea2111c18f46f55d42c29f879e5` |
-| Source ZIP | 1,859,932 | `8a5764e50d4ef691b8200f9eeaa864fcd2e1585ceada319ca333e1b5087228ab` |
-
-Release tag: `v1.73.57`. Release commit: `a8dcc596f85a0b39f279047d1938defcc8f8d1ed`.
-These notes were expanded after publication. The published ZIPs, release tag, executable code, saved settings and version numbers have not changed.
+Finish pending rolls and close character/VTT tabs. Back up the folder Chrome currently loads. Extract the Chrome ZIP, then copy the contents of its WayBeyond20 folder into that same loaded folder. Reload LightCore Bridge on chrome://extensions and reopen the sheets. Keep the loaded path and existing extension installation to preserve settings. Do not enable another Beyond20/WayBeyond20 copy alongside it.

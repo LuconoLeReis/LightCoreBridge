@@ -4,7 +4,7 @@ async function wb20TaleSpireReturnRequest(route, data, timeout = 2500) {
     if (!['/state','/command','/receipts'].includes(route)) throw Error('Invalid return request');
     if (!wb20TaleSpireReturnKey) {
         const pair=await fetch('http://127.0.0.1:48874/pair',{headers:{'X-WB20-Extension':chrome.runtime.id},signal:AbortSignal.timeout(timeout)});
-        if (!pair.ok) throw Error('WB20 local helper is not paired');
+        if (!pair.ok) throw Error('LightCore local helper is not paired');
         const result=await pair.json();
         if (!/^[a-f0-9]{64}$/.test(result.key)) throw Error('Invalid helper pairing');
         wb20TaleSpireReturnKey=result.key;
@@ -13,7 +13,7 @@ async function wb20TaleSpireReturnRequest(route, data, timeout = 2500) {
         headers:{Authorization:'Bearer '+wb20TaleSpireReturnKey,...(data?{'Content-Type':'application/json'}:{})},
         ...(data?{body:JSON.stringify(data)}:{}),signal:AbortSignal.timeout(timeout)});
     if (response.status === 401) wb20TaleSpireReturnKey='';
-    if (!response.ok) throw Error('WB20 local helper unavailable');
+    if (!response.ok) throw Error('LightCore local helper unavailable');
     return response.json();
 }
 function wb20TaleSpireReturnMessage(request,sender,respond) {

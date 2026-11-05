@@ -1,8 +1,9 @@
 {
-  "name": "WayBeyond20",
-  "version": "2.20.189",
+  "name": "LightCore Bridge",
+  "short_name": "LightCore",
+  "version": "2.20.204",
   "manifest_version": 2,
-  "description": "WayBeyond20 integrates D&D Beyond Character Sheets with Roll20 and Foundry VTT.",
+  "description": "Connect your D&D Beyond character to your table: local play, Roll20, Foundry VTT, TaleSpire and Discord.",
   "permissions": [
     "http://127.0.0.1:48874/*",
     "activeTab",
@@ -172,5 +173,5 @@
       ]
     }
   ],
-  "version_name": "WayBeyond20 1.73.57"
+  "version_name": "LightCore Bridge 1.73.72"
 }

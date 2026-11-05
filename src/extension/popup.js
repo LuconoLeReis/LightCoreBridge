@@ -473,7 +473,7 @@ function actOnCurrentTab(tab) {
             const options = $(".beyond20-options");
             const request = createHTMLOptionEx("default-popup", {
                 "title": "No permanent permission for this URL",
-                "description": "Click here to give permission to WayBeyond20 to load automatically on this URL.",
+                "description": "Click here to give permission to LightCore Bridge to load automatically on this URL.",
                 "type": "info"
             });
             options.prepend(request);

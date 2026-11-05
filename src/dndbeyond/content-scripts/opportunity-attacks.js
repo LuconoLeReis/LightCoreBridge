@@ -8,13 +8,15 @@ function wayBeyond20DefaultOpportunityEntry(entries) {
     catch (_) { return null; }
     // Names describe the chosen entry, not rules. Ambiguous duplicates require
     // another explicit choice. Live numbers are never cached in the preference.
-    const matches = entries.filter(entry => entry.name === saved?.name && entry.meta === saved?.meta);
+    const matches = entries.filter(entry => saved?.kind === 'spell'
+        ? entry.kind === 'spell' && entry.name === saved.name && entry.spell.source === saved.source && entry.spell.level === saved.level
+        : entry.kind !== 'spell' && entry.name === saved?.name && entry.meta === saved?.meta);
     return matches.length === 1 ? matches[0] : null;
 }
 
 function wayBeyond20OpportunityEntries(root) {
     return Array.from(root.querySelectorAll(".ct-combat-attack,.ddbc-combat-attack"))
-        .filter(row => !row.matches(".wb20-feature-option,.wb20-opportunity-attack,.waybeyond20-bardic-feature-row"))
+        .filter(row => !row.matches(".wb20-feature-option,.wb20-opportunity-attack,.waybeyond20-bardic-feature-row,[data-wb20-duplicate-weapon]"))
         .map(row => {
             const label = row.querySelector(".ct-combat-attack__label,.ddbc-combat-attack__label");
             const meta = Array.from(row.querySelectorAll(".ct-combat-attack__meta-item,.ddbc-combat-attack__meta-item"))
@@ -29,6 +31,51 @@ function wayBeyond20OpportunityEntries(root) {
         // The full pane is validated again before any roll can be sent.
         .filter(entry => entry.label && /\bmelee\b/i.test(entry.meta) &&
             !/\bspell\b/i.test(entry.meta) && /^[+\-\u2212]?\s*\d+/.test(entry.hit));
+}
+
+function wayBeyond20OpportunityChoices(root,rules=wayBeyond20LiveFeatureRules()) {
+    const entries=wayBeyond20OpportunityEntries(root);
+    if(wayBeyond20ReactiveSpellRule(rules) && typeof wb20QuickSession==='function'){
+        const descriptions=typeof wb20QuickSettings==='function'?wb20QuickSettings().descriptions || {}:{};
+        for(const spell of wb20QuickSession().spells || []){
+            if(spell.cost!=='action' || !/^1 Action$/i.test(spell.time || ''))continue;
+            // Obvious self/point/area targets cannot be the provoking creature.
+            // Full native time/target/range is still checked by the existing
+            // reactive-spell confirmation before any resource can be spent.
+            const text=descriptions[spell.key] || '';
+            if(!wayBeyond20ReactiveSpellTargetAllowed({'Range/Area':spell.range},text))continue;
+            entries.push({kind:'spell',spell,name:spell.name,meta:spell.source,hit:spell.hit,damage:spell.effect,range:spell.range});
+        }
+    }
+    return entries;
+}
+
+function wayBeyond20ReactiveSpellTargetAllowed(properties,description) {
+    const range=properties['Range/Area'] || properties.Range || '';
+    const text=String(description || '');
+    const point=text.search(/\b(?:point you choose|choose a point|point within range)\b/i);
+    const creature=text.search(/\b(?:creature you (?:can )?(?:see|touch)|(?:choose|target|touch) (?:a|one|another) (?:willing )?creature|creature of your choice)\b/i);
+    // A later destination point does not turn a creature-targeted teleport
+    // into a point-targeted spell. Unknown targeting still needs confirmation.
+    const primaryPoint=point>=0 && (creature<0 || point<creature);
+    return !(/^Self$/i.test(range.trim()) || /\bSelf\b.*\b(?:cone|cube|cylinder|sphere|line)\b/i.test(range) || primaryPoint);
+}
+
+function wayBeyond20SuggestedOpportunityEntry(entries) {
+    const score=entry=>{
+        const text=String(entry.damage || '').replace(/\s/g,''),dice=text.match(/^(\d*)d(\d+)([+-]\d+)?/i);
+        const average=dice?Number(dice[1] || 1)*(Number(dice[2])+1)/2+Number(dice[3] || 0):/^\d+$/.test(text)?Number(text):0;
+        return average+(Number(String(entry.hit || '').replace(/[^\d+-]/g,'')) || 0)/100;
+    };
+    // A no-slot melee suggestion based on displayed base damage/bonus, not a
+    // claim about unknown target defenses or a reason to auto-cast a spell.
+    return entries.filter(entry=>entry.kind!=='spell').reduce((best,entry)=>!best || score(entry)>score(best)?entry:best,null);
+}
+
+function wayBeyond20SaveOpportunityEntry(entry) {
+    const saved=entry.kind==='spell'?{kind:'spell',name:entry.name,source:entry.spell.source,level:entry.spell.level}:{name:entry.name,meta:entry.meta};
+    const owner=character;
+    owner.mergeCharacterSettings({'waybeyond20-opportunity-default':JSON.stringify(saved)},()=>{if(owner===character && typeof wayBeyond20RefreshCombinedActions==='function')wayBeyond20RefreshCombinedActions();});
 }
 
 function wayBeyond20AttackContextCurrent(context) {
@@ -139,7 +186,7 @@ function wayBeyond20ReactiveSpellTiming(row) {
     return null; // Unknown markup is rechecked against the full native pane.
 }
 
-async function wayBeyond20ChooseReactiveSpell(context) {
+async function wayBeyond20ChooseReactiveSpell(context, preferred = null) {
     await new Promise(resolve => setTimeout(resolve, 0));
     const previousTab = wayBeyond20ActiveCharacterSheetTab();
     const spellsTab = wayBeyond20CharacterSheetTab("Spells");
@@ -163,6 +210,12 @@ async function wayBeyond20ChooseReactiveSpell(context) {
             return false;
         }
         const escape = wayBeyond20EscapeFollowupText;
+        let entry;
+        if(preferred){
+            const matches=entries.filter(candidate=>candidate.identity.name===preferred.name && candidate.identity.source===preferred.source && candidate.identity.level===preferred.level);
+            if(matches.length!==1){alertify.warning('That saved spell is not available at its selected level. Choose another opportunity option. Nothing was spent.');return false;}
+            entry=matches[0];
+        } else {
         const response = await dndbeyondDiceRoller._prompter.prompt("Reactive spell", "<form><p>" +
             escape(context.spellRule.text) + "</p><p>Choose a spell and casting level. Its full casting time " +
             "will be checked before casting. A cantrip or a spell using a slot can qualify. Only the provoking creature may be targeted; this use spends a Reaction.</p>" +
@@ -172,7 +225,8 @@ async function wayBeyond20ChooseReactiveSpell(context) {
             ).join("") + '</select></form>', "Choose spell", "Cancel");
         if (!response || !wayBeyond20AttackContextCurrent(context)) return false;
         const value = response.find('[name="spell"]').val();
-        const entry = /^\d+$/.test(String(value)) ? entries[Number(value)] : null;
+        entry = /^\d+$/.test(String(value)) ? entries[Number(value)] : null;
+        }
         if (!entry || !entry.row.isConnected) return false;
         context.kind = "reactive-spell";
         context.activation.kind = "spell";
@@ -182,11 +236,13 @@ async function wayBeyond20ChooseReactiveSpell(context) {
         entry.identity.label.click();
         for (let attempt = 0; attempt < 25 && wayBeyond20AttackContextCurrent(context); attempt++) {
             if (wayBeyond20NativeSpellPaneMatches(entry.identity)) {
-                return await execute("ct-spell-pane", {
+                const result=await execute("ct-spell-pane", {
                     attack_context: context,
                     force_roll_mode: context.mode,
                     nativeCast: wayBeyond20CommitNativeSpellCast(character, entry.identity, entry.button.textContent.trim().toLowerCase())
                 });
+                if(result===true && context.activation.owner===character)wayBeyond20SaveOpportunityEntry({kind:'spell',name:entry.identity.name,spell:entry.identity});
+                return result;
             }
             await new Promise(resolve => setTimeout(resolve, 75));
         }
@@ -203,6 +259,9 @@ async function wayBeyond20ConfirmReactiveSpell(context, properties, name, descri
     if (!/^(?:1|one)\s+action$/i.test((properties["Casting Time"] || "").trim())) {
         alertify.warning("This replacement requires a spell with a casting time of one Action. Nothing was spent.");
         return false;
+    }
+    if(!wayBeyond20ReactiveSpellTargetAllowed(properties,description)){
+        alertify.warning('Reactive Spell must target the provoking creature; this spell targets yourself or a point/area. Nothing was spent.');return false;
     }
     const escape = wayBeyond20EscapeFollowupText;
     const result = await dndbeyondDiceRoller._prompter.prompt("Confirm reactive spell", "<form><p><strong>" +
@@ -254,8 +313,8 @@ async function wayBeyond20ChooseOpportunityAttack(root, {useDefault = false, mod
     const owner = character;
     wayBeyond20OpportunityPending = true;
     try {
-        const entries = wayBeyond20OpportunityEntries(root);
         const rules = wayBeyond20LiveFeatureRules();
+        const entries = wayBeyond20OpportunityChoices(root,rules);
         const spellRule = wayBeyond20ReactiveSpellRule(rules);
         if (!entries.length && !spellRule) {
             alertify.warning("No melee weapon or Unarmed Strike is visible. Show the Actions list and try again.");
@@ -266,6 +325,7 @@ async function wayBeyond20ChooseOpportunityAttack(root, {useDefault = false, mod
         const knownOwnTurn = state.combatSource === "Roll20" ? state.currentRoll20Turn?.isThisCharactersTurn : undefined;
         const escape = wayBeyond20EscapeFollowupText;
         const savedEntry = wayBeyond20DefaultOpportunityEntry(entries);
+        const suggestedEntry = savedEntry || wayBeyond20SuggestedOpportunityEntry(entries);
         if (useDefault && savedEntry) {
             let ownTurn = knownOwnTurn;
             // A manual tracker does not know whose turn it is. Ask rather than
@@ -281,12 +341,14 @@ async function wayBeyond20ChooseOpportunityAttack(root, {useDefault = false, mod
             }
             const context = {kind: "opportunity", activation, attackAction: false, mode: shortcutMode,
                 isOwnTurn: ownTurn, rules, spellRule, review: new Map()};
-            return await wayBeyond20OpenGrantedAttack(savedEntry, context, shortcutMode);
+            const result=savedEntry.kind==='spell'?await wayBeyond20ChooseReactiveSpell(context,savedEntry.spell):await wayBeyond20OpenGrantedAttack(savedEntry, context, shortcutMode);
+            if(result===true && owner===character && savedEntry.kind!=='spell')wayBeyond20SaveOpportunityEntry(savedEntry);
+            return result;
         }
         const html = '<form class="wb20-opportunity-prompt">' +
             '<p class="wb20-opportunity-summary"><strong>1 Reaction · 1 attack</strong></p>' +
             '<label class="wb20-opportunity-field">Attack<select name="attack" aria-label="Attack">' + entries.map((entry, index) =>
-                `<option value="${index}"${entry === savedEntry ? " selected" : ""}>${escape(entry.name)} | ${escape(entry.hit)} | ${escape(entry.damage)}${entry.range ? " | " + escape(entry.range) : ""}</option>`).join("") +
+                `<option value="${index}"${entry === suggestedEntry ? " selected" : ""}>${escape(entry.name)} | ${escape(entry.hit)} | ${escape(entry.damage)}${entry.range ? " | " + escape(entry.range) : ""}</option>`).join("") +
             (spellRule ? `<option value="spell">Cast a spell instead (${escape(spellRule.name)})</option>` : "") +
             '</select></label><label class="wb20-opportunity-field">Roll with<select name="mode" aria-label="Roll with">' +
             `<option value="${RollType.NORMAL}">Flat (one die)</option>` +
@@ -294,7 +356,7 @@ async function wayBeyond20ChooseOpportunityAttack(root, {useDefault = false, mod
             `<option value="${RollType.DISADVANTAGE}">Disadvantage</option></select></label>` +
             (typeof knownOwnTurn === "boolean" ? `<p class="wb20-opportunity-note">${knownOwnTurn ? "Your turn" : "Another combatant's turn"} (Roll20).</p>` :
                 '<label class="wb20-opportunity-field">Whose turn?<select name="ownTurn" aria-label="Whose turn?"><option value="no">Another creature</option><option value="yes">Mine</option></select></label>') +
-            '<p class="wb20-opportunity-note">Your last successful melee choice becomes the default. Cancel spends nothing.</p>' +
+            '<p class="wb20-opportunity-note">Your last successful weapon or reactive-spell choice becomes the default. Cancel spends nothing.</p>' +
             '<details class="wb20-opportunity-rules"><summary>Trigger and rules reminder</summary><ul>' +
             '<li>Use only when an Opportunity Attack is provoked. The usual trigger is a creature you can see leaving your reach; attack before it leaves.</li>' +
             '<li>Make one melee weapon attack or Unarmed Strike within reach. This is not the Attack action and does not grant Extra Attack.</li>' +
@@ -311,10 +373,10 @@ async function wayBeyond20ChooseOpportunityAttack(root, {useDefault = false, mod
             isOwnTurn: typeof knownOwnTurn === "boolean" ? knownOwnTurn : response.find('[name="ownTurn"]').val() === "yes",
             rules, spellRule, review: new Map()};
         if (value === "spell") return await wayBeyond20ChooseReactiveSpell(context);
+        if(entry.kind==='spell')return await wayBeyond20ChooseReactiveSpell(context,entry.spell);
         const result = await wayBeyond20OpenGrantedAttack(entry, context, mode);
         if (result === true && owner === character) {
-            owner.mergeCharacterSettings({"waybeyond20-opportunity-default": JSON.stringify({name: entry.name, meta: entry.meta})},
-                () => { if (owner === character && typeof wayBeyond20RefreshCombinedActions === "function") wayBeyond20RefreshCombinedActions(); });
+            wayBeyond20SaveOpportunityEntry(entry);
         }
         return result;
     } finally {
@@ -367,14 +429,28 @@ function wayBeyond20OpportunityRow(root) {
         root.append(row);
     }
     row._wb20Owner = character;
-    const selected = wayBeyond20DefaultOpportunityEntry(wayBeyond20OpportunityEntries(root));
+    const choices=wayBeyond20OpportunityChoices(root),saved=wayBeyond20DefaultOpportunityEntry(choices);
+    const selected = saved || wayBeyond20SuggestedOpportunityEntry(choices);
     const setText = (selector, text) => {
         const cell = row.querySelector(selector);
         if (selector === ".ddbc-combat-attack__range" && typeof wb20SetActionRange === "function") wb20SetActionRange(cell,text);
         else if (cell.textContent !== text) cell.textContent = text;
     };
     row._wb20PresentationSource = selected?.row || null;
-    setText(".wb20-talent-category", selected?.name || "Choose an attack");
+    row._wb20PresentationSpell = selected?.spell || null;
+    const category=row.querySelector('.wb20-talent-category');
+    let select=category.querySelector('select');
+    if(!select){select=document.createElement('select');select.className='wb20-opportunity-select';select.setAttribute('aria-label','Default opportunity attack or reactive spell');category.replaceChildren(select);
+        select.addEventListener('change',event=>{event.stopPropagation();if(row._wb20Owner!==character || !row.isConnected)return;const entry=row._wb20Choices?.[Number(select.value)];if(entry)wayBeyond20SaveOpportunityEntry(entry);});}
+    row._wb20Choices=choices;
+    const labels=choices.map(entry=>{
+        const level=entry.spell?.level,ordinal=level===1?'1st':level===2?'2nd':level===3?'3rd':level+'th';
+        return entry.kind==='spell'?`${level?ordinal+' · ':''}${entry.name} (${entry.spell.source || 'Spell'})`:entry.name;
+    });
+    const signature=JSON.stringify([labels,saved?null:choices.indexOf(selected)]);
+    if(select.dataset.options!==signature){select.replaceChildren(...labels.map((label,index)=>new Option(label+(choices[index]===selected && !saved?' (suggested)':''),String(index))));select.dataset.options=signature;}
+    const selection=selected?String(choices.indexOf(selected)):'';if(select.value!==selection)select.value=selection;
+    if(select.disabled!==!choices.length)select.disabled=!choices.length;
     setText(".ddbc-combat-attack__range", selected?.range || "—");
     setText(".ddbc-combat-attack__action", selected?.hit || "—");
     const damage = row.querySelector(".ddbc-combat-attack__damage");

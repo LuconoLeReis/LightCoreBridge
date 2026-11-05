@@ -180,7 +180,7 @@ function fn(name, sourceText = source) {
             wayBeyond20OpportunityRow(document.querySelector("#actions"));
         });
         const oa=page.locator(".wb20-opportunity-attack");
-        assert.equal(await oa.locator(".wb20-talent-category").innerText(),"Test sword");
+        assert.equal(await oa.locator(".wb20-opportunity-select option:checked").innerText(),"Test sword");
         assert.equal(await oa.locator(".ddbc-combat-attack__action").innerText(),"+5");
         assert.equal(await oa.locator(".ddbc-combat-attack__damage").innerText(),"1d6+3");
         await oa.locator(".wb20-feature-option-icon").click();
@@ -218,7 +218,7 @@ function fn(name, sourceText = source) {
             native.parentElement.append(native.cloneNode(true));
             wayBeyond20OpportunityRow(document.querySelector("#actions"));
         });
-        assert.equal(await oa.locator(".wb20-talent-category").innerText(),"Choose an attack","Ambiguous defaults do not choose an arbitrary duplicate");
+        assert.equal(await oa.locator(".wb20-opportunity-select option:checked").innerText(),"Test sword (suggested)","Ambiguous saved identity falls back to a visible suggestion");
         await oa.locator(".wb20-feature-option-icon").click();
         assert.equal(await page.locator('#prompt select[name="attack"]').count(),1);
         await page.getByRole("button",{name:"Cancel",exact:true}).click();
@@ -227,7 +227,7 @@ function fn(name, sourceText = source) {
             character={getSetting:(k,d)=>d};
             wayBeyond20OpportunityRow(document.querySelector("#actions"));
         });
-        assert.equal(await oa.locator(".wb20-talent-category").innerText(),"Choose an attack","Default belongs to its character");
+        assert.equal(await oa.locator(".wb20-opportunity-select option:checked").innerText(),"Test sword (suggested)","New owner gets an unsaved suggestion, not the prior owner default");
         await page.evaluate(()=>{character=previousCharacter;});
         assert.equal(await page.locator(".wb20-opportunity-attack").count(),1);
         await page.evaluate(()=>{

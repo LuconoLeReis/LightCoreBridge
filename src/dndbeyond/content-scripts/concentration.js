@@ -1,7 +1,7 @@
 // Damage reminders use the existing effect store, prompt and resolved-roll pipeline.
 // No class gates, second HP deduction, or guessed resistance from feature names.
 const WAYBEYOND20_DAMAGE_TYPES = ["Acid", "Bludgeoning", "Cold", "Fire", "Force", "Lightning", "Necrotic", "Piercing", "Poison", "Psychic", "Radiant", "Slashing", "Thunder"];
-const WAYBEYOND20_DAMAGE_HELP = "Leave Unmodified if this is the damage you actually sustained, including any resistance already applied. Choose a damage type if you entered the damage before resistance and want WayBeyond20 to apply it.";
+const WAYBEYOND20_DAMAGE_HELP = "Leave Unmodified if this is the damage you actually sustained, including any resistance already applied. Choose a damage type if you entered the damage before resistance and want LightCore Bridge to apply it.";
 let wayBeyond20ConcentrationQueue = Promise.resolve();
 let wayBeyond20PendingHealthInput = null;
 

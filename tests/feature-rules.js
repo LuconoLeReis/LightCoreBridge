@@ -95,13 +95,13 @@ async function test(name,run){await run();console.log('PASS',name);}
  });
  await test('Protected rerolls only one raw d20, preserves modifier/other dice, spends one native point and keeps a lower second result',async()=>{
   const {c,forms,pools}=fixture();const roll=new c.DNDBRoll('1d20+8+1d4');roll.dice[0]._rolls=[{roll:9}];roll.dice[1]._rolls=[{roll:4}];roll.dice.forEach(d=>d.calculateTotal());roll.calculateTotal();
-  const request={type:'attack'},replacement=new c.DNDBRoll('1d20');replacement.roll=async()=>{replacement.dice[0]._rolls=[{roll:2}];replacement.dice[0].calculateTotal();replacement.calculateTotal();};forms.push({die:'0'});
+  const request={type:'attack',character:{type:'Character',id:c.character._id}},replacement=new c.DNDBRoll('1d20');replacement.roll=async()=>{replacement.dice[0]._rolls=[{roll:2}];replacement.dice[0].calculateTotal();replacement.calculateTotal();};forms.push({die:'0'});
   await c.wb20RuleRerollD20([roll],request,{roll:()=>replacement});assert.equal(roll.total,14);assert.equal(roll.dice[1].rolls[0].roll,4);assert.equal(pools.get('protected luck points').remaining,3);
   await c.wb20RuleRerollD20([roll],request,{roll:()=>{throw Error('must not roll twice');}});assert.equal(pools.get('protected luck points').remaining,3);
  });
  await test('Protected ignores damage, Portent replacements, high dice and declined prompts',async()=>{
   for(const mode of ['damage','portent','high','declined']) {const {c,forms,pools}=fixture(),roll=new c.DNDBRoll('1d20+8');roll.dice[0]._rolls=[{roll:mode==='high'?10:9}];roll.calculateTotal();if(mode==='damage')roll.setRollType('damage');forms.push(null);
-   await c.wb20RuleRerollD20([roll],{type:'attack',...(mode==='portent'?{'waybeyond20-portent-value':9}:{})},{roll:()=>{throw Error('should not reroll');}});assert.equal(pools.get('protected luck points').remaining,4);
+   await c.wb20RuleRerollD20([roll],{type:'attack',character:{type:'Character',id:c.character._id},...(mode==='portent'?{'waybeyond20-portent-value':9}:{})},{roll:()=>{throw Error('should not reroll');}});assert.equal(pools.get('protected luck points').remaining,4);
   }
  });
  await test('the real local roller runs the reroll hook before publishing its Game Log result',async()=>{
@@ -109,8 +109,27 @@ async function test(name,run){await run();console.log('PASS',name);}
   c.dndbeyondDiceRoller={_settings:{'use-digital-dice':false,'roll-to-game-log':true}};c.sendCustomEvent=(name,args)=>calls.push(['game-log',name,args]);
   const roller=new c.DNDBRoller(),original=new c.DNDBRoll('1d20+8');original.roll=async()=>{original.dice[0]._rolls=[{roll:9}];original.dice[0].calculateTotal();original.calculateTotal();};
   roller.roll=()=>{const next=new c.DNDBRoll('1d20');next.roll=async()=>{next.dice[0]._rolls=[{roll:3}];next.dice[0].calculateTotal();next.calculateTotal();};return next;};
-  forms.push({die:'0'});await roller.resolveRolls('Athletics',[original],{type:'skill'});
+  forms.push({die:'0'});await roller.resolveRolls('Athletics',[original],{type:'skill',character:{type:'Character',id:c.character._id}});
   assert.equal(pools.get('protected luck points').remaining,3);assert.equal(calls.find(e=>e[0]==='game-log')[2][0].rolls[0].total,11);
+ });
+ await test('personal rerolls belong to the rolling actor; summons/foreign/unknown skip, owned Wild Shape retains the feature',async()=>{
+  for(const kind of ['summon','wild-shape','foreign-shape','foreign-character','unknown']){
+   const {c,pools,calls,forms}=fixture();
+   c.CharacterBase=class {type(){return this._type;}};
+   vm.runInContext(read('src/dndbeyond/base/monster.js')+'\nthis.Monster=Monster;',c);
+   const actor=Object.assign(Object.create(c.Monster.prototype),{_type:'Creature',_id:'creature',_name:'Ally',_creatureType:kind==='summon'?'Summoned':'Wild Shape',_parent_character:{_id:kind==='foreign-shape'?'someone-else':c.character._id,getDict:()=>({settings:{}}),getSetting:()=>undefined}});
+   const identity=kind==='unknown'?undefined:kind==='foreign-character'?{type:'Character',id:'someone-else'}:actor.getDict();
+   if(kind==='summon')assert.equal(identity['feature-owner-id'],undefined);
+   const roll=new c.DNDBRoll('1d20+9');roll.roll=async()=>{roll.dice[0]._rolls=[{roll:5}];roll.dice[0].calculateTotal();roll.calculateTotal();};
+   vm.runInContext(read('src/dndbeyond/base/dice.js').split('const dndbeyondDiceRoller =')[0]+'\nthis.DNDBRoller=DNDBRoller;',c);
+   c.dndbeyondDiceRoller={_settings:{'use-digital-dice':false,'roll-to-game-log':true}};c.sendCustomEvent=(name,args)=>calls.push(['game-log',name,args]);
+   const roller=new c.DNDBRoller();roller.roll=()=>{const replacement=new c.DNDBRoll('1d20');replacement.roll=async()=>{replacement.dice[0]._rolls=[{roll:2}];replacement.dice[0].calculateTotal();replacement.calculateTotal();};return replacement;};
+   forms.push({die:'0'});await roller.resolveRolls('Slam',[roll],{type:'attack',character:identity});
+   assert.equal(pools.get('protected luck points').remaining,kind==='wild-shape'?3:4);
+   assert.equal(roll.total,kind==='wild-shape'?11:14);
+   assert.equal(forms.length,kind==='wild-shape'?0:1,'ineligible actors never see the caster prompt');
+   assert.ok(calls.some(e=>e[0]==='game-log'),'the original roll completes for every actor');
+  }
  });
  await test('Stabilize applies only at 0 HP and is not a healing-received trigger',async()=>{
   const {c,forms,pools,calls}=fixture();forms.push({eligible:true});assert.equal(await c.wb20ActivateRule('Protected'),true);assert.equal(c.character._hp,1);assert.equal(pools.get('protected luck points').remaining,3);assert.equal(calls.find(x=>x[0]==='hp')[2].notify,false);

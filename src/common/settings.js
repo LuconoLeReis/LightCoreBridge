@@ -74,8 +74,8 @@ const options_list = {
     },
 
     "custom-domains": {
-        "title": "List of custom domains to load WayBeyond20",
-        "description": "Enter a list of custom domain URLs to load WayBeyond20 into.\nOne domain per line, you must include the http:// or https:// protocol and you can use wildcards for subdomains and path.\nThis can be used to send WayBeyond20 requests to sites that may independently support WayBeyond20.\nFor example: https://my-new-custom-vtt.com/*/game",
+        "title": "List of custom domains to load LightCore Bridge",
+        "description": "Enter a list of custom domain URLs to load LightCore Bridge into.\nOne domain per line, you must include the http:// or https:// protocol and you can use wildcards for subdomains and path.\nThis can be used to send LightCore Bridge requests to sites that may independently support LightCore Bridge.\nFor example: https://my-new-custom-vtt.com/*/game",
         "type": "special",
         "default": [],
         "advanced": true
@@ -83,7 +83,7 @@ const options_list = {
     },
     "roll20-discord-activity": {
         "title": "Support Roll20 Discord Activity",
-        "description": "Integrate with Roll20's Discord Activity.\nThis requires opening Discord in the browser so WayBeyond20 can be loaded and communicate with the activity.",
+        "description": "Integrate with Roll20's Discord Activity.\nThis requires opening Discord in the browser so LightCore Bridge can be loaded and communicate with the activity.",
         "type": "special",
         "default": null,
         "advanced": true
@@ -213,14 +213,14 @@ const options_list = {
     "display-conditions": {
         "title": "Display Condition updates to VTT",
         "description": "When updating character conditions in D&D Beyond, display a message in the VTT chat.\n" +
-            "If using Foundry VTT with the WayBeyond20 module, it will also update the token's status icons appropriately.",
+            "If using Foundry VTT with the LightCore Bridge module, it will also update the token's status icons appropriately.",
         "type": "bool",
         "default": true
     },
 
     "waybeyond20-debug-log": {
         "title": "Debug Log",
-        "description": "Temporarily record WayBeyond20 diagnostic events for troubleshooting. Use Display Debug Log on the full settings page to copy or clear the saved log.",
+        "description": "Temporarily record LightCore Bridge diagnostic events for troubleshooting. Use Display Debug Log on the full settings page to copy or clear the saved log.",
         "type": "bool",
         "default": false,
         "advanced": true
@@ -234,7 +234,7 @@ const options_list = {
 
     "hotkeys-bindings": {
         "title": "Define custom hotkeys",
-        "description": "Set custom hotkeys for controlling WayBeyond20's behavior.",
+        "description": "Set custom hotkeys for controlling LightCore Bridge's behavior.",
         "type": "special",
         "default": null
         // callbacks will be added after the functions are defined
@@ -250,10 +250,10 @@ const options_list = {
     "roll20-template": {
         "title": "Roll20 Character Sheet Setting",
         "description": "Select the Character Sheet Template that you use in Roll20\n" +
-            "If the template does not match the campaign setting, it will default to the WayBeyond20 Roll Renderer.",
+            "If the template does not match the campaign setting, it will default to the LightCore Bridge Roll Renderer.",
         "type": "combobox",
         "default": "roll20",
-        "choices": { "roll20": "D&D 5E By Roll20", "default": "Default Roll20 template", "beyond20": "WayBeyond20 Roll Renderer" },
+        "choices": { "roll20": "D&D 5E By Roll20", "default": "Default Roll20 template", "beyond20": "LightCore Bridge Roll Renderer" },
         "advanced": true
     },
 
@@ -370,8 +370,8 @@ const options_list = {
         "advanced": true
     },
     "roll-to-game-log": {
-        "title": "Send WayBeyond20 roll results to game log",
-        "description": "Send the roll results made by WayBeyond20 (not in the VTT) to the D&D Beyond Game Log",
+        "title": "Send LightCore Bridge roll results to game log",
+        "description": "Send the roll results made by LightCore Bridge (not in the VTT) to the D&D Beyond Game Log",
         "type": "bool",
         "default": true,
         "advanced": true
@@ -393,7 +393,7 @@ const options_list = {
 
     "talespire-url": {
         "title": "TaleSpire connection",
-        "description": "Paste the WayBeyond20 Symbiote connection once. It stays the same when you change boards. Automatic uses the available connection; you can also select TaleSpire as the destination. WB20 resolves the dice once and sends the same results; accept Chrome's TaleSpireUrlRelay prompt. The separate WB20 local return helper adds mini linking, turn following, targeting and distance. Native mini HP is not changed.",
+        "description": "Paste the LightCore Bridge Symbiote connection once. It stays the same when you change boards. Automatic uses the available connection; you can also select TaleSpire as the destination. LightCore resolves the dice once and sends the same results; accept Chrome's TaleSpireUrlRelay prompt. The separate LightCore local return helper adds mini linking, turn following, targeting and distance. Native mini HP is not changed.",
         "type": "string",
         "default": ""
     },
@@ -470,15 +470,15 @@ const options_list = {
     },
 
     "backup-settings": {
-        "title": "Backup WayBeyond20 settings",
-        "description": "Export your WayBeyond20 settings to a file for backup",
+        "title": "Backup LightCore Bridge settings",
+        "description": "Export your LightCore Bridge settings to a file for backup",
         "type": "special",
         "advanced": true,
         "default": null
     },
     "restore-settings": {
-        "title": "Restore WayBeyond20 settings",
-        "description": "Import your WayBeyond20 settings from a previously exported backup file",
+        "title": "Restore LightCore Bridge settings",
+        "description": "Import your LightCore Bridge settings from a previously exported backup file",
         "type": "special",
         "advanced": true,
         "default": null
@@ -487,8 +487,8 @@ const options_list = {
     "donate": {
         "short": "Buy rations (1 day) to feed my familiar",
         "title": "Become a patron of the art of software development!",
-        "description": "If you wish to support my work on WayBeyond20 or my other D&D related project, subscribe to my patreon " +
-            "or donate via paypal!\nI am grateful for your generosity!",
+        "description": "Support Beyond20's original developer, KaKaRoTo, through Patreon " +
+            "or PayPal. This link supports the upstream Beyond20 project.",
         "type": "link",
         "default": "https://beyond20.here-for-more.info/rations",
         "icon": "/images/donate.png",
@@ -498,8 +498,8 @@ const options_list = {
     "donate-advanced": {
         "short": "Buy rations (1 day) to feed my familiar",
         "title": "Become a patron of the art of software development!",
-        "description": "If you wish to support my work on WayBeyond20 or my other D&D related project, subscribe to my patreon " +
-            "or donate via paypal!\nI am grateful for your generosity!",
+        "description": "Support Beyond20's original developer, KaKaRoTo, through Patreon " +
+            "or PayPal. This link supports the upstream Beyond20 project.",
         "type": "link",
         "default": "https://beyond20.here-for-more.info/rations",
         "icon": "/images/donate.png",
@@ -1897,7 +1897,7 @@ function fillDisordChannelsDropdown(name, dropdowns, triggerChange=false, _list 
         alertify.prompt('Enter a friendly name for the discord channel you wish to add', '', (evt, channelName) => {
             console.log("Got evt ", evt, channelName);
             setTimeout(() => {
-                alertify.prompt('Enter the secret value given by the WayBeyond20 Bot', '', (evt, channelSecret) => {
+                alertify.prompt('Enter the secret value given by the Beyond20 Discord relay bot', '', (evt, channelSecret) => {
                     console.log("Adding new channel ", channelName, channelSecret);
                     dropdowns.splice(1, 0, {name: channelName, secret: channelSecret});
                     fillDisordChannelsDropdown(name, dropdowns, true, _list);
@@ -2216,7 +2216,7 @@ async function promptHotkeyManager(bindings) {
     });
 
     return new Promise(resolve => {
-        alertify.confirm('WayBeyond20 Hotkey Manager', manager[0], () => {
+        alertify.confirm('LightCore Bridge Hotkey Manager', manager[0], () => {
             delete bindings[null];
             resolve(bindings);
         }, () => {});
@@ -2333,7 +2333,7 @@ function createCustomDomainsSetting(name, short) {
             chromeOrBrowser.permissions.request({origins: [url]}).then((response) => {
                 if (response) {
                     console.log("Permission was granted");
-                    alertify.success(`WayBeyond20 will now load automatically on ${url}`);
+                    alertify.success(`LightCore Bridge will now load automatically on ${url}`);
                 } else {
                     console.log("Permission was refused");
                     alertify.error(`Error requesting permission for ${url}`);
@@ -2398,7 +2398,7 @@ function createRoll20DiscordActivitySetting(name, short) {
         chromeOrBrowser.permissions.request(DISCORD_ACTIVITY_PERMISSION_DETAILS).then((response) => {
             if (response) {
                 console.log("Permission was granted");
-                alertify.success(`WayBeyond20 will now load automatically on Roll20 Discord activity`);
+                alertify.success(`LightCore Bridge will now load automatically on Roll20 Discord activity`);
                 $(label).show();
                 $(apply_button).hide();
                 chrome.runtime.sendMessage({ "action": "discord-permissions-updated", permissions: true });
@@ -2483,7 +2483,7 @@ function createBackupRestoreSetting(name, short) {
             storageGetEverything(allSettings => {
                 allSettings.beyond20 = {format: 1};
                 const blob = new Blob([JSON.stringify(allSettings)], {type: "application/json"});
-                saveAs(blob, "WayBeyond20.json");
+                saveAs(blob, "LightCore-Bridge-settings.json");
             });
         } else {
             // Import
@@ -2499,7 +2499,7 @@ function createBackupRestoreSetting(name, short) {
                 try {
                     const allSettings = JSON.parse(fr.result);
                     if (!allSettings.beyond20 || allSettings.beyond20.format !== 1) {
-                        throw new Error("File doesn't contain WayBeyond20 settings");
+                        throw new Error("File doesn't contain LightCore Bridge settings");
                     }
                     delete allSettings.beyond20;
                     storageSetEverything(allSettings, () => {
@@ -2511,7 +2511,7 @@ function createBackupRestoreSetting(name, short) {
                                 chrome.runtime.sendMessage({ "action": "settings", "type": "character", "id": id, "settings": allSettings[key] })
                             }
                         }
-                        alertify.success("WayBeyond20 settings loaded successfully");
+                        alertify.success("LightCore Bridge settings loaded successfully");
                     });
                 } catch (err) {
                     alertify.error(`Unable to load selected file : ${err.message}`);

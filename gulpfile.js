@@ -162,6 +162,7 @@ const SRC_FILES = {
         "src/dndbeyond/content-scripts/resources.js",
         "src/dndbeyond/content-scripts/feature-rules.js",
         "src/dndbeyond/content-scripts/item-rules.js",
+        "src/dndbeyond/content-scripts/summons.js",
         "src/dndbeyond/content-scripts/combat-actions.js",
         "src/dndbeyond/content-scripts/feature-activations.js",
         "src/dndbeyond/content-scripts/attack-workflow-character.js",

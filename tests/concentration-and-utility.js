@@ -10,7 +10,9 @@ const utils = read("src/dndbeyond/base/utils.js");
 // Layout guard: names belong in their own native-sized, right-aligned column,
 // not in the clipped header or in native resistance elements.
 assert.match(content, /"waybeyond20-buffs-badge", "BUFFS", "Active Buffs"/);
-assert.match(content, /addClass\("waybeyond20-buff-name"\)\.text\(effect.name\)/);
+// The compact label may differ from its saved identity; actual rendering and
+// original-key details lookup are covered in defenses-frame-browser.js.
+assert.match(content, /addClass\("waybeyond20-buff-name"\)\.text\(label\)/);
 const buffStyle = read("src/extension/beyond20.css").match(/\.waybeyond20-buff-name \{([^}]+)\}/)[1];
 assert.match(buffStyle, /text-align: right/);
 assert.match(buffStyle, /font: inherit/);

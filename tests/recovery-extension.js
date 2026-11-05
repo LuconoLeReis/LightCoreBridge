@@ -76,7 +76,7 @@ const root=path.resolve(__dirname,'..'),extension=path.join(root,'build/chrome')
         assert.equal(retained['character-700000000'].focus,2);
         assert.equal(retained['character-700000000']['waybeyond20-portent'].dice[0].value,17);
         await recovery.reload();
-        await Promise.all([page.waitForEvent('domcontentloaded'),recovery.getByRole('button',{name:'Restore WB20',exact:true}).click()]);
+        await Promise.all([page.waitForEvent('domcontentloaded'),recovery.getByRole('button',{name:'Restore LightCore',exact:true}).click()]);
         for(let i=0;i<100 && !await evaluateContent('ready');i++)await new Promise(r=>setTimeout(r,50));
         assert.equal(await evaluateContent('ready'),true);
         assert.equal(await page.locator('#wb20-recovery-button').count(),0);

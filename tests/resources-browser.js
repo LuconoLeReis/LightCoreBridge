@@ -8,7 +8,9 @@ const pool=(name,total,used)=>`<div class="ct-feature-snippet"><h3 class="ct-fea
  const browser=await chromium.launch({channel:'chrome',headless:true});
  try{
   const page=await browser.newPage({viewport:{width:1200,height:850}}),errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.route('https://wb20.test/**',route=>route.fulfill({body:'<html></html>',contentType:'text/html'}));await page.goto('https://wb20.test/characters/123');
   await page.setContent(`<body><div class="ct-saving-throws-box" style="color:rgb(20,30,40);background:rgb(250,245,230);border:1px solid rgb(130,40,50)"></div><div id="toolbar"><div class="wb20-action-list-controls"></div></div><div id="list"></div>${pool('Focus Points',3,1)}${pool('Bardic Inspiration',4,1)}<div class="ct-feature-snippet"><h3 class="ct-feature-snippet__heading">Healing Pool</h3><div class="ct-slot-manager-large"><span class="ct-slot-manager-large__value--cur">12</span><span class="ct-slot-manager-large__value--max">15</span><button class="button-action-decrease">−</button><button class="button-action-increase">+</button></div></div><div id="native-attacks">${['Action','Bonus Action'].map(cost=>`<div class="ct-combat-attack"><button aria-label="Unarmed Strike: ${cost}. Roll attack and damage"></button><span class="ct-combat-attack__label">Unarmed Strike</span><span class="ct-combat-attack__tohit">+6</span><span class="ct-combat-attack__damage">1d6+4</span></div>`).join('')}</div></body>`);
+  await page.addStyleTag({content:'body{font:14px Arial,sans-serif}'});
   for(const file of ['libs/jquery-3.4.1.min.js','libs/alertify.min.js','src/common/utils.js','src/dndbeyond/content-scripts/portent.js','src/dndbeyond/content-scripts/resources.js','src/dndbeyond/content-scripts/feature-activations.js'])await page.addScriptTag({path:path.join(root,file)});
   for(const file of ['libs/css/alertify.css','src/extension/beyond20.css'])await page.addStyleTag({path:path.join(root,file)});
   const names=['wayBeyond20ElementOwnText','wayBeyond20NormalizeFeatureLabel','wayBeyond20LimitedUseInputForControl','wayBeyond20LimitedUseControlIsVisible','wayBeyond20LimitedUseCanonicalControl','wayBeyond20LimitedUseControlIsUnused','wayBeyond20LimitedUseSelectors','wayBeyond20LimitedUseLabelsWithin','wayBeyond20LimitedUseLabelText','wayBeyond20LimitedUseControlOwnerLabel','wayBeyond20LimitedUseControlMatchesFeature','wayBeyond20FindLimitedUseControls','wayBeyond20WaitForLimitedUseSpend','wayBeyond20SpendLimitedUse'];
@@ -50,9 +52,37 @@ const pool=(name,total,used)=>`<div class="ct-feature-snippet"><h3 class="ct-fea
   assert.equal(await page.evaluate(()=>state.attacksRemaining),2);assert.equal(await page.evaluate(()=>state.hasteAction),1);
   await page.evaluate(()=>{const theme=document.querySelector('.ct-saving-throws-box');theme.style.backgroundColor='rgb(25,30,35)';theme.style.color='rgb(240,240,240)';window.correcting=wb20CorrectResources();});
   await page.getByLabel('Focus Points remaining').waitFor();assert.equal(await page.locator('.wb20-resource-dialog').evaluate(el=>getComputedStyle(el).color),'rgb(240, 240, 240)');await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.evaluate(()=>correcting);
-  assert.deepEqual(errors,[]);console.log('PASS resource browser: native ownership/partial pools, numeric increase/Confirm, native restore, unchanged/cancel preservation, no class gate, duplicate Unarmed rows, themed Correction light/dark. Isolated fixture only.');
+  assert.equal(await page.locator('.wb20-portent-correction').count(),0,'non-Portent characters receive no irrelevant controls');
+  await page.evaluate(()=>{character.hasClassFeature=name=>name==='Portent';values['waybeyond20-portent']={dice:[{id:'old-a',value:17,used:true},{id:'old-b',value:3,used:false}],selected:null,lastTurn:wayBeyond20PortentTurnKey(),lastDie:'old-a'};window.correcting=wb20CorrectResources();});
+  const die=page.getByLabel('Portent 17 (die 1) used',{exact:true});await die.waitFor();assert.equal(await die.isChecked(),true);
+  assert.equal(await page.getByLabel('Portent 3 (die 2) used',{exact:true}).isChecked(),false);
+  assert.equal(await page.locator('.wb20-portent-correction').evaluate(n=>getComputedStyle(n).color),'rgb(240, 240, 240)','Portent controls inherit the sheet theme');
+  // A normal Portent spend can hold its lock while dispatch takes the resource
+  // lock. Correction must not take those locks in reverse order.
+  await page.evaluate(()=>{window.lockPhase='waiting';window.heldPortent=navigator.locks.request('waybeyond20-portent-'+character._id,async()=>{await new Promise(resolve=>window.releasePortent=resolve);window.lockPhase='requesting resources';await wb20ResourceLocked(async()=>{window.lockPhase='resource lock granted';});window.lockPhase='finished';});});
+  await page.waitForFunction(()=>typeof releasePortent==='function');
+  await die.uncheck();await page.getByRole('button',{name:'Save corrections',exact:true}).click();
+  await page.waitForFunction(async()=>!!(await navigator.locks.query()).pending.find(lock=>lock.name==='waybeyond20-portent-'+character._id));
+  await page.evaluate(async()=>{releasePortent();await Promise.race([Promise.all([heldPortent,correcting]),new Promise((_,reject)=>setTimeout(async()=>reject(Error('Portent/resource lock inversion: '+lockPhase+' '+JSON.stringify(await navigator.locks.query()))),1500))]);});
+  assert.deepEqual(await page.evaluate(()=>values['waybeyond20-portent'].dice),[{id:'old-a',value:17,used:false},{id:'old-b',value:3,used:false}]);
+  assert.equal(await page.evaluate(()=>values['waybeyond20-portent'].lastTurn),null,'undo latest use also releases its turn lock');
+  assert.equal(await page.evaluate(()=>wb20Resource('Focus Points').remaining),3,'unrelated resource preserved');
+  await page.evaluate(()=>{window.correcting=wb20CorrectResources();});await die.check();await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.evaluate(()=>correcting);assert.equal(await page.evaluate(()=>values['waybeyond20-portent'].dice[0].used),false,'Cancel never changes Portent');
+  await page.evaluate(()=>{window.correcting=wb20CorrectResources();});await die.check();await page.evaluate(()=>{values['waybeyond20-portent']={dice:[{id:'new-a',value:8,used:false},{id:'new-b',value:12,used:false}],selected:null,lastTurn:null};});await page.getByRole('button',{name:'Save corrections',exact:true}).click();await page.evaluate(()=>correcting);
+  assert.deepEqual(await page.evaluate(()=>values['waybeyond20-portent'].dice.map(d=>[d.id,d.value,d.used])),[['new-a',8,false],['new-b',12,false]],'stale Correction never overwrites a newer rest/reroll');
+  assert.deepEqual(errors,[]);console.log('PASS resource browser: existing native pools, themed Correction, Portent restore/cancel/stale generation and unrelated-resource preservation. Isolated fixture only.');
   await page.evaluate(()=>{values['waybeyond20-feature-controls']=false;wayBeyond20ScheduleActiveEffectBadgeRefresh();});
   assert.equal(await page.locator('.wb20-feature-row,.wb20-feature-focus,.wb20-feature-rules').count(),0,'presentation switch hides controls');
   assert.equal(await page.evaluate(()=>wb20Resource('Focus Points').remaining),3,'presentation switch leaves shared resource processing intact');
+  if(process.env.WB20_CORRECTION_SCREENSHOT) {
+   // Remove the expected stale-pool warning from the completed safety test
+   // before capturing the separate presentation preview.
+   await page.locator('.alertify-notifier').evaluateAll(nodes=>nodes.forEach(node=>node.remove()));
+   await page.evaluate(()=>{values['waybeyond20-portent']={dice:[{id:'preview-a',value:17,used:true},{id:'preview-b',value:3,used:false}],selected:null,lastTurn:wayBeyond20PortentTurnKey(),lastDie:'preview-a'};window.correcting=wb20CorrectResources();});
+   await die.waitFor();
+   // Capture after behavior checks; do not fast-forward Alertify animations,
+   // which emit transition events and can interfere with an active dialog.
+   await page.locator('.wb20-resource-dialog').screenshot({path:process.env.WB20_CORRECTION_SCREENSHOT});
+  }
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

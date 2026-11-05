@@ -390,6 +390,7 @@ function wb20FeatureRows(root) {
     if (character.getSetting("waybeyond20-feature-controls",true) === false) {root.querySelectorAll(':scope > .wb20-feature-row').forEach(row=>row.remove());return [];}
     const p = wb20FeatureProfile(), entries = [], wanted = new Set();
     for (const [name, , cost] of wb20FeatureActions(p)) {
+        if (name === 'Evasion') continue; // automatic save rule, not an activation
         wanted.add(name);
         let row = Array.from(root.querySelectorAll(":scope > .wb20-feature-row")).find(el => el._wb20FeatureName === name);
         if (!row) {
@@ -407,8 +408,11 @@ function wb20FeatureRows(root) {
         set(".ddbc-combat-attack__range", healing ? "Touch" : name.includes("Strike") || name.includes("Flurry") ? "5 ft." : "Self");
         set(".ddbc-combat-attack__action", name === "Deflect Attacks" ? `DEX DC ${p.dc}` : "—");
         set(".ddbc-combat-attack__damage", healing ? `${name.includes("Ultimate") ? "4d10" : `1d${p.die}`}+${p.wis}` : name === "Slow Fall" ? `${5 * p.level} reduction` : name === "Deflect Attacks" ? `1d10+${p.dex + p.level}` : name.includes("Flurry") ? `${p.flurry} strikes` : "Use");
-        set(".ddbc-combat-attack__notes", name === "Hand of Ultimate Mercy" ? "5 Focus · 1/Long Rest" : name === "Flurry of Blows" || healing ? "1 Focus" : "");
         const live = typeof wayBeyond20LiveFeatureRules === "function" ? wayBeyond20LiveFeatureRules().find(rule => rule.name === name)?.text : "";
+        const costNote=name === "Hand of Ultimate Mercy" ? "5 Focus · 1/Long Rest" : name === "Flurry of Blows" || healing ? "1 Focus" : "";
+        const reminder=live && typeof wb20FeaturePresentation==='function'?wb20FeaturePresentation(name,live).summary:'';
+        if(typeof wb20SetActionNote==='function')wb20SetActionNote(row.querySelector('.ddbc-combat-attack__notes'),[costNote,reminder].filter(Boolean).join(' · ') || 'View rules',()=>{if(row._wb20Owner===character)return wb20OpenFeatureDetails(name,live);},'Read '+name+' — full details');
+        else set('.ddbc-combat-attack__notes',costNote);
         const title = live || `${name} — open activation choices`;
         if (row.querySelector("button").title !== title) row.querySelector("button").title = title;
         entries.push({row, name, cost, group: cost === "special" ? "action" : cost});

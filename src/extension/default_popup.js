@@ -13,7 +13,7 @@ function createOptionList() {
     options.append(
         E.li({ class: "list-group-item beyond20-option" },
             E.a({ id: "openOptions", class: "list-content", href: '#' },
-                E.h4({}, "WayBeyond20 Options")
+                E.h4({}, "LightCore Bridge Options")
             )
         )
     );

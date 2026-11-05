@@ -800,10 +800,10 @@ function wayBeyond20NotifyDispatchFailure(error) {
     wayBeyond20LastDispatchFailureNotice = now;
     const orphaned = /context invalidated/i.test(String(error || "")) || !wayBeyond20ExtensionContextAvailable();
     const message = orphaned
-        ? "WayBeyond20 was updated or reloaded, so this D&D Beyond tab lost its connection. Nothing was sent and nothing was spent. Please reload this tab, then roll again."
-        : "WayBeyond20 could not send that roll, so nothing was spent. Please try again, or reload this D&D Beyond tab.";
+        ? "LightCore Bridge was updated or reloaded, so this D&D Beyond tab lost its connection. Nothing was sent and nothing was spent. Please reload this tab, then roll again."
+        : "LightCore Bridge could not send that roll, so nothing was spent. Please try again, or reload this D&D Beyond tab.";
     try {
-        if (typeof alertify !== "undefined" && alertify.error) alertify.error(`<strong>WayBeyond20:</strong> ${message}`);
+        if (typeof alertify !== "undefined" && alertify.error) alertify.error(`<strong>LightCore Bridge:</strong> ${message}`);
     } catch (error) {
         console.warn("WayBeyond20: could not show the dispatch failure notice.", error);
     }
@@ -915,7 +915,7 @@ function updateRollTypeButtonClasses(character) {
 
 const button_class = "ct-theme-button ct-theme-button--filled ct-theme-button--interactive ct-button character-button";
 const button_class_small = button_class + " character-button-small";
-function addRollButton(character, callback, where, { small = false, append = false, prepend = false, before = false, image = true, text = "WayBeyond20", contextMenu = null } = {}) {
+function addRollButton(character, callback, where, { small = false, append = false, prepend = false, before = false, image = true, text = "LightCore Bridge", contextMenu = null } = {}) {
     last_character_used = character;
 
     const id = "beyond20-roll-" + Math.random().toString().slice(2);
@@ -1256,7 +1256,7 @@ function beyond20SendMessageFailure(character, response) {
     if (["roll", "rendered-roll"].includes(response.request.action)  && ((response.vtt && response.vtt[0] == "dndbeyond") || response.error)) {
         dndbeyondDiceRoller.handleRollError(response.request, response.error);
     } else if (response.error) {
-        alertify.error("<strong>WayBeyond20 : </strong>" + response.error);
+        alertify.error("<strong>LightCore Bridge : </strong>" + response.error);
     }
     if (settings['sticky-hotkeys']) {
         // FIXME: This could reset a key that is being held which the user may want to keep enabled

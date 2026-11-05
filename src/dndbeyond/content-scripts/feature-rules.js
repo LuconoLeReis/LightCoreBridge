@@ -111,6 +111,15 @@ function wb20RuleActivations() {
     if(wb20RuleRenderState?.owner===character)wb20RuleRenderState.activations=activations;
     return activations;
 }
+// List visibility only: automatic consumers continue reading the owned rules.
+// Do not turn a passive rule into a stand-alone activation button.
+function wb20RuleIsPassiveAction(name) {
+    const clean=wb20RuleText(name);
+    if (/^(?:Cleave|Graze|Nick|Push|Sap|Slow|Topple|Vex)\s*\([^)]*\)$/i.test(clean)) return true;
+    if (/^Weapon Mastery$/i.test(clean)) return true;
+    const rule=wb20RuleFind(name);
+    return !!rule && !rule.operator.activation && !!(rule.operator.wards?.length || rule.operator.pack || rule.operator.reroll || rule.operator.stabilize);
+}
 function wb20RuleFind(name) {
     const id=wb20ResourceId(String(name || '').replace(/\s*\((?:special|\d*\s*(?:bonus action|action|reaction))\)\s*$/i,''));
     return wb20RuleActivations().find(rule=>{
@@ -123,9 +132,72 @@ function wb20RuleCanActivate(name) { return character.getSetting('waybeyond20-fe
 function wb20RuleCurrent(owner, turn) { return owner === character && turn === wayBeyond20AttackActivationTurnKey(); }
 function wb20RuleEscape(value) { return wb20FeatureEscape(value); }
 
+// Display aliases only. Keep original names for native activation, resources,
+// saved visibility and rules lookup; unrelated feature prefixes stay distinct.
+function wb20FeatureRowIdentity(name) {
+    return wb20RuleText(name).replace(/^Channel Divinity:\s*/i,'').toLowerCase();
+}
+
+// A parent feature can describe several choices. Read the selected named
+// clause first, so an unrelated option's range/duration is never borrowed.
+function wb20FeaturePresentation(name,description) {
+    const full=wb20RuleText(description),base=wb20RuleText(name).split(':').pop().trim();
+    const escaped=base.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const heading=escaped && new RegExp('(?:^|[.!?]\\s+)'+escaped+'[.:]\\s+','i').exec(full);
+    const text=heading?full.slice(heading.index+heading[0].length):full;
+    const distances=Array.from(text.matchAll(/\bwithin\s+(\d+)\s*(?:feet|ft\.?)(?=\s|[,.;:]|$)/gi));
+    const ranges=[...new Set(distances.map(m=>m[1]))];
+    const range=ranges.length===1?ranges[0]+' ft.':/\b(?:touch (?:a|one|the|another) creature|creature you touch)\b/i.test(text)?'Touch':null;
+    const save=text.match(/\bDC\s+(\d+)\s+(Wis(?:dom)?|Dex(?:terity)?|Con(?:stitution)?|Str(?:ength)?|Cha(?:risma)?|Int(?:elligence)?)\.?\s*(?:saving throw|save)/i);
+    const saveLabel=save?save[2].slice(0,3).toUpperCase()+' '+save[1]:null;
+    const summary=wb20FeatureReminder(base,text,{range,save:saveLabel});
+    return {text,range,save:saveLabel,summary};
+}
+
+// Notes always opens read-only details, never the left icon's activation.
+function wb20SetActionNote(cell,text,open,title='Open full details') {
+    let button=cell.querySelector(':scope > .wb20-action-note');
+    if(!button){button=document.createElement('button');button.type='button';button.className='wb20-action-note';cell.replaceChildren(button);
+        button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();if(button.isConnected)Promise.resolve(button._wb20Open?.()).catch(console.warn);});}
+    if(button.textContent!==text)button.textContent=text;
+    if(button.title!==text)button.title=text;
+    if(button.getAttribute('aria-label')!==title)button.setAttribute('aria-label',title);
+    button._wb20Open=open;
+}
+
+function wb20OpenFeatureDetails(name,text) {
+    const info=wb20FeaturePresentation(name,text);
+    return wb20FeatureForm(name,(info.range?`<p><strong>Range:</strong> ${wb20RuleEscape(info.range)}</p>`:'')+`<p>${wb20RuleEscape(text || 'Full rules are not available from the current sheet.')}</p>`,'Done','Close');
+}
+
+function wb20FeaturePanePresentation(paneClass) {
+    if(!['b20-action-pane','b20-class-feature-pane','b20-feat-pane','b20-racial-trait-pane','ct-racial-trait-pane'].includes(paneClass))return;
+    const pane=document.querySelector('.'+paneClass);if(!pane)return;
+    const name=pane.querySelector('.ct-sidebar__heading')?.textContent.trim();if(!name)return;
+    const description=pane.querySelector('.ct-action-detail__description,.ddbc-action-detail__description,[class*="styles_description"]')?.textContent;
+    const attackPane=Array.from(pane.querySelectorAll('.ct-property-list__property-label,.ddbc-property-list__property-label,[class*="InfoItem_label"],[class*="styles_label"]')).some(label=>/^(?:To Hit|Damage|Attack Type):?$/i.test(label.textContent.trim()));
+    const info=wb20FeaturePresentation(name,description),enabled=character.getSetting('waybeyond20-feature-controls',true)!==false && !attackPane;
+    for(const value of pane.querySelectorAll('[data-wb20-original-range]')){
+        const derived=value.getAttribute('data-wb20-derived-range');
+        if(enabled && info.range===derived && value.textContent===derived && value.getAttribute('data-wb20-range-owner')===name)continue;
+        if(value.textContent===derived)value.textContent=value.getAttribute('data-wb20-original-range');
+        for(const key of ['data-wb20-original-range','data-wb20-derived-range','data-wb20-range-owner'])value.removeAttribute(key);
+    }
+    if(!enabled || !info.range)return;
+    for(const property of pane.querySelectorAll('[role="list"] > div')){
+        const label=property.querySelector('.ct-property-list__property-label,.ddbc-property-list__property-label,[class*="InfoItem_label"],[class*="styles_label"]');
+        const value=property.querySelector('.ct-property-list__property-content,.ddbc-property-list__property-content,[class*="InfoItem_value"],[class*="styles_value"]');
+        if(!value || !/^Range(?:\/Area)?:?$/i.test(label?.textContent.trim() || ''))continue;
+        // Keep explicit native numbers/Touch/Self. Repair only its placeholder.
+        if(!/^[-–—\s]+(?:ft\.?\s*)?(?:Reach)?$/i.test(value.textContent.trim()))continue;
+        if(!value.hasAttribute('data-wb20-original-range'))value.setAttribute('data-wb20-original-range',value.textContent);
+        value.setAttribute('data-wb20-derived-range',info.range);value.setAttribute('data-wb20-range-owner',name);value.textContent=info.range;
+    }
+}
+
 // Presentation only. Extract a short reminder from the current native wording;
 // this does not grant an action, modifier, target or resource entitlement.
-function wb20FeatureReminder(name,description) {
+function wb20FeatureReminder(name,description,columns=null) {
     const text=wb20RuleText(description),o=wb20RuleOperators({name,text}),parts=[];
     const within=text.match(/within\s+(\d+)\s*(?:ft\.?|feet)\b/i),duration=text.match(/(?:for (?:the next )?|for\s+)(\d+)\s*(min(?:ute)?s?\.?|hours?|hrs?\.?)/i);
     const range=within?within[1]+' ft.':null,time=duration?duration[1]+' '+(/^min/i.test(duration[2])?'min':'hr'):null;
@@ -136,17 +208,29 @@ function wb20FeatureReminder(name,description) {
     if(o.wards?.length)return 'Automatic saves vs magical '+o.wards.join(', ');
     if(o.pack)return 'Advantage if an ally was next to the target at your turn’s start';
     if(/provokes an opportunity attack/i.test(text) && /cast (?:a |the )?spell/i.test(text) && /(?:one|1) action/i.test(text))return 'Opportunity trigger: cast a one-Action spell at that creature · 1 Reaction';
-    if(/know the location of any celestials, fiends, and undead/i.test(text))return ['Detect Celestials, Fiends and Undead',range,time].filter(Boolean).join(' · ');
+    const noteRange=columns?.range===range?null:range;
+    if(/know the location of any (?:of those types|celestials, fiends, and undead)/i.test(text))return ['Detect Celestials, Fiends and Undead',noteRange,time].filter(Boolean).join(' · ');
     if(/frightened/i.test(text) && /saving throw|\bsave\b/i.test(text)){
         const targets=text.match(/(?:target )?up to\s+(\d+)\s+creatures/i),save=text.match(/DC\s+(\d+)\s+(Wis\.?|Wisdom|Dex\.?|Dexterity|Con\.?|Constitution|Str\.?|Strength|Cha\.?|Charisma|Int\.?|Intelligence)\s*(?:saving throw|save)/i);
-        if(targets)parts.push(targets[1]+' creatures');if(range)parts.push(range);if(save)parts.push(save[2].replace(/\.$/,'')+' '+save[1]);parts.push('Frightened'+(time?' '+time:''));if(/until it takes damage/i.test(text))parts.push('ends on damage');return parts.join(' · ');
+        if(targets)parts.push((columns?'Up to ':'')+targets[1]+' creatures');if(noteRange)parts.push(noteRange);if(save && columns?.save!==save[2].slice(0,3).toUpperCase()+' '+save[1])parts.push(save[2].replace(/\.$/,'')+' '+save[1]);parts.push('Frightened'+(time?' '+time:''));if(/until (?:it|they) takes? damage/i.test(text))parts.push('ends on damage');return parts.join(' · ');
     }
-    const purify=text.match(/expend\s+(\d+)\s+HP.*?remove the Poisoned condition/i);if(purify)return `Spend ${purify[1]} pool points: remove Poisoned`;
+    const purify=text.match(/expend\s+(\d+)\s+HP.*?remove the Poisoned condition/i);if(purify)return columns?`${purify[1]} pool points · remove Poisoned`:`Spend ${purify[1]} pool points: remove Poisoned`;
     const healing=text.match(/restore a total of\s+(\d+)\s+HP/i);if(healing && /pool of healing/i.test(text))return `${healing[1]} HP healing pool · refills on Long Rest`;
-    if(/touch a creature/i.test(text) && /restore a number of HP/i.test(text) && /pool/i.test(text))return 'Touch: spend healing-pool points to restore that much HP';
+    if(/touch a creature/i.test(text) && /restore a number of HP/i.test(text) && /pool/i.test(text))return columns?'Pool points spent = HP restored':'Touch: spend healing-pool points to restore that much HP';
+    if(columns && /obey(?:s)? your (?:verbal )?commands/i.test(text)){
+        const target=text.match(/(?:target|choose) (one|a|an) (undead(?: creature)?|creature)/i);
+        return [target?'1 '+target[2].replace(/ creature$/i,''):null,'Obeys commands'+(time?' '+time:''),/until you use (?:this|the).*?(?:again|another)/i.test(text)?'ends on reuse':null].filter(Boolean).join(' · ');
+    }
     if(/channel energy directly/i.test(text) && /channel divinity/i.test(text))return 'Shared uses · Long Rest refill; Short Rest regains 1 use';
     const melee=text.match(/\+(\d+)\s+bonus to melee attack damage rolls/i);if(melee)return [range?`Allies within ${range}`:'Allies',`+${melee[1]} melee damage`,/conscious/i.test(text)?'while conscious':null].filter(Boolean).join(' · ');
-    const sentence=text.split(/(?<=[.!?])\s+/)[0] || '';
+    let sentence=text.split(/(?<=[.!?])\s+/)[0] || '';
+    if(columns){
+        sentence=sentence.replace(/^As (?:an? )?(?:Magic action|Bonus Action|Reaction|action),?\s*/i,'').replace(/^you can\s+/i,'');
+        // Remove only a targeting-range phrase already shown in RANGE. Effect
+        // distances (push/move/etc.) and unknown ranges must remain intact.
+        if(columns.range && range===columns.range)sentence=sentence.replace(/\s+within\s+\d+\s*(?:feet|ft\.?)(?:\s+of (?:you|yourself))?/i,'');
+        sentence=sentence.replace(/[.!]$/,'').replace(/^./,s=>s.toUpperCase());
+    }
     return sentence.length<=95?sentence:sentence.slice(0,92).replace(/\s+\S*$/,'')+'…';
 }
 
@@ -232,7 +316,13 @@ function wb20RuleApplyResolvedAdvantage(request) {
 async function wb20RuleRerollD20(rolls,request,roller) {
     if (!request || wb20RuleRerolledRequests.has(request) || request['waybeyond20-portent-value'] !== undefined ||
         !['attack','spell-attack','skill','ability','saving-throw','death-save','initiative'].includes(request.type)) return;
-    const owner=character,turn=wayBeyond20AttackActivationTurnKey();
+    const owner=typeof character !== 'undefined' ? character : null, actor=request.character;
+    // This feature pays from its owner's pool, never a nearby companion's.
+    // Wild Shape is the same owner in another form; a summoned creature isn't.
+    const ownerId=actor?.type === 'Character' ? actor.id :
+        actor?.type === 'Creature' && actor.creatureType === 'Wild Shape' ? actor['feature-owner-id'] : null;
+    if (!owner || ownerId === null || ownerId === undefined || String(ownerId) !== String(owner._id)) return;
+    const turn=wayBeyond20AttackActivationTurnKey();
     const rule=wb20CurrentFeatureRules().find(r=>wb20RuleOperators(r).reroll);if (!rule) return;
     const cost=wb20RuleOperators(rule).reroll;
     let pool=wb20Resource(cost.pool,owner);
@@ -263,21 +353,30 @@ async function wb20RuleRerollD20(rolls,request,roller) {
 }
 
 function wb20RuleRows(root, existing = []) {
-    const entries=[],wanted=new Set();
+    const entries=[],wanted=new Set(),seen=new Set(existing.map(entry=>wb20FeatureRowIdentity(entry.name)));
     if (character.getSetting('waybeyond20-feature-controls',true)===false) {root.querySelectorAll(':scope > .wb20-rule-row').forEach(n=>n.remove());return entries;}
     for (const rule of wb20RuleActivations()) {
-        if (existing.some(entry=>wb20RuleFind(entry.name)?.name === rule.name)) continue;
+        if (wb20RuleIsPassiveAction(rule.name)) continue;
+        const identity=wb20FeatureRowIdentity(rule.name);
+        if (seen.has(identity) || existing.some(entry=>wb20RuleFind(entry.name)?.name === rule.name)) continue;
+        seen.add(identity);
         wanted.add(rule.name);
         let row=Array.from(root.querySelectorAll(':scope > .wb20-rule-row')).find(n=>n._wb20RuleName === rule.name);
         if (!row) {
             row=document.createElement('div');row.className='ddbc-combat-attack wb20-feature-option wb20-rule-row';row._wb20RuleName=rule.name;
-            row.innerHTML='<button type="button" class="wb20-feature-option-icon"><svg viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" d="M10 2 18 10 10 18 2 10Z"/></svg></button><div class="ddbc-combat-attack__name"><span class="wb20-rule-label"></span></div><div class="ddbc-combat-attack__range"></div><div class="ddbc-combat-attack__action"></div><div class="ddbc-combat-attack__damage"></div><div class="ddbc-combat-attack__notes"></div>';
+            row.innerHTML='<button type="button" class="wb20-feature-option-icon"><svg viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" d="M10 2 18 10 10 18 2 10Z"/></svg></button><div class="ddbc-combat-attack__name"><span class="wb20-rule-label"></span><div class="wb20-talent-category"></div></div><div class="ddbc-combat-attack__range"></div><div class="ddbc-combat-attack__action"></div><div class="ddbc-combat-attack__damage"></div><div class="ddbc-combat-attack__notes"></div>';
             row.querySelector('button').addEventListener('click',()=>{if(row._wb20RuleOwner === character) wb20ActivateRule(row._wb20RuleName).catch(console.warn);});root.append(row);
         }
         row._wb20RuleOwner=character;
         const pool=rule.operator.pool ? wb20Resource(rule.operator.pool) : rule.operator.stabilize ? wb20Resource(rule.operator.stabilize.pool) : null;
-        const values={name:rule.name,range:'—',action:'—',damage:'—',notes:pool?.remaining !== null && pool ? `${pool.remaining}/${pool.max} ${pool.name}` : rule.operator.pool?'1 '+rule.operator.pool:rule.operator.stabilize?'Stabilize / reroll':'Feature'};
+        const split=rule.name.match(/^(Channel Divinity):\s*(.+)$/i);
+        const category=split?.[1] || rule.operator.pool || 'Feature';
+        const subtitle=row.querySelector('.wb20-talent-category');if(subtitle.textContent!==category)subtitle.textContent=category;
+        const info=wb20FeaturePresentation(rule.name,rule.text);
+        const values={name:split?.[2] || rule.name,range:info.range || '—',action:info.save || '—',damage:'—'};
         for(const [field,value] of Object.entries(values)){const el=row.querySelector(field==='name'?'.wb20-rule-label':'.ddbc-combat-attack__'+field);if(el.textContent!==value)el.textContent=value;}
+        const reminder=info.summary || (pool?.remaining !== null && pool?`${pool.remaining}/${pool.max} uses left`:'View rules');
+        wb20SetActionNote(row.querySelector('.ddbc-combat-attack__notes'),reminder,()=>{if(row._wb20RuleOwner===character)return wb20OpenFeatureDetails(rule.name,rule.text);},'Read '+rule.name+' — full details');
         const button=row.querySelector('button');if(button.title!==rule.text){button.title=rule.text;button.setAttribute('aria-label','Use '+rule.name);}
         const cost=rule.operator.activation || 'special';entries.push({row,name:rule.name,cost,group:cost==='special'?'action':cost});
     }

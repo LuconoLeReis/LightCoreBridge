@@ -175,7 +175,7 @@ async function wayBeyond20DispatchRollWithCharacter(rollType, fallback, args, in
                 name: limitedUseRequest.name || args.name || fallback
             });
             if (typeof alertify !== "undefined" && alertify.warning) {
-                alertify.warning(`WayBeyond20 sent ${limitedUseRequest.name || args.name || fallback}, but D&D Beyond did not mark the ${limitedUseRequest.feature} use. Please mark it manually.`);
+                alertify.warning(`LightCore Bridge sent ${limitedUseRequest.name || args.name || fallback}, but D&D Beyond did not mark the ${limitedUseRequest.feature} use. Please mark it manually.`);
             }
         }
     }
@@ -183,7 +183,7 @@ async function wayBeyond20DispatchRollWithCharacter(rollType, fallback, args, in
         // No control owned by the named pool was showing, so nothing was spent. Ask for manual
         // reconciliation instead of guessing at a neighboring counter.
         if (typeof alertify !== "undefined" && alertify.warning) {
-            alertify.warning(`WayBeyond20 sent ${limitedUseRequest.name || args.name || fallback}, but could not find the ${limitedUseRequest.feature} uses on the current sheet. Please mark the use manually.`);
+            alertify.warning(`LightCore Bridge sent ${limitedUseRequest.name || args.name || fallback}, but could not find the ${limitedUseRequest.feature} uses on the current sheet. Please mark the use manually.`);
         }
     }
     if (result === true && smiteRequest) {
@@ -192,13 +192,13 @@ async function wayBeyond20DispatchRollWithCharacter(rollType, fallback, args, in
                 expectedAvailable: smiteRequest.slotAvailable
             });
             if (!spent && typeof alertify !== "undefined" && alertify.warning) {
-                alertify.warning(`WayBeyond20 sent ${smiteRequest.name || "the smite"}, but D&D Beyond did not reduce the spell slot. Please adjust the slot manually.`);
+                alertify.warning(`LightCore Bridge sent ${smiteRequest.name || "the smite"}, but D&D Beyond did not reduce the spell slot. Please adjust the slot manually.`);
             }
         } else if (smiteRequest.fuel === "paladin-smite" && character) {
             const spent = await wayBeyond20SpendPaladinSmiteFreeUse();
             character.mergeCharacterSettings({"waybeyond20-paladin-smite-used": true});
             if (!spent && typeof alertify !== "undefined" && alertify.warning) {
-                alertify.warning("WayBeyond20 sent Divine Smite, but D&D Beyond did not mark Paladin's Smite as used. Please mark it manually.");
+                alertify.warning("LightCore Bridge sent Divine Smite, but D&D Beyond did not mark Paladin's Smite as used. Please mark it manually.");
             }
         }
     }
@@ -1490,7 +1490,8 @@ function wayBeyond20FillHitDieChoices(row, snippet, name) {
 
 function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
     const normalize = value => String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
-    const names = new Set(existingRows.map(entry => normalize(entry.name)));
+    const identity = value => typeof wb20FeatureRowIdentity==='function' ? wb20FeatureRowIdentity(value) : normalize(value);
+    const names = new Set(existingRows.map(entry => identity(entry.name)));
     // Only retire shortcuts this collector created. Other feature producers use
     // the same visual class; deleting their rows makes them recreate the rows
     // on every document observer callback and prevents the page from settling.
@@ -1505,9 +1506,10 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
         for (const snippet of group.querySelectorAll('.ct-feature-snippet,.ddbc-feature-snippet')) {
             const heading = snippet.querySelector('.ct-feature-snippet__heading,.ddbc-feature-snippet__heading');
             const name = heading?.textContent.replace(/\s+/g, " ").trim();
-            if (!name || names.has(normalize(name))) continue;
+            if (!name || names.has(identity(name))) continue;
+            if (typeof wb20RuleIsPassiveAction === 'function' && wb20RuleIsPassiveAction(name)) continue;
             if (typeof wb20FeatureActions === "function" && wb20FeatureActions().some(([action]) => normalize(action) === normalize(name))) continue;
-            names.add(normalize(name));
+            names.add(identity(name));
             // DDB presents this rider's rules separately from its actual attack.
             // Keep the native attack name/controls intact for roll/sidebar routing.
             const attack = normalize(name) === "bardic inspiration: agile strikes"
@@ -1567,6 +1569,7 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
                     if (row._wb20FeatureOwner !== character || !snippet.isConnected || !row.isConnected) return;
                     (heading.querySelector('a,button,[role="button"]') || heading).click();
                 };
+                row._wb20OpenDetails = openDetails;
                 label.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); openDetails(); });
                 icon.addEventListener("click", event => {
                     event.preventDefault(); event.stopPropagation();
@@ -1582,7 +1585,10 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
             }
             const use = snippet.querySelector('.waybeyond20-blood-and-bone-button[data-waybeyond20-label="Use"]');
             const label = row.querySelector(".wb20-feature-option-name");
-            if (label.textContent !== name) label.textContent = name;
+            const split = name.match(/^(Channel Divinity):\s*(.+)$/i);
+            const usage = name.match(/^(Lay On Hands):\s*(Heal|Purify Poison)$/i);
+            const displayName = usage ? usage[1] : split ? split[2] : name;
+            if (label.textContent !== displayName) label.textContent = displayName;
             const icon = row.querySelector(".wb20-feature-option-icon");
             const disabled = !!use?.disabled;
             if (icon.disabled !== disabled) icon.disabled = disabled;
@@ -1593,7 +1599,8 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
             // Bill's display category is independent of action cost and rules.
             // Do not infer a gameplay restriction or invent unknown categories.
             const category = row.querySelector(".wb20-talent-category");
-            const categoryText = normalize(name) === "blood and bone" ? "Heal Ally" : "";
+            const rule = typeof wb20RuleFind === 'function' ? wb20RuleFind(name) : null;
+            const categoryText = usage ? usage[2] : split ? split[1] : rule?.operator?.pool || (normalize(name) === "blood and bone" ? "Heal Ally" : "");
             if (category.textContent !== categoryText) category.textContent = categoryText;
             if (category.hidden !== !categoryText) category.hidden = !categoryText;
             const notes = row.querySelector(".ddbc-combat-attack__notes");
@@ -1601,9 +1608,22 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
             const uses = slots.length ? `${slots.filter(el => el.getAttribute("aria-checked") === "false").length}/${slots.length} uses · ` : "";
             // Preserve the established NAME/RANGE/HIT-DC/DAMAGE/NOTES cells.
             // Native rule prose belongs in details, not across the table row.
-            const note = `${uses}${use ? "Use" : "Details"}`;
-            if (!wayBeyond20FillHitDieChoices(row, snippet, name) && notes.textContent !== note)
-                notes.textContent = note;
+            const description=snippet.querySelector('.ct-feature-snippet__content,.ddbc-feature-snippet__content')?.textContent || snippet.textContent;
+            const info=typeof wb20FeaturePresentation==='function'?wb20FeaturePresentation(name,description):null;
+            const hitDieChoices=wayBeyond20FillHitDieChoices(row,snippet,name);
+            if(!hitDieChoices){
+                wb20SetActionRange(row.querySelector('.ddbc-combat-attack__range'),info?.range || '—');
+                const action=row.querySelector('.ddbc-combat-attack__action');if(action.textContent!==(info?.save || '—'))action.textContent=info?.save || '—';
+            }
+            const note = info?.summary ? `${uses}${info.summary}` : `${uses}${use ? "Use" : "Details"}`;
+            if (!hitDieChoices) {
+                if(typeof wb20SetActionNote==='function')wb20SetActionNote(notes,note,()=>row._wb20OpenDetails?.(),'Read '+displayName+' — full details');
+                else if(notes.textContent!==note)notes.textContent=note;
+            } else if(typeof wb20SetActionNote==='function') {
+                let host=notes.querySelector('.wb20-action-note-host');
+                if(!host){host=document.createElement('div');host.className='wb20-action-note-host';notes.append(host);}
+                wb20SetActionNote(host,'Read rules',()=>row._wb20OpenDetails?.(),'Read '+displayName+' — full details');
+            }
             retained.add(row);
             entries.push({row, name, ...meta});
         }
@@ -1647,6 +1667,10 @@ function wb20DecorateActionValues(root, owned) {
         const key='--wb20-range-label-'+property,value=getComputedStyle(rangeLabel).getPropertyValue(property);
         if(root.style.getPropertyValue(key)!==value)root.style.setProperty(key,value);
     }
+    const nativeIcon=nativeRows.map(row=>row.querySelector('.ddbc-damage-type-icon svg path,.ct-damage-type-icon svg path')).find(Boolean);
+    const iconInk=nativeIcon && getComputedStyle(nativeIcon).fill;
+    const mutedIconInk=iconInk && !['none','transparent','rgba(0, 0, 0, 0)'].includes(iconInk)?iconInk:root.style.getPropertyValue('--wb20-range-label-color') || '#75838b';
+    if(root.style.getPropertyValue('--wb20-value-icon-color')!==mutedIconInk)root.style.setProperty('--wb20-value-icon-color',mutedIconInk);
     for (const row of root.querySelectorAll(owned)) {
         const range = row.querySelector(".ddbc-combat-attack__range");
         if (range && !range.dataset.wb20Range && range.textContent.trim()) wb20SetActionRange(range,range.textContent);
@@ -1654,13 +1678,14 @@ function wb20DecorateActionValues(root, owned) {
         const spell = row._wb20PresentationSpell;
         const source = row._wb20PresentationSource || nativeRows.find(native =>
             native.querySelector('.ddbc-combat-attack__label,.ct-combat-attack__label')?.textContent.trim() === spell?.name);
-        const type = spell?.damageType;
-        const sourceIcon = source?.querySelector('.ddbc-damage-type-icon,.ct-damage-type-icon') ||
-            (type && Array.from(document.querySelectorAll('.ddbc-damage-type-icon,.ct-damage-type-icon')).find(icon =>
-                !icon.closest(owned) && icon.getAttribute('aria-label')?.toLowerCase() === type.toLowerCase()+' damage'));
+        const type = spell?.damageType || row._wb20Definition?.damageType;
+        const iconSelector = '.ddbc-damage-type-icon,.ct-damage-type-icon,.ddbc-healing-icon,.ct-healing-icon';
+        const sourceIcon = source?.querySelector(iconSelector) ||
+            (type && Array.from(document.querySelectorAll(iconSelector)).find(icon =>
+                !icon.closest(owned) && [type.toLowerCase(),type.toLowerCase()+' damage'].includes(icon.getAttribute('aria-label')?.toLowerCase())));
         for (const field of ['action','damage']) {
             const cell=row.querySelector('.ddbc-combat-attack__'+field); if(!cell)continue;
-            const raw=cell.textContent.trim();
+            const raw=(cell.querySelector('.wb20-action-value > :first-child') || cell).textContent.trim();
             // Save DCs and non-roll effects remain plain text. Never give a
             // placeholder, use count, or passive rule a false roll affordance.
             const rollable=field==='action'?/^[+\-\u2212]\s*\d+$/.test(raw):/\b\d*d\d+\b/i.test(raw);
@@ -1675,17 +1700,47 @@ function wb20DecorateActionValues(root, owned) {
                 control.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();if(row.isConnected&&!activate.disabled)activate.click();});
             }
             if(!control)continue;
-            const help=(activate.getAttribute('aria-label') || activate.title || 'Use this feature')+' — uses the same activation as the left icon';
+            const effectType=String(type || sourceIcon?.getAttribute('aria-label') || '').replace(/ damage$/i,'');
+            const description=spell && typeof wb20QuickSettings==='function'?wb20QuickSettings().descriptions?.[spell.key] || '':'';
+            const reduction=/\b(?:reduce (?:the |that |this )?damage|damage (?:is |can be )?reduced)\b/i.test(description);
+            const sameType=description.match(/\bsame (?:damage )?type as ([^.!?]{1,80})/i);
+            const help=field==='damage'?(effectType?effectType.charAt(0).toUpperCase()+effectType.slice(1):reduction?'Damage reduction':sameType?'Same type as '+sameType[1]:'Damage type not provided'):'Attack roll';
             if(control.getAttribute('aria-label')!==help)control.setAttribute('aria-label',help);
             if(control.title!==help)control.title=help;
             if(control.disabled!==activate.disabled)control.disabled=activate.disabled;
             if(field==='damage') {
                 const prior=control.querySelector('[data-wb20-value-icon]');
-                const key=sourceIcon?.outerHTML || '';
+                const shape=spell?.iconShape;
+                const key=sourceIcon?.outerHTML || (shape ? JSON.stringify([type,shape]) : '');
                 if(control.dataset.wb20ValueIconKey!==key){
                     prior?.remove();
-                    if(sourceIcon){const copy=sourceIcon.cloneNode(true);copy.setAttribute('data-wb20-value-icon','true');copy.setAttribute('aria-hidden','true');control.append(copy);}
+                    let copy;
+                    if(sourceIcon?.querySelector('svg')){
+                        copy=document.createElement('span');copy.className=sourceIcon.className;
+                        copy.setAttribute('aria-label',sourceIcon.getAttribute('aria-label') || '');
+                        copy.append(sourceIcon.querySelector('svg').cloneNode(true));
+                    }
+                    if(!copy && shape?.parts?.length && type){
+                        copy=document.createElement('span');copy.setAttribute('aria-label',type === 'Healing' ? 'healing' : type.toLowerCase()+' damage');
+                        const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+                        if(/^[\d.\s-]+$/.test(shape.viewBox || ''))svg.setAttribute('viewBox',shape.viewBox);
+                        svg.setAttribute('fill','currentColor');
+                        for(const part of shape.parts.slice(0,40)){
+                            if(!['path','circle','ellipse','rect','polygon','polyline','line'].includes(part.tag))continue;
+                            const node=document.createElementNS(svg.namespaceURI,part.tag);
+                            for(const [attr,value] of Object.entries(part.attrs || {}))if(['d','cx','cy','r','rx','ry','x','y','x1','x2','y1','y2','width','height','points','fill-rule','clip-rule'].includes(attr) && typeof value==='string' && /^[\d\s.,+eEa-zA-Z-]+$/.test(value))node.setAttribute(attr,value);
+                            svg.append(node);
+                        }
+                        copy.append(svg);
+                    }
+                    if(copy){copy.setAttribute('data-wb20-value-icon','true');copy.setAttribute('aria-hidden','true');control.append(copy);}
                     control.dataset.wb20ValueIconKey=key;
+                }
+                const icon=control.querySelector('[data-wb20-value-icon]');
+                if(icon){
+                    const ink='var(--wb20-value-icon-color)';
+                    if(icon.style.getPropertyValue('color')!==ink)icon.style.setProperty('color',ink);
+                    if(icon.title!==help)icon.title=help;
                 }
             }
         }
@@ -1714,14 +1769,14 @@ function wayBeyond20MatchActionTypography(root) {
     const labels = Array.from(root.querySelectorAll(
         '.ct-combat-attack__label,.ddbc-combat-attack__label'));
     const native = labels.find(label => !label.closest(
-        '.wb20-feature-option,.waybeyond20-bardic-feature-card') &&
+        '.wb20-feature-option,.wb20-quick-row,.wb20-rule-row,.wb20-opportunity-attack,.waybeyond20-bardic-feature-card') &&
         getComputedStyle(label).fontStyle === "normal") || labels[0];
     if (!native) return;
     const style = getComputedStyle(native);
     // Native labels set their font below the row level. Inheriting from the
     // row/button instead picks up the site's generic font, not the sheet font.
     for (const label of root.querySelectorAll(
-        '.wb20-feature-option-name,.waybeyond20-bardic-feature-identity strong')) {
+        '.wb20-feature-option-name,.wb20-rule-label,.waybeyond20-bardic-feature-identity strong')) {
         for (const property of ["font-family", "font-size", "font-weight", "line-height", "letter-spacing", "color"]) {
             const value = style.getPropertyValue(property);
             // Called from a mutation observer; keep repeated refreshes inert.
@@ -1731,10 +1786,11 @@ function wayBeyond20MatchActionTypography(root) {
     }
     const owned = '.wb20-feature-option,.wb20-quick-row,.wb20-rule-row,.wb20-opportunity-attack,.waybeyond20-bardic-feature-row';
     const nativeCell = selector => Array.from(root.querySelectorAll(selector)).find(cell => !cell.closest(owned));
-    const damage = nativeCell('.ddbc-combat-attack__damage .ddbc-damage__value,.ct-combat-attack__damage .ct-damage__value,.ddbc-combat-attack__damage,.ct-combat-attack__damage');
+    const damage = nativeCell('.ddbc-combat-attack__damage .ddbc-damage__value,.ct-combat-attack__damage .ct-damage__value') ||
+        nativeCell('.ddbc-combat-attack__damage,.ct-combat-attack__damage');
     if (damage) {
         const damageStyle = getComputedStyle(damage);
-        for (const property of ['font-family','font-size','line-height']) {
+        for (const property of ['font-family','font-size','line-height','color']) {
             const name = '--wb20-action-value-' + property, value = damageStyle.getPropertyValue(property);
             if (root.style.getPropertyValue(name) !== value) root.style.setProperty(name,value);
         }
@@ -1746,7 +1802,7 @@ function wayBeyond20MatchActionTypography(root) {
         const sampleStyle = getComputedStyle(sample);
         for (const row of root.querySelectorAll(owned)) for (const cell of row.querySelectorAll(selector)) {
             for (const property of ['font-family','font-size','font-weight','line-height','color']) {
-                const value = sampleStyle.getPropertyValue(property);
+                const value = property === 'color' && ['action','damage'].includes(column) && damage ? getComputedStyle(damage).color : sampleStyle.getPropertyValue(property);
                 if (cell.style.getPropertyValue(property) !== value) cell.style.setProperty(property,value);
             }
         }
@@ -1854,6 +1910,7 @@ function wayBeyond20RefreshCombinedActions() {
             if (typeof wb20FeatureRows === "function") rows.push(...wb20FeatureRows(root));
             if (typeof wayBeyond20OpportunityRow === "function")
                 rows.push(wayBeyond20OpportunityRow(root));
+            if (typeof wb20SummonRows === "function") rows.push(...wb20SummonRows(root));
             if (typeof wb20QuickRows === "function") {
                 rows.push(...wb20QuickRows(root));
                 root._wb20QuickEntries = rows;
@@ -3549,6 +3606,10 @@ function wayBeyond20AddSpellEffectToSettings(character, settings_to_change, effe
         activeEffects = activeEffects.filter(active_effect => !active_effect.concentration);
     }
 
+    if (effect.summon?.replacePrevious) {
+        activeEffects = activeEffects.filter(active => !(active.summon &&
+            active.summon.spellName === effect.summon.spellName && active.characterId === effect.characterId));
+    }
     activeEffects.push(effect);
     settings_to_change["waybeyond20-active-effects"] = activeEffects;
     if (effect.concentration) {
@@ -3793,7 +3854,7 @@ function wayBeyond20SetNumericDisplay(selector, attrName, value, options = {}) {
 }
 
 function wayBeyond20EffectSourceLabel(effect) {
-    if (!effect || !effect.name) return "WayBeyond20 Effects";
+    if (!effect || !effect.name) return "LightCore Bridge Effects";
     const names = [];
     const activeEffects = Array.isArray(effect) ? effect : [effect];
     for (const item of activeEffects) {
@@ -5011,7 +5072,7 @@ async function wayBeyond20ChooseRoll20Token() {
     select.val(targets.some(t => String(t.tokenId || t.key) === stored) ? stored :
         matches.length === 1 ? String(matches[0].tokenId || matches[0].key) : "");
     select.find("option").filter((index, option) => option.value === select.val()).attr("selected", "selected");
-    form.append($("<p>").text(`Choose this character's token from ${boardSource}'s turn order. This changes only WB20's link, not initiative, position or counters.`),
+    form.append($("<p>").text(`Choose this character's token from ${boardSource}'s turn order. This changes only LightCore's link, not initiative, position or counters.`),
         $("<label>").attr("for", "wb20-own-token").text(`My ${boardSource} token`), select);
     const response = await dndbeyondDiceRoller._prompter.prompt("Link My Token", form[0].outerHTML, "Link token", "Cancel");
     if (!response || character !== owner) return;
@@ -5528,7 +5589,10 @@ function wayBeyond20InjectBuffsBadge(effects) {
         list.attr("data-effects", signature).empty();
         for (const effect of rows) {
             const key = wayBeyond20EffectKey(effect);
-            const button = $("<button type='button'>").addClass("waybeyond20-buff-name").text(effect.name);
+            // Item flames retain their saved name/key for toggling and attack
+            // tracking. Only the compact buff label omits the redundant suffix.
+            const label = effect.name.replace(/ — Flames$/, "");
+            const button = $("<button type='button'>").addClass("waybeyond20-buff-name").text(label);
             button.on("click.waybeyond20-effects", event => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -5878,6 +5942,7 @@ function wayBeyond20RefreshActiveEffectBadges() {
     step('wayBeyond20InjectWizardHelpers',()=>wayBeyond20InjectWizardHelpers());
     step('wayBeyond20InjectTurnResourceTracker',()=>wayBeyond20InjectTurnResourceTracker(effects));
     step('wayBeyond20InjectHitDiceTracker',()=>wayBeyond20InjectHitDiceTracker());
+    if (typeof wb20SummonExistingControl === 'function') wb20SummonExistingControl();
     } finally {
         if(measured&&!previousProbe){wb20SheetMonitor.probe?.disconnect();wb20SheetMonitor.probe=null;
             wb20SheetReport(performance.now()-started>50);}
@@ -8226,7 +8291,7 @@ function wayBeyond20LayOnHandsQueryHtml(kind, pool, { poisoned = null, hp = null
     const using = 0;
     const poolText = known
         ? `<strong>${remaining}</strong> in the pool · this touch uses <span data-lay-on-hands-using>${using}</span> · <span data-lay-on-hands-remaining>${Math.max(0, remaining - using)}</span> left`
-        : "WayBeyond20 can't see the Lay on Hands pool on this tab.";
+        : "LightCore Bridge can't see the Lay on Hands pool on this tab.";
 
     let html = `<form class="waybeyond20-lay-on-hands-query" data-kind="${kind}"` +
         ` data-pool="${known ? remaining : ""}" data-purify-cost="${WAYBEYOND20_PURIFY_POISON_COST}">`;
@@ -8471,17 +8536,17 @@ ${description}` : result;
     };
     if (target === "self" && isHealing) {
         const healing = await wayBeyond20ApplyHealingToSelf(healed, { source: name });
-        if (!healing.applied) warn(`WayBeyond20 sent ${name}, but D&D Beyond did not apply the healing. Please add ${healed} Hit Points manually.`);
+        if (!healing.applied) warn(`LightCore Bridge sent ${name}, but D&D Beyond did not apply the healing. Please add ${healed} Hit Points manually.`);
     }
     if (target === "self" && curePoison) {
         const purified = await wayBeyond20RemoveConditionFromSelf("Poisoned");
-        if (purified.wasPresent && !purified.removed) warn(`WayBeyond20 sent ${name}, but D&D Beyond did not remove the Poisoned condition. Please remove it manually.`);
+        if (purified.wasPresent && !purified.removed) warn(`LightCore Bridge sent ${name}, but D&D Beyond did not remove the Poisoned condition. Please remove it manually.`);
     }
     if (pool.current === null) {
-        warn(`WayBeyond20 sent ${name}, but could not find the Lay on Hands pool on this tab. Please reduce it by ${amount} manually.`);
+        warn(`LightCore Bridge sent ${name}, but could not find the Lay on Hands pool on this tab. Please reduce it by ${amount} manually.`);
     } else if (amount <= pool.current) {
         const spent = await wayBeyond20SpendNumericFeaturePool(WAYBEYOND20_LAY_ON_HANDS_POOL, amount);
-        if (!spent) warn(`WayBeyond20 sent ${name}, but D&D Beyond did not reduce Lay on Hands by ${amount}. Please adjust the pool manually.`);
+        if (!spent) warn(`LightCore Bridge sent ${name}, but D&D Beyond did not reduce Lay on Hands by ${amount}. Please adjust the pool manually.`);
     }
     return result;
 }
@@ -9685,7 +9750,14 @@ async function rollSpell(force_display = false, force_to_hit_only = false, force
         if (castas != "" && !level.startsWith(castas))
             roll_properties["cast-at"] = castas;
         wayBeyond20ApplyRitualMode(roll_properties, waybeyond20_ritual_mode);
-        if (!force_display && wayBeyond20ShouldTrackSpellEffect(concentration, duration)) {
+        const waybeyond20_summon_owner = character;
+        const waybeyond20_summon_effect = !force_display && typeof wb20PrepareSummonEffect === 'function'
+            ? await wb20PrepareSummonEffect(waybeyond20_summon_owner,{spellName:spell_name,source:spell_source,level,castAt:castas,description,concentration,duration,properties}) : undefined;
+        if (waybeyond20_summon_effect === null) return false; // Cancel before slot/action accounting.
+        if (waybeyond20_summon_effect) {
+            if(waybeyond20_summon_effect.summon){roll_properties['waybeyond20-spell-effect']=waybeyond20_summon_effect;if(concentration)roll_properties['waybeyond20-concentration']=waybeyond20_summon_effect;}
+            wayBeyond20CommitAfterDispatch(roll_properties,()=>wb20CommitSummonEffect(waybeyond20_summon_owner,waybeyond20_summon_effect,{resourceLockHeld:typeof wb20DispatchResources === 'function'}).catch(error=>{console.warn('LightCore: summon tracking could not be saved',error);alertify.warning('The spell completed, but its summon controls could not be saved. Use Track an existing summon; do not cast again.');}));
+        } else if (!force_display && wayBeyond20ShouldTrackSpellEffect(concentration, duration)) {
             const waybeyond20_spell_effect = wayBeyond20BuildSpellEffect(character, spell_name, spell_source, level, castas, concentration, duration, properties, waybeyond20_talent);
             const waybeyond20_spell_effect_plan = await wayBeyond20ApplySpellEffectWithTargets(character, waybeyond20_spell_effect, waybeyond20_talent,
                 {singleOtherTarget: attack_context?.kind === "reactive-spell"});
@@ -10377,7 +10449,7 @@ function injectSettingsButton() {
 
     let button_type = null;
     let gap = null;
-    let span_text = "WB20";
+    let span_text = "LightCore";
     let icon = chrome.runtime.getURL("images/icons/badges/normal20.png");
     if (desktop_gap.length > 0) {
         button_type = "desktop";
@@ -10395,7 +10467,7 @@ function injectSettingsButton() {
     }
 
     const button = E.div({ class: "ct-character-header-" + button_type + "__group ct-character-header-" + button_type + "__group--beyond20" },
-        E.div({ class: "ct-character-header-" + button_type + "__button ct-beyond20-settings-button", title: "WayBeyond20 settings" },
+        E.div({ class: "ct-character-header-" + button_type + "__button ct-beyond20-settings-button", title: "LightCore Bridge settings" },
             E.img({ class: "ct-beyond20-settings", src: icon }),
             E.span({ class: "ct-character-header-" + button_type + "__button-label" }, span_text)
         )
@@ -10806,7 +10878,7 @@ function documentModified(mutations, observer) {
     step('action rows',()=>wayBeyond20RefreshCombinedActions());
     if (character._features_needs_refresh && !character._features_refresh_warning_displayed) {
         character._features_refresh_warning_displayed = true;
-        alertify.alert("This is a new or recently leveled-up character sheet and WayBeyond20 needs to parse its information. <br/>Please select the <strong>'Features &amp; Traits'</strong> panel on your DnDBeyond Character Sheet for WayBeyond20 to parse this character's features and populate the character-specific options.");
+        alertify.alert("This is a new or recently leveled-up character sheet and LightCore Bridge needs to parse its information. <br/>Please select the <strong>'Features &amp; Traits'</strong> panel on your DnDBeyond Character Sheet for LightCore Bridge to parse this character's features and populate the character-specific options.");
     }
 
 
@@ -10849,6 +10921,7 @@ function documentModified(mutations, observer) {
     function handlePane(paneClass) {
         console.log("WayBeyond20: New side panel is : " + paneClass);
         step('sidebar controls',()=>injectRollButton(paneClass));
+        step('feature range presentation',()=>{if(typeof wb20FeaturePanePresentation==='function')wb20FeaturePanePresentation(paneClass);});
         if (typeof wb20ContinueCombatHandoff === "function" && wb20ContinueCombatHandoff()) return;
         // A prior sidebar may still be mounted during the new pane's handoff.
         if (quick_roll_mode_target && (character !== quick_roll_mode_target.owner ||

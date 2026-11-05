@@ -29,15 +29,17 @@
 [data-wb20-action-cost="extended"] { --wb20-action-color: #76529c; }
 [data-wb20-user-hidden] { display: none !important; }
 .wb20-quick-row { display: flex; align-items: center; gap: 0; }
-.wb20-quick-row .wb20-talent-category select {
+.wb20-quick-row .wb20-spell-choice select {
     box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%;
     font: inherit; color: inherit; background: #fff; padding: 2px; border: 1px solid #b7c9da; border-radius: 3px;
 }
-.wb20-spell-choice { position: relative; }
-.wb20-quick-row .wb20-spell-choice select { color: transparent; appearance: none; cursor: pointer; background: transparent; border-color: transparent; }
+.wb20-spell-choice { position: relative; display: block; width: 100%; min-width: 0; }
+.wb20-quick-row .wb20-spell-choice select,
+.wb20-quick-row .wb20-spell-choice select:hover,
+.wb20-quick-row .wb20-spell-choice select:focus { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; appearance: none; cursor: pointer; background: transparent; border-color: transparent; }
 .wb20-quick-row .wb20-spell-choice:hover select,
 .wb20-quick-row .wb20-spell-choice:focus-within select { border-color: #b7c9da; }
-.wb20-quick-row .wb20-spell-choice select option { color: CanvasText; background: Canvas; }
+.wb20-quick-row .wb20-spell-choice select option { color: CanvasText !important; -webkit-text-fill-color: CanvasText !important; text-shadow: none; background: Canvas; }
 .wb20-spell-choice-caption { position: absolute; inset: 3px 17px 3px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
 .wb20-spell-choice::after { content: ""; position: absolute; right: 6px; top: 7px; width: 5px; height: 5px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); pointer-events: none; opacity: 0; }
 .wb20-spell-choice:hover::after,.wb20-spell-choice:focus-within::after { opacity: 1; }
@@ -168,6 +170,9 @@
 .wb20-opportunity-rules li + li { margin-top: 8px; }
 .wb20-feature-option-name { border: 0; padding: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .wb20-talent-category { font-size: 10px; line-height: 10px; text-transform: none; }
+.wb20-feature-option-name,.wb20-rule-label { display: block; }
+/* Match native readable dice ink; subtitles retain native secondary ink. */
+:is(.wb20-feature-option,.wb20-quick-row,.wb20-rule-row,.wb20-opportunity-attack) :is(.wb20-action-value,.ddbc-damage__value,.wb20-hit-value) { color:var(--wb20-action-value-color,inherit) !important; }
 .wb20-hit-die-choices { display: flex; flex-wrap: wrap; gap: 4px; }
 .wb20-hit-die-choice {
     background: transparent; color: inherit; font: inherit;
@@ -698,7 +703,7 @@ span.dice-roll.beyond20-tooltip-content {
 /* Preserve native defenses on the left; effects get their own readable column. */
 .waybeyond20-defenses-with-buffs {
     display: grid !important;
-    grid-template-columns: minmax(min-content, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-rows: auto auto;
     container: wb20-defenses / inline-size;
     column-gap: 6px;
@@ -753,10 +758,8 @@ span.dice-roll.beyond20-tooltip-content {
 .waybeyond20-buff-name:focus-visible {
     text-decoration: underline;
 }
-@container wb20-defenses (max-width: 200px) {
-    .waybeyond20-buffs-list { grid-column: 1 / -1; grid-row: 3; padding-top: 5px; text-align: left; }
-    .waybeyond20-buffs-list .waybeyond20-buff-name { text-align: left; }
-}
+/* Keep buffs beneath BUFFS even on a narrow sheet. Each column wraps within
+   its own half instead of moving effects under the native defense entries. */
 
 .waybeyond20-wizard-tools {
     align-items: center;
@@ -1320,7 +1323,7 @@ span.dice-roll.beyond20-tooltip-content {
         grid-column: 1 / 4; grid-row: 1 / 3; display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 0;
         width: 100%; min-width: 0; padding: 0; border: 0; font-size: 10px; white-space: nowrap; background: transparent;
     }
-    [data-wb20-header-role="campaign"] [data-testid="campaign-summary"] > span { text-align: center; line-height: 22px; border-bottom: 1px solid var(--wb20-header-border,currentColor); }
+    [data-wb20-header-role="campaign"] [data-testid="campaign-summary"] > span { width:100%; max-width:none; min-width:0; margin:0; box-sizing:border-box; text-align: center; line-height: 22px; border-bottom: 1px solid var(--wb20-header-border,currentColor); }
     [data-wb20-header-role="campaign"] [data-testid="campaign-summary"] > span:first-child { font-size: 0; }
     [data-wb20-header-role="campaign"] [data-testid="campaign-summary"] > span:first-child::after { content: "Campaign"; font-size: 10px; }
     [data-wb20-header-role="campaign"] [data-testid="campaign-summary"] > span:last-child { font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
@@ -1363,10 +1366,14 @@ span.dice-roll.beyond20-tooltip-content {
     .wb20-compact-header a:focus-visible { outline: 2px solid var(--wb20-header-border,currentColor); outline-offset: 1px; }
     .wb20-compact-header > .wb20-header-rest { display:flex; flex-direction:column; gap:6px; }
     .wb20-compact-header .wb20-resource-correction-button { font-size:10px; padding:3px 4px; }
+    .wb20-compact-header .wb20-header-rest > .wb20-resource-correction-button { display:flex; align-items:center; justify-content:center; padding-left:4px; padding-right:4px; text-align:center; }
 }
 
 .wb20-resource-correction { max-height:65vh; overflow:auto; padding:8px 12px; }
 .wb20-resource-correction > label { display:grid; grid-template-columns:minmax(120px,1fr) 70px 48px; align-items:center; gap:8px; margin:8px 0; }
+.wb20-portent-correction { margin:12px 0; padding:8px; border:1px solid var(--wb20-sheet-accent,currentColor); border-radius:3px; }
+.wb20-portent-correction label { display:flex; align-items:center; gap:8px; margin:8px 0; }
+.wb20-portent-correction input[type="checkbox"] { flex:none; }
 .wb20-resource-dialog .ajs-header,.wb20-resource-dialog .ajs-footer,.wb20-resource-dialog .ajs-body { background:transparent; color:inherit; }
 .wb20-attack-outcome label { display:block; margin:0.5em 0; }
 .wb20-attack-outcome select { margin-left:0.5em; }
@@ -1940,5 +1947,19 @@ span.dice-roll.beyond20-tooltip-content {
 .wb20-action-value:disabled { opacity: .5; cursor: default; }
 .wb20-action-value [data-wb20-value-icon] { display: inline-flex; flex: none; width: 14px; height: 14px; }
 .wb20-action-value [data-wb20-value-icon] svg { width: 100%; height: 100%; }
+.wb20-action-note { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; width:100%; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; white-space:normal; overflow-wrap:normal; }
+.wb20-action-note:hover { text-decoration:underline; }
+.wb20-action-note:focus-visible { outline:1px solid currentColor; outline-offset:2px; }
+.wb20-opportunity-select { width:100%; min-width:0; padding:0; font:inherit; color:inherit; background:transparent; border:1px solid transparent; cursor:pointer; }
+.wb20-opportunity-select:hover,.wb20-opportunity-select:focus { border-color:currentColor; }
+.wb20-opportunity-select option { color:CanvasText; background:Canvas; }
+.wb20-action-value [data-wb20-value-icon] { color:var(--wb20-value-icon-color,#75838b); }
 
 [data-wb20-duplicate-weapon] { display: none !important; }
+
+/* Keep the approved brand casing in native desktop/tablet/mobile controls. */
+.ct-beyond20-settings-button,
+.ct-beyond20-settings-button [class*="__button-label"] {
+    text-transform: none !important;
+    font-variant: normal;
+}
