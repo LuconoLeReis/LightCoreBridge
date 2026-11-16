@@ -18,7 +18,7 @@ assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(wayBeyond20ReadTurnO
         await page.addStyleTag({content:'main { min-height: 1px; }'});
         await page.addScriptTag({content:fn(read('src/dndbeyond/content-scripts/portent.js'),'wayBeyond20ApplySheetTheme')});
         await page.addScriptTag({content:`
-            var state={inCombat:true,combatSource:'Roll20',combatStartedAt:1,action:1,bonusAction:1,reaction:1,movement:30,
+            var state={inCombat:true,combatSource:'Roll20',combatStartedAt:1,initiativeTotal:19.18,action:1,bonusAction:1,reaction:1,movement:30,
                 currentRoll20Turn:{tokenId:'one',tokenName:'Goblin'},
                 knownTargets:[{tokenId:'one',name:'Goblin',initiative:'18'},{tokenId:'two',name:'Goblin',initiative:'0'},
                     {tokenId:'three',name:'Ogre Zombie (choirmaster)',initiative:'13'}]};
@@ -35,11 +35,13 @@ assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(wayBeyond20ReadTurnO
             function wayBeyond20SpendTurnResource(){throw new Error('Target controls must not spend economy');}
             function wayBeyond20StartNewTurn(){state={...state,localTurnNumber:2};wayBeyond20ScheduleActiveEffectBadgeRefresh();}
             function wayBeyond20EndCombat(){state={...state,inCombat:false};wayBeyond20ScheduleActiveEffectBadgeRefresh();}
-            ${['wayBeyond20HasActiveCombatState','wayBeyond20BuildCombatResource','wayBeyond20FindCombatSectionHost','wayBeyond20InjectTurnResourceTracker'].map(n=>fn(source,n)).join('\n')}
+            const wb20DismissedLocalTurnOffers=new WeakMap();
+            ${['wayBeyond20HasActiveCombatState','wayBeyond20AttacksPerAttackAction','wayBeyond20BuildCombatResource','wayBeyond20FindCombatSectionHost','wayBeyond20InjectTurnResourceTracker','wayBeyond20AttackActivationTurnKey','wb20LocalTurnReady','wb20BuildLocalTurnOffer','wb20CombatInitiativeTotal'].map(n=>fn(source,n)).join('\n')}
             ${fn(source,'wayBeyond20ScheduleActiveEffectBadgeRefresh').replace('function wayBeyond20ScheduleActiveEffectBadgeRefresh(', 'function schedulePlacementRefresh(')}
         `});
         await page.addScriptTag({path:path.join(root,'src/dndbeyond/content-scripts/my-target.js')});
         await page.evaluate(()=>wayBeyond20InjectTurnResourceTracker());
+        assert.match(await page.locator('.waybeyond20-combat-source').textContent(),/Your initiative: 19\.18/);
         // Bill's longer side names must clear the rim without raising the header.
         await page.evaluate(()=>{
             window.savedNames=state.knownTargets.map(t=>t.name);
@@ -322,7 +324,7 @@ assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(wayBeyond20ReadTurnO
         await page.evaluate(()=>{state.knownTargets=[{tokenId:'three',name:'Ogre Zombie'}];wayBeyond20InjectTurnResourceTracker();});
         assert.equal(await page.locator('.wb20-compass-next .wb20-compass-name').textContent(),'—');
         await page.evaluate(()=>{state.currentRoll20Turn=null;wayBeyond20InjectTurnResourceTracker();});
-        assert.equal(await page.locator('.wb20-compass-current .wb20-compass-name').textContent(),'Manual turn');
+        assert.equal(await page.locator('.wb20-compass-current .wb20-compass-name').textContent(),'Goblin');
         assert.equal(await page.getByRole('button',{name:'Select Target',exact:true}).isDisabled(),true);
         await page.getByRole('button',{name:'End Combat',exact:true}).click();
         assert.equal(await page.locator('.wb20-combat-layout').count(),0);

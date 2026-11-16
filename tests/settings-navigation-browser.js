@@ -17,7 +17,7 @@ window.chrome={runtime:{id:'fixture',getURL:p=>location.origin+'/'+p,getManifest
 (async()=>{
     const browser=await chromium.launch({channel:'chrome',headless:true});
     try {
-        for (const file of ['options.html','popup.html','popup.html?vtt=1','popup.html?monster=1','default_popup.html']) {
+        for (const file of ['options.html','popup.html?sourceTab=1','popup.html','popup.html?vtt=1','popup.html?monster=1','default_popup.html']) {
             console.log('Checking built menu:', file);
             const page=await browser.newPage(),errors=[];
             await page.setViewportSize({width:720,height:900});
@@ -36,10 +36,54 @@ window.chrome={runtime:{id:'fixture',getURL:p=>location.origin+'/'+p,getManifest
                 .catch(async e=>{console.error({file, destination:await page.locator('#vtt-tab').allTextContents(), errors});throw e;});
             assert.equal(await page.locator('#vtt-tab').count(),1,'one destination control');
             assert.equal(await page.locator('.beyond20-options').evaluate(e=>e.firstElementChild.id),'beyond20-option-vtt-tab');
+            const fullPage=file==='options.html'||file.includes('sourceTab=');
+            const sections=page.locator('.wb20-settings-section');
+            assert.ok(await sections.count()>0);
+            assert.equal(await sections.locator(':scope[open]').count(),fullPage?await sections.count():0);
+            const rollResults=page.locator('.wb20-settings-section[data-group="Roll results"]');
+            if(fullPage){
+                assert.ok(await rollResults.locator('[data-setting="use-digital-dice"]').count());
+                assert.equal(await sections.first().getAttribute('data-group'),'Roll results');
+            }
             assert.equal(await page.evaluate(()=>writes),0,'opening a menu does not save defaults');
             assert.equal(await page.locator('body').evaluate(e=>getComputedStyle(e).color),'rgb(240, 241, 242)');
             assert.equal(await page.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(35, 36, 38)');
             const search=page.getByRole('searchbox',{name:'Find a setting'});
+            if(file==='options.html'){
+                await page.evaluate(()=>{
+                    saved.settings['hotkeys-bindings']={KeyJ:'advantage',KeyK:'disadvantage'};
+                    window.saveAs=async (blob,filename)=>{window.exportedPreferences={filename,body:JSON.parse(await blob.text())};};
+                });
+                await search.fill('export shortcuts');
+                await page.locator('#beyond20-option-export-hotkey-preferences button').click();
+                await page.waitForFunction(()=>window.exportedPreferences);
+                const exported=await page.evaluate(()=>exportedPreferences);
+                assert.equal(exported.filename,'LightCore-Bridge-preferences.json');
+                assert.deepEqual(exported.body.beyond20,{format:2});
+                assert.deepEqual(exported.body.preferences['hotkeys-bindings'],{KeyJ:'advantage',KeyK:'disadvantage'});
+                assert.equal(exported.body.preferences['vtt-tab'],undefined);
+                assert.equal(exported.body.preferences['discord-channels'],undefined);
+                assert.equal(exported.body.preferences['talespire-url'],undefined);
+                assert.equal(exported.body['character-123'],undefined);
+                await search.fill('import shortcuts');
+                const input=page.locator('#beyond20-option-import-hotkey-preferences input[type=file]');
+                await input.setInputFiles({name:'transfer.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({
+                    beyond20:{format:2},
+                    preferences:{'hotkeys-bindings':{KeyT:'normal_roll'},'sticky-hotkeys':true,'whisper-type':'invalid','discord-channels':[],
+                        'talespire-url':'different-machine','vtt-tab':null,'custom-domains':['https://other.test/*'],'future-setting':'bad'},
+                    'character-123':{focus:0}
+                }))});
+                await page.waitForFunction(()=>saved.settings['hotkeys-bindings']?.KeyT==='normal_roll');
+                assert.deepEqual(await page.evaluate(()=>saved.settings['hotkeys-bindings']),{KeyT:'normal_roll'});
+                assert.equal(await page.evaluate(()=>saved.settings['sticky-hotkeys']),true);
+                assert.equal(await page.evaluate(()=>saved.settings['vtt-tab'].title),'Fixture World');
+                assert.equal(await page.evaluate(()=>saved.settings['talespire-url']),'retained-link');
+                assert.equal(await page.evaluate(()=>saved.settings['discord-channels'][0].secret),'retained-secret');
+                assert.equal(await page.evaluate(()=>saved.settings['whisper-type']),1);
+                assert.equal(await page.evaluate(()=>saved.settings['future-setting']),'retained-unknown');
+                assert.equal(await page.evaluate(()=>saved['character-123'].focus),2);
+                await search.fill('');
+            }
             const before=await page.evaluate(()=>JSON.stringify(saved));
             await search.fill('talespire');
             await page.locator('#talespire-url').waitFor();
@@ -55,6 +99,14 @@ window.chrome={runtime:{id:'fixture',getURL:p=>location.origin+'/'+p,getManifest
             }
             await page.locator('#vtt-tab').click();
             const options=page.locator('#beyond20-option-vtt-tab .dropdown-menu');
+            const trigger=await page.locator('#vtt-tab').boundingBox();
+            const dropdown=await options.boundingBox();
+            assert.ok(dropdown.y>=trigger.y+trigger.height,'destination list opens below the current choice');
+            assert.equal(await options.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(255, 255, 255)','menu has an opaque base under the theme');
+            await options.getByText('D&D Beyond (no VTT)',{exact:true}).click();
+            await page.waitForFunction(()=>saved.settings['vtt-tab']?.vtt==='dndbeyond');
+            assert.equal(await page.locator('#vtt-tab').textContent(),'D&D Beyond (no VTT)');
+            await page.locator('#vtt-tab').click();
             if(!file.includes('vtt='))assert.equal(await options.getByText('This Campaign',{exact:true}).count(),0,'DDB is never offered as a VTT campaign');
             await options.getByText('TaleSpire',{exact:true}).click();
             await page.waitForFunction(()=>saved.settings['vtt-tab']?.vtt==='talespire');

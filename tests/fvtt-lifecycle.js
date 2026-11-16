@@ -90,7 +90,7 @@ function makeReceiver() {
     settingsStore = {};
     const r = vm.createContext({
         console,
-        character: { _id: 'c1', _name: 'Calan',
+        character: { _id: 'c1', _name: 'Hero',
             getSetting: (k, f) => k in settingsStore ? settingsStore[k] : f,
             mergeCharacterSettings: (s, cb) => { Object.assign(settingsStore, s); if (cb) cb(); } },
         wayBeyond20GetTrackedSpellEffects: () => [], wayBeyond20GetTurnTrackerState: () => state,
@@ -123,11 +123,11 @@ for (const version of ['13.345', '9.280']) {
     let delivered = 0;
     const publish = () => { c.wayBeyond20FvttPublishTurn(); while (delivered < messages.length) r.deliver(messages[delivered++]); };
     const world = makeWorld(version);
-    world.addToken('tokSelf', 'Calan', 0, 0);
+    world.addToken('tokSelf', 'Hero', 0, 0);
     world.addToken('tokMob', 'Zombie', 300, 0);
     world.addToken('tokGhost', 'Secret Lich', 500, 0, { hidden: true });
     const turns = [world.combatant('cbMob', 'tokMob', 'Zombie', 18),
-        world.combatant('cbSelf', 'tokSelf', 'Calan', 12),
+        world.combatant('cbSelf', 'tokSelf', 'Hero', 12),
         world.combatant('cbGhost', 'tokGhost', 'Secret Lich', 5, { hidden: true })];
     c.game.scenes = { get: () => world.scene };
 
@@ -147,7 +147,7 @@ for (const version of ['13.345', '9.280']) {
     assert.deepEqual(counters(), [1, 1, 1, 0], `${label}: another combatant's turn starts combat without a character turn`);
     const first = messages.at(-1).current;
     assert.equal(first.tokenId, 'tokMob');
-    assert.deepEqual([...first.targets.map(t => t.name)], ['Zombie', 'Calan'], `${label}: players never receive hidden combatants`);
+    assert.deepEqual([...first.targets.map(t => t.name)], ['Zombie', 'Hero'], `${label}: players never receive hidden combatants`);
     publish(); assert.equal(messages.length, 2, `${label}: identical observations are silent`);
 
     combat.setTurn(1, 1); publish();
@@ -184,12 +184,12 @@ for (const version of ['13.345', '9.280']) {
     assert.equal(state.localTurnNumber, 0);
 
     // Explicit token link from initiative.
-    c.wayBeyond20FvttBindTokens('Calan', [{ id: 'tokOther' }], 'initiative'); publish();
+    c.wayBeyond20FvttBindTokens('Hero', [{ id: 'tokOther' }], 'initiative'); publish();
     assert.equal(settingsStore['waybeyond20-foundry-token-id'], 'tokOther');
     c.wayBeyond20FvttBindTokens('Someone Else', [{ id: 'tokX' }], 'initiative'); publish();
     assert.equal(settingsStore['waybeyond20-foundry-token-id'], 'tokOther', `${label}: other character's binding ignored`);
     const before = messages.length;
-    c.wayBeyond20FvttBindTokens('Calan', [], 'initiative');
+    c.wayBeyond20FvttBindTokens('Hero', [], 'initiative');
     assert.equal(messages.length, before, `${label}: no controlled token, no binding`);
 
     // Hook lifecycle: one set of hooks, no duplicates on restart, full removal on stop.
@@ -269,9 +269,9 @@ assert.ok(pageScript.includes('} else if (rollMode == "selfroll") {'), 'self rol
     const r = makeReceiver();
     state = { inCombat: true, combatSource: 'D&D Beyond Initiative', localTurnNumber: 1, action: 1, bonusAction: 1, reaction: 1 };
     const world = makeWorld('14.369');
-    world.addToken('tokMob', 'Zombie', 300, 0); world.addToken('tokSelf', 'Calan', 0, 0);
+    world.addToken('tokMob', 'Zombie', 300, 0); world.addToken('tokSelf', 'Hero', 0, 0);
     c.game.scenes = { get: () => world.scene };
-    c.game.combat = makeCombat(world, [world.combatant('m', 'tokMob', 'Zombie', 18), world.combatant('s', 'tokSelf', 'Calan', 2)], 3, 0);
+    c.game.combat = makeCombat(world, [world.combatant('m', 'tokMob', 'Zombie', 18), world.combatant('s', 'tokSelf', 'Hero', 2)], 3, 0);
     c.wayBeyond20FvttPublishTurn(); r.deliver(messages.at(-1));
     assert.equal(state.combatSource, 'Foundry', 'a local initiative combat hands over to Foundry');
     assert.equal(state.currentRoll20Turn.tokenId, 'tokMob');
@@ -289,9 +289,9 @@ assert.ok(pageScript.includes('} else if (rollMode == "selfroll") {'), 'self rol
         sendMessageWithLog: (id) => ctx.sent.push(id), fvttTitle: t => t.replace(' • Foundry Virtual Tabletop', '') });
     for (const name of ['wayBeyond20UrlOrigin', 'isFVTTTabAdded', 'addFVTTTab', 'filterVTTTab']) vm.runInContext(fn(bg, name), ctx);
     ctx.addFVTTTab({ id: 7, title: 'Foundry Virtual Tabletop' });
-    ctx.addFVTTTab({ id: 7, title: 'Chult After Hours • Foundry Virtual Tabletop' });
+    ctx.addFVTTTab({ id: 7, title: 'Example Campaign • Foundry Virtual Tabletop' });
     assert.equal(ctx.fvtt_tabs.length, 1, 'one entry per tab');
-    assert.equal(ctx.filterVTTTab({}, { id: 0, title: 'Chult After Hours' }, ctx.fvtt_tabs, ctx.fvttTitle), true, 'the selected world matches');
+    assert.equal(ctx.filterVTTTab({}, { id: 0, title: 'Example Campaign' }, ctx.fvtt_tabs, ctx.fvttTitle), true, 'the selected world matches');
     assert.deepEqual([...ctx.sent], [7]);
     Object.assign(ctx, {isFVTT: title => title.includes('Foundry Virtual Tabletop'),
         isCustomTabAdded: () => false, isRoll20TabAdded: () => false});
@@ -300,7 +300,7 @@ assert.ok(pageScript.includes('} else if (rollMode == "selfroll") {'), 'self rol
         {id:7,title:'Renamed World • Foundry Virtual Tabletop'});
     assert.equal(ctx.filterVTTTab({}, {id:7,title:'Renamed World'}, ctx.fvtt_tabs, ctx.fvttTitle), true,
         'real title-update handler refreshes routing without another registration');
-    assert.equal(ctx.filterVTTTab({}, {id:0,title:'Chult After Hours'}, ctx.fvtt_tabs, ctx.fvttTitle), false,
+    assert.equal(ctx.filterVTTTab({}, {id:0,title:'Example Campaign'}, ctx.fvtt_tabs, ctx.fvttTitle), false,
         'old world title no longer receives a roll');
     ctx.onTabsUpdated(99, {title:'Other • Foundry Virtual Tabletop'},
         {id:99,title:'Other • Foundry Virtual Tabletop'});
@@ -326,8 +326,8 @@ assert.ok(pageScript.includes('} else if (rollMode == "selfroll") {'), 'self rol
     Object.assign(ctx, { isCustomTabAdded: () => false, isRoll20TabAdded: () => false });
     const send = (limit) => { sent.length = 0; let failed = null;
         ctx.sendMessageToFVTT({ action: 'roll' }, limit, f => { failed = f; }); return { failed, sent: [...sent] }; };
-    const world = { id: 0, title: 'Chult After Hours', vtt: 'fvtt' };
-    const foundry = { id: 9, title: 'Chult After Hours • Foundry Virtual Tabletop', url: 'http://localhost:30000/game' };
+    const world = { id: 0, title: 'Example Campaign', vtt: 'fvtt' };
+    const foundry = { id: 9, title: 'Example Campaign • Foundry Virtual Tabletop', url: 'http://localhost:30000/game' };
 
     // Worker just woke: empty cache, live permitted Foundry tab is found.
     liveTabs = [foundry, { id: 4, title: 'Other • Foundry Virtual Tabletop', url: 'https://no-permission.example/game' },
@@ -352,7 +352,7 @@ assert.ok(pageScript.includes('} else if (rollMode == "selfroll") {'), 'self rol
     // A registration made without permanent permission (one-time activation) holds on its own
     // origin, but not after the tab moves to another Foundry server.
     origins = [];
-    const activated = { id: 12, title: 'Chult After Hours • Foundry Virtual Tabletop', url: 'http://192.168.1.50:30000/game' };
+    const activated = { id: 12, title: 'Example Campaign • Foundry Virtual Tabletop', url: 'http://192.168.1.50:30000/game' };
     ctx.fvtt_tabs = [activated]; liveTabs = [activated];
     assert.deepEqual(send(world), { failed: false, sent: [12] }, 'activated tab works on its own origin');
     liveTabs = [{ ...activated, url: 'https://other-foundry.example/game' }];
@@ -369,7 +369,7 @@ assert.ok(pageScript.includes('} else if (rollMode == "selfroll") {'), 'self rol
     assert.equal(ctx.fvtt_tabs.length, 0, 'the crossed registration is dropped');
     // A legitimate rename on the same origin keeps working through the same sequence.
     ctx.fvtt_tabs = [{ ...activated, title: 'First • Foundry Virtual Tabletop' }];
-    const renamed = { ...activated, title: 'Chult After Hours • Foundry Virtual Tabletop' };
+    const renamed = { ...activated, title: 'Example Campaign • Foundry Virtual Tabletop' };
     ctx.onTabsUpdated(12, { title: renamed.title }, renamed);
     liveTabs = [renamed];
     assert.deepEqual(send(world), { failed: false, sent: [12] }, 'same-origin rename still routes the selected world');
@@ -383,15 +383,15 @@ assert.ok(pageScript.includes('} else if (rollMode == "selfroll") {'), 'self rol
     const { c, messages } = makeContext('13.345', true);
     const world = makeWorld('13.345');
     world.addToken('tokGhost', 'Secret Lich', 500, 0, { hidden: true });
-    world.addToken('tokSelf', 'Calan', 0, 0);
+    world.addToken('tokSelf', 'Hero', 0, 0);
     c.game.combat = makeCombat(world, [world.combatant('cbGhost', 'tokGhost', 'Secret Lich', 5, { hidden: true }),
-        world.combatant('cbSelf', 'tokSelf', 'Calan', 1)], 1, 0);
+        world.combatant('cbSelf', 'tokSelf', 'Hero', 1)], 1, 0);
     c.wayBeyond20FvttPublishTurn();
     const ghost = messages[0].current.targets.find(t => t.key === 'tokGhost');
     assert.equal(ghost.position, null); assert.equal(ghost.positionStatus, 'Combatant is hidden');
     assert.equal(messages[0].current.tokenId, 'tokGhost', 'GM sees the real current combatant');
     // A token that is merely hidden (not the combatant) still has no exported position.
-    c.game.combat.turns[1] = world.combatant('cbSelf', 'tokSelf', 'Calan', 1);
+    c.game.combat.turns[1] = world.combatant('cbSelf', 'tokSelf', 'Hero', 1);
     world.tokens.get('tokSelf').hidden = true;
     c.wayBeyond20FvttPublishTurn();
     const self = messages.at(-1).current.targets.find(t => t.key === 'tokSelf');
@@ -403,12 +403,12 @@ assert.ok(pageScript.includes('} else if (rollMode == "selfroll") {'), 'self rol
     const { c, messages } = makeContext('13.345');
     const rows = [['Slashing', { total: 7 }, 1], ['Healing', { total: 5 }, 4], ['Versatile', { total: 9 }, 2],
         ['Second target', { total: 4 }, 8], ['note', 'text', 0], ['Necrotic', { total: 3 }, 1]];
-    c.wayBeyond20FvttResolvedDamage({ character: { id: 'c1', name: 'Calan' } }, rows);
+    c.wayBeyond20FvttResolvedDamage({ character: { id: 'c1', name: 'Hero' } }, rows);
     assert.equal(messages.length, 0, 'no intent, no award');
-    c.wayBeyond20FvttResolvedDamage({ character: { id: 'c1', name: 'Calan' }, 'waybeyond20-temp-hp-on-hit': { mode: 'damage-dealt' } }, rows);
+    c.wayBeyond20FvttResolvedDamage({ character: { id: 'c1', name: 'Hero' }, 'waybeyond20-temp-hp-on-hit': { mode: 'damage-dealt' } }, rows);
     assert.equal(messages[0].action, 'waybeyond20-damage-result'); assert.equal(messages[0].totalDamage, 10);
     assert.equal(messages[0].source, 'Foundry');
-    c.wayBeyond20FvttResolvedDamage({ character: { name: 'Calan' }, effects: ['Draining Attack'], 'waybeyond20-unarmed-strike': true },
+    c.wayBeyond20FvttResolvedDamage({ character: { name: 'Hero' }, effects: ['Draining Attack'], 'waybeyond20-unarmed-strike': true },
         [['Bludgeoning', { total: 0 }, 1]]);
     assert.equal(messages.length, 1, 'zero damage awards nothing');
 }
@@ -465,14 +465,14 @@ assert.ok(pageScript.includes('} else if (rollMode == "selfroll") {'), 'self rol
         updateEmbeddedDocuments: async (_t, d) => updates.push(d), createEmbeddedDocuments: async (_t, d) => creates.push(d) };
     vm.runInContext(fn(pageScript, 'addInitiativeToCombat'), c);
     vm.runInContext(fn(pageScript, 'updateEffects'), c);
-    c.addInitiativeToCombat({ total: 17 }, { character: { name: 'Calan' } }).then(() => {
+    c.addInitiativeToCombat({ total: 17 }, { character: { name: 'Hero' } }).then(() => {
         assert.equal(creates.length, 1);
         const binding = messages.find(m => m.action === 'waybeyond20-token-binding');
         assert.ok(binding, 'initiative creates a token binding');
-        assert.equal(binding.character.name, 'Calan'); assert.equal(binding.tokenId, 'tokA');
-        c.updateEffects({}, 'Calan', [{ name: 'Bless <b>', concentration: true, duration: '1 min' }], { name: 'Bless <b>' });
+        assert.equal(binding.character.name, 'Hero'); assert.equal(binding.tokenId, 'tokA');
+        c.updateEffects({}, 'Hero', [{ name: 'Bless <b>', concentration: true, duration: '1 min' }], { name: 'Bless <b>' });
         assert.equal(chats.length,0,'passive effects stay out of VTT chat');
-        c.updateEffects({}, 'Calan', [], null);
+        c.updateEffects({}, 'Hero', [], null);
         assert.equal(chats.length,0,'ending effects stays out of VTT chat');
         assert.ok(pageScript.includes("addInitiativeToCombat(initiative, request.request)"), 'rendered initiative passes its original request');
         console.log('PASS Foundry initiative token link and quiet effects bookkeeping (mocked).');

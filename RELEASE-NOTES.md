@@ -1,39 +1,47 @@
-# LightCore Bridge 1.73.72
+# LightCore Bridge 1.73.106
 
-First LightCore Bridge release. Browser build **2.20.204**.
+Browser build **2.20.238**. This stable release brings together the repairs developed since 1.73.72. Existing saved settings and compatibility identifiers are retained.
 
-LightCore Bridge is the new name for WayBeyond20. It connects a D&D Beyond character to local tabletop play, Roll20, Foundry VTT, TaleSpire and optional Discord output. A VTT is not required. The name, approved artwork and compact LightCore control are updated; existing saved character data, connections and compatibility identifiers are retained.
+## Download
 
-## Included since WayBeyond20 1.73.57
+- [Chrome extension ZIP](https://github.com/LuconoLeReis/WayBeyond20/releases/download/v1.73.106/LightCore-Bridge-chrome-v1_73_106.zip) — install this package.
+- [Corresponding source ZIP](https://github.com/LuconoLeReis/WayBeyond20/releases/download/v1.73.106/LightCore-Bridge-source-v1_73_106.zip) — source, tests, build inputs and optional TaleSpire companion.
 
-- Updated Actions presentation: consistent main names/subtitles, spell level choices, range/value cells, damage-type indicators and concise contextual Notes.
-- Remembered Opportunity Attack/War Caster choices and clearer feature/resource controls, with native rules/eligibility reminders retained.
-- Portent used-state correction, compact item-buff display and header alignment improvements.
-- Active Find Steed and Summon Undead controls using cast-level/type-specific stats and separate creature actors on the existing attack pathway. Companion rolls do not borrow the caster's personal reroll resources or attack riders.
-- Animate Dead tracking for creation and renewal, separate creature identities/HP/control hours, and one Bonus Action group command.
-- Manual companion tracking accepts normal native-sidebar dismissal while rejecting another character or replacement spell pane. This repairs the renewal defect found in pre-release live testing.
+## Attacks, damage and the Game Log
 
-## Using companions
+- Attack shortcuts stay attached to the original weapon row during native icon redraws. An expired handoff reports that no roll was sent.
+- The manual **Roll Damages** control remains available while damage is pending, including when ordinary local result cards are hidden. Miss or Skip removes the pending continuation. A failed resource-history save warns rather than leaving the completed hit waiting forever.
+- A completed managed attack has a local damage total and its component breakdown. Critical weapon and rider dice contribute to the combined total, including a flat-damage Unarmed Strike with a critical dice rider. Versatile alternatives and conditional damage remain separate.
+- With Digital Dice and Game Log enabled, correlated rolls retain the ability name and attack modifier. Managed damage is grouped as a named total with typed component and critical breakdowns. Attack-only criticals and standalone healing/save casts no longer wait for an unrelated damage group.
+- Shared Unarmed Strike normalization reads owned feature descriptions and current native dice. It preserves native Dexterity bonuses and does not rewrite an extra-damage feature as an Unarmed Strike.
+- Protected rerolls offer **Spend and reroll** or **Keep Roll**. An Advantage/Super Advantage result with an eligible kept natural d20 above 9 skips the Protected prompt.
 
-For Animate Dead, open the desired Skeleton and Zombie reference entries in DDB Extras once to load their native definitions. Normal casting can register the selected creatures; Track an existing summon adds controls for a creature already present without casting or spending another slot. When a definition is unavailable, Continue without tracking keeps the ordinary spell available.
+## Healing, resources and controls
 
-Click the creature's action icon to roll. Click its name or Notes for details, HP/control corrections or End tracking. Renewal retains the same creature and HP. Existing orders continue until completed; individual creature attacks do not cost another caster Bonus Action.
+- Healing-only casts produce their result even when automatic attack damage is off. Native slot and activation handling remain in the normal cast workflow.
+- Owned Life Domain descriptions support Disciple of Life, Blessed Healer and Supreme Healing. Blessed Healer asks before applying the caster's benefit; a failed native HP update gives the amount for manual reconciliation. Preserve Life and similar pools still require target allocation at the table.
+- Lay On Hands uses the shared healing action path and shows the remaining native pool. Cleric healing/Channel Divinity actions and owned on-hit riders retain their distinct costs and timing.
+- Initiative rolls are named, the tracker shows the character's initiative, and Correction can set, clear or adjust it. New combat identity and manual New Turn clear stale external-turn state. Manual combat can offer the next turn once action, bonus action and attack pools are spent.
+- Dialog themes, value-cell hover behavior, dropdown borders, the settings flyout and portable preference import/export have been refined. Portable preferences exclude destination credentials and private integration secrets.
 
-Control hours are manually advanced game time. Multiattack shows the attack count; each click rolls one attack. Initiative/positions, aura eligibility, automatic target conditions and native companion-HP synchronization are not automated. Details preserve the rules for table adjudication. No claim that every homebrew feature is automated.
+## TaleSpire
 
-## Installation and compatibility
+Paused TaleSpire turn following no longer closes a manually opened Combat Window. Position and target observations can continue while following is paused; those observations alone do not adopt the native turn order or replenish resources.
 
-The Chrome archive uses the existing WayBeyond20 folder wrapper for compatibility, while the extension displays LightCore Bridge. Retain the existing extension/settings when updating. Native DDB and optional destination companions remain separate applications; this release does not provision a Discord server or redeploy a remote VTT module. Existing third-party licenses and Beyond20 attribution remain included.
+For native turns, enable **Follow this board's turn order** in the optional TaleSpire companion. Mini linking is explicit. The companion and local return helper are separate from the Chrome ZIP; installation instructions are in [the corresponding source](https://github.com/LuconoLeReis/WayBeyond20/tree/v1.73.106/companions/talespire). Companion 1.1.2 updates visible branding to LightCore Bridge while retaining compatible folder names, receiver identity and pairing. It does not write native initiative or HP.
 
-## Verified scope and remaining limits
+## Verification and limits
 
-Independent offline review approved the mainline changes from 1.73.57 through 1.73.72. Automated regression suites, companion composition tests, syntax checks and Chrome/Firefox builds passed. Live checks verified manual renewal preserves HP and identity, and native Animate Dead and Summon Undead casts each commit their companion effect and spend exactly one slot. Test resources were restored. Earlier bounded steed checks verified creature rolls without spending the caster's personal Luck Points.
+The final candidate passed the 60-process automated matrix, Chrome/Firefox builds and 84 compiled JavaScript syntax checks. Independent offline delta reviews cover the changes through 1.73.106. Installed checks verified named attack and critical totals with their breakdown, immediate healing with one slot spent, ordinary local turn controls, Roll20 delivery, and the repaired TaleSpire manual-window persistence. Publication preparation rebuilds the committed source and compares every packaged executable with that accepted candidate.
 
-This is not a claim that every homebrew feature or destination was live-tested. The separate experimental mastery/rider branch is not included. Existing digital-dice privacy settings can suppress a local card; old destination companions or late acknowledgments may produce an extra local copy. Intermittent loading indicators remain under investigation; reopening a sheet after an extension update avoids stale scripts.
+This is bounded acceptance, not a claim that every feature, character, destination or cross-computer scenario was tested live. Broader two-client TaleSpire turn/position acceptance and exhaustive Foundry checks remain separate. A sufficiently late native digital-dice result can still be ambiguous after a timeout; missing controls fall back locally. An incomplete or audience-mismatched Game Log group can degrade to separate safe component entries. Unresolved homebrew descriptions and target/condition adjudication can require manual handling.
 
-## Download and update
+The new central Discord session service, player sign-in and automatic shared-state synchronization are **not included**. Existing optional Discord roll output remains available. The experimental private mastery branch is also excluded. Summoned-creature control hours remain manually advanced game time; automatic companion HP/condition application is not promised.
 
-- [Chrome extension ZIP](https://github.com/LuconoLeReis/WayBeyond20/releases/download/v1.73.72/LightCore-Bridge-chrome-v1_73_72.zip) — install this package.
-- [Corresponding source ZIP](https://github.com/LuconoLeReis/WayBeyond20/releases/download/v1.73.72/LightCore-Bridge-source-v1_73_72.zip) — source and build inputs.
+## Install or update
 
-Finish pending rolls and close character/VTT tabs. Back up the folder Chrome currently loads. Extract the Chrome ZIP, then copy the contents of its WayBeyond20 folder into that same loaded folder. Reload LightCore Bridge on chrome://extensions and reopen the sheets. Keep the loaded path and existing extension installation to preserve settings. Do not enable another Beyond20/WayBeyond20 copy alongside it.
+For a new installation, extract the Chrome ZIP, open chrome://extensions, enable Developer mode, choose **Load unpacked**, and select the inner **WayBeyond20** folder containing manifest.json. Do not load the source archive as the extension or run another Beyond20 copy alongside it.
+
+For an update, finish pending rolls, back up the folder Chrome currently loads, and replace its contents with the new WayBeyond20 folder contents. Keep the same loaded path and installation to preserve settings. After the copy (or Dropbox sync) completes, reload LightCore Bridge on chrome://extensions and refresh character/VTT tabs. Updating files alone does not replace scripts already injected into an open tab. If you already loaded 1.73.106 / 2.20.238, the published executable code is identical and no gameplay change is required.
+
+Required Beyond20 attribution and GPL/MIT licenses remain included. Corresponding source is the exact v1.73.106 tag. This is a manual unpacked release, not a Chrome Web Store automatic update.

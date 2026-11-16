@@ -43,8 +43,11 @@ function wb20CreateCharacterAttackWorkflow(rollType, fallback, args, caller) {
         needsHit(attack) {
             manageHit = !attack.args["waybeyond20-followup-phase"] &&
                 !!(attack.args.rollAttack || attack.args.rollDamage) &&
-                !!(smiteOptions || savage?.mode === "post-result" || draining || features ||
+                !!(smiteOptions || savage?.mode === "post-result" || draining || features || (typeof wb20ClericNeedsHit === 'function' && wb20ClericNeedsHit(attack.args)) ||
                     attack.targetKey && attack.args.rollAttack && attack.args["to-hit"]);
+            // Only a managed hit produces the final summary that releases the
+            // Game Log group. Standalone healing/save casts publish directly.
+            if (manageHit) attack.args['waybeyond20-local-result-group'] ||= `attack-${Date.now()}-${Math.random().toString(36).slice(2)}`;
             if (!manageHit && ancestorFollowup) attack.args["waybeyond20-followup-phase"] = "base";
             return manageHit;
         },
@@ -57,9 +60,9 @@ function wb20CreateCharacterAttackWorkflow(rollType, fallback, args, caller) {
             if (manageHit && args["waybeyond20-followup-phase"] === "base") {
                 if (!attack.args.rollDamage && !attack.continuation) {
                     const tab = await wayBeyond20SendRuntimeMessage({action: "get-current-tab"});
-                    if (tab.ok && Number.isInteger(tab.response?.id)) {
+                    {
                         const id = `workflow-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-                        attack.continuation = {id, tab: tab.response.id};
+                        attack.continuation = {id, tab: tab.ok && Number.isInteger(tab.response?.id)?tab.response.id:null};
                         wayBeyond20PendingAttackDamage.set(id, {ready: true, workflow: operation});
                         if (wayBeyond20PendingAttackDamage.size > 100)
                             wayBeyond20PendingAttackDamage.delete(wayBeyond20PendingAttackDamage.keys().next().value);
@@ -98,6 +101,8 @@ function wb20CreateCharacterAttackWorkflow(rollType, fallback, args, caller) {
         async confirmHit(attack, resolved) {
             const decision = await wb20ConfirmAttackOutcome(attack.args.name || fallback, resolved.attacks);
             attack.confirmedRoll = decision.roll;
+            if (decision.hit !== true && attack.continuation && typeof wb20ClearLocalDamageControl === "function")
+                wb20ClearLocalDamageControl(attack.continuation.id);
             return decision.hit;
         },
         observeHit(attack, resolved, hit) {
@@ -107,7 +112,8 @@ function wb20CreateCharacterAttackWorkflow(rollType, fallback, args, caller) {
             const critical = !!attack.args.rollCritical || !!attack.confirmedRoll?.isCriticalHit();
             const sameTurn = attack.args["waybeyond20-attack-context"]?.turnKey === wayBeyond20AttackActivationTurnKey();
             return wayBeyond20FinishAttackDamage({ready: true, owner, args: attack.args, rollType, fallback,
-                critical, whisper: resolved.request?.whisper, savage, draining, smiteOptions, monk: features && sameTurn}, perform(attack));
+                critical, whisper: resolved.request?.whisper, savage, draining, smiteOptions, monk: features && sameTurn,
+                attacks:resolved.attacks}, perform(attack));
         }
     };
     // Rule modules send each ordered damage/rider request through this operation's

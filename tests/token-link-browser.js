@@ -14,15 +14,17 @@ function fn(name){
     try {
         const page=await browser.newPage();
         await page.setContent('<div class="beyond20-hotkeys-list"><ul></ul></div><div id="prompt"></div>');
+        await page.addStyleTag({path:path.join(root,'src/extension/beyond20.css')});
         await page.addScriptTag({path:path.join(root,'libs/jquery-3.4.1.min.js')});
         await page.addScriptTag({content:`
             var state={inCombat:true,localTurnNumber:2,action:0,bonusAction:1,reaction:0,movement:15,
                 currentRoll20Turn:{tokenId:'enemy',tokenName:'Zombie'},selectedTargetKey:'enemy',
                 knownTargets:[{tokenId:'enemy',name:'Zombie',initiative:'13'},
-                    {tokenId:'self',name:'Calan',initiative:'10.17'}]};
+                    {tokenId:'self',name:'Hero',initiative:'10.17'}]};
             var saved={'waybeyond20-roll20-token-id':'old','waybeyond20-roll20-token-ids':['old','other']};
             var writes=[],notices=[],refreshes=0;
-            var character={_name:'Calan',getSetting:(key,fallback)=>saved[key]??fallback,
+            var key_modifiers={super_disadvantage:false,super_advantage:true};
+            var character={_name:'Hero',getSetting:(key,fallback)=>saved[key]??fallback,
                 mergeCharacterSettings(data,callback){writes.push(data);Object.assign(saved,data);callback();}};
             function wayBeyond20GetTurnTrackerState(){return state;}
             function wayBeyond20ScheduleActiveEffectBadgeRefresh(){refreshes++;}
@@ -42,6 +44,24 @@ function fn(name){
         `});
         const link=page.getByRole('button',{name:'Link My Token',exact:true});
         assert.equal(await link.count(),1);
+        const buttons=page.locator('.wb20-hotkeys-grid > button');
+        assert.deepEqual(await buttons.allTextContents(),['Link My Token','Combat Window','Use Super Disadvantage','Use Super Advantage']);
+        assert.equal(await buttons.nth(3).getAttribute('aria-pressed'),'true');
+        const sizes=await buttons.evaluateAll(nodes=>nodes.map(node=>[node.offsetWidth,node.offsetHeight]));
+        assert.ok(sizes[0][0]>0 && sizes[0][1]>0);
+        for(const size of sizes)assert.deepEqual(size,sizes[0]);
+        for(const [surface,ink] of [['rgb(20, 24, 28)','rgb(245, 245, 245)'],['rgb(252, 251, 250)','rgb(25, 25, 25)']]){
+            await page.locator('.beyond20-hotkeys-list').evaluate((node,[surface,ink])=>{
+                node.style.setProperty('--wb20-header-surface',surface);
+                node.style.setProperty('--wb20-header-ink',ink);
+            },[surface,ink]);
+            assert.equal(await buttons.first().evaluate(node=>getComputedStyle(node).color),ink);
+            const rest=await buttons.first().evaluate(node=>getComputedStyle(node).backgroundColor);
+            assert.equal(rest,surface);
+            await buttons.first().hover();
+            assert.notEqual(await buttons.first().evaluate(node=>getComputedStyle(node).backgroundColor),rest);
+            await page.mouse.move(1,1);
+        }
         const original=await page.evaluate(()=>JSON.stringify(state));
         await link.click();
         assert.equal(await page.getByLabel('My Roll20 token').inputValue(),'self','unique name preselected when old link is missing');
@@ -53,10 +73,10 @@ function fn(name){
         assert.equal(await page.evaluate(()=>JSON.stringify(state)),original);
         assert.equal(await page.evaluate(()=>refreshes),1);
         // Reopen with an exact persisted ID; duplicate names remain distinguishable.
-        await page.evaluate(()=>state.knownTargets.push({tokenId:'self2',name:'Calan',initiative:'8'}));
+        await page.evaluate(()=>state.knownTargets.push({tokenId:'self2',name:'Hero',initiative:'8'}));
         await link.click();
         assert.equal(await page.getByLabel('My Roll20 token').inputValue(),'self');
-        assert.match(await page.getByLabel('My Roll20 token').textContent(),/Calan · Initiative 10.17 · self/);
+        assert.match(await page.getByLabel('My Roll20 token').textContent(),/Hero · Initiative 10.17 · self/);
         await page.getByLabel('My Roll20 token').selectOption('self2');
         await page.evaluate(()=>state.knownTargets=state.knownTargets.filter(t=>t.tokenId!=='self2'));
         await page.getByRole('button',{name:'Link token',exact:true}).click();

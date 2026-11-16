@@ -43,6 +43,24 @@
 .wb20-spell-choice-caption { position: absolute; inset: 3px 17px 3px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
 .wb20-spell-choice::after { content: ""; position: absolute; right: 6px; top: 7px; width: 5px; height: 5px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); pointer-events: none; opacity: 0; }
 .wb20-spell-choice:hover::after,.wb20-spell-choice:focus-within::after { opacity: 1; }
+
+.wb20-opportunity-attack .wb20-opportunity-choice { position: relative; display: block; width: 100%; min-width: 0; }
+.wb20-opportunity-attack .wb20-opportunity-choice > select {
+    appearance: none; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%;
+    padding: 2px 17px 2px 3px; font: inherit; color: inherit; background: transparent;
+    border: 1px solid transparent; border-radius: 3px; text-overflow: ellipsis; cursor: pointer;
+}
+.wb20-opportunity-attack .wb20-opportunity-choice > select:disabled { cursor: default; }
+.wb20-opportunity-attack .wb20-opportunity-choice > select:enabled:is(:hover,:focus-visible,:active,:open) {
+    border-color: var(--wb20-value-border-color,#b7c9da);
+}
+.wb20-opportunity-attack .wb20-opportunity-choice > select option { color: CanvasText !important; -webkit-text-fill-color: CanvasText !important; text-shadow: none; background: Canvas; }
+.wb20-opportunity-attack .wb20-opportunity-choice::after {
+    content: ""; position: absolute; right: 6px; top: calc(50% - 4px); width: 5px; height: 5px;
+    border-right: 1px solid currentColor; border-bottom: 1px solid currentColor;
+    transform: rotate(45deg); pointer-events: none; opacity: 0;
+}
+.wb20-opportunity-attack .wb20-opportunity-choice:has(> select:enabled:is(:hover,:focus-visible,:active,:open))::after { opacity: 1; }
 .wb20-quick-manage { font: inherit; border: 1px solid currentColor; border-radius: 4px; background: inherit; color: inherit; padding: 4px 8px; cursor: pointer; }
 .wb20-quick-manager { text-align: left; display: grid; gap: 12px; }
 .wb20-quick-manager .wb20-quick-checks { max-height: 35vh; overflow: auto; }
@@ -114,15 +132,15 @@
 :is(.wb20-feature-option,.wb20-quick-row,.wb20-rule-row,.wb20-opportunity-attack) :is(.ddbc-combat-attack__range,.ddbc-combat-attack__action,.ddbc-combat-attack__damage,.ddbc-combat-attack__notes) > button { color: inherit; font-family: inherit; }
 .wb20-action-sort-menu {
     position: absolute; z-index: 20; right: 0; top: 100%; min-width: 185px;
-    padding: 4px; border: 1px solid #777; border-radius: 4px;
-    background: #fff; color: #151515; box-shadow: 0 3px 10px #0004;
+    padding: 4px; border: 1px solid var(--wb20-popup-line); border-radius: 4px;
+    background: var(--wb20-popup-surface); color: CanvasText; box-shadow: 0 3px 10px #0004;
 }
 .wb20-action-sort-menu button {
     display: block; width: 100%; text-align: left; background: transparent; color: inherit;
     border: 0; padding: 7px 8px; cursor: pointer; font: inherit;
 }
 .wb20-action-sort-menu button[aria-pressed="true"] { font-weight: 700; background-color: #8882; }
-.wb20-action-sort-menu button:hover, .wb20-action-sort-menu button:focus-visible { background: #e8eef8; }
+.wb20-action-sort-menu button:hover, .wb20-action-sort-menu button:focus-visible { background: var(--wb20-popup-highlight); }
 .wb20-inspire-icon, .wb20-feature-option-icon {
     display: inline-flex; align-items: center; justify-content: center;
     box-sizing: border-box; flex: 0 0 22px; margin-right: 5px;
@@ -138,16 +156,28 @@
 #wb20-local-rolls.wb20-local-rolls-fading { opacity: 0; pointer-events: none; }
 #wb20-local-rolls[hidden],.wb20-local-roll-card[hidden] { display: none !important; }
 #wb20-local-rolls > summary { cursor: pointer; padding: 7px 10px; font-weight: 600; color: inherit; border-bottom: 1px solid var(--wb20-sheet-accent,currentColor); }
+#wb20-local-rolls > summary { list-style: none; cursor: default; }
+#wb20-local-rolls > summary::-webkit-details-marker { display: none; }
 #wb20-local-rolls > summary > button { float: right; padding: 1px 7px; border: 1px solid currentColor; border-radius: 4px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .wb20-local-roll-records { max-height: min(55vh,510px); overflow: auto; }
 .wb20-local-roll-card { padding: 8px 10px; margin: 0; border: 0; border-bottom: 1px solid var(--wb20-sheet-accent,currentColor); background: transparent; color: inherit; font: 14px system-ui; }
 .wb20-local-roll-card > summary { cursor: pointer; font-weight: 600; line-height: 1.5; }
+.wb20-local-roll-card > summary { display: none; }
 .wb20-local-roll-card > div { padding-top: 6px; }
+.wb20-local-roll-card .beyond20-title { color: inherit; font: inherit; font-weight: 600; }
+.wb20-local-roll-card .beyond20-message { border: 0; box-shadow: none; }
+.wb20-local-attack-summary .beyond20-header { display: none; }
+.wb20-local-attack-summary .beyond20-conditional-total { display: none; }
+.wb20-local-attack-summary.wb20-local-has-combined .beyond20-total-damage:not(.beyond20-combined-damage) { display: none; }
 @media (prefers-reduced-motion: reduce) { #wb20-local-rolls { transition: none; } }
 :is(.wb20-result-dialog,.wb20-local-roll-card) .beyond20-dice-roller-content { padding: 12px; background: transparent !important; color: inherit; border: 0; }
 :is(.wb20-result-dialog,.wb20-local-roll-card) .beyond20-message { color: inherit; font: inherit; }
 :is(.wb20-result-dialog,.wb20-local-roll-card) .beyond20-roll-total { color: inherit; border-radius: 5px; padding: 8px; font-size: 1.6em; background: color-mix(in srgb,currentColor 8%,transparent); border: 1px solid var(--wb20-sheet-accent,currentColor); }
+:is(.wb20-result-dialog,.wb20-local-roll-card) :is(.beyond20-roll-detail-normal,.beyond20-roll-detail-crit,.beyond20-roll-detail-fail,.beyond20-roll-detail-crit-fail) { color: inherit; }
+:is(.wb20-result-dialog,.wb20-local-roll-card) .beyond20-roll-detail-crit { text-decoration: underline; text-decoration-color: #499d70; }
+:is(.wb20-result-dialog,.wb20-local-roll-card) .beyond20-roll-detail-fail { text-decoration: underline; text-decoration-color: #d76c6c; }
 :is(.wb20-result-dialog,.wb20-local-roll-card) .beyond20-header { border-bottom: 1px solid var(--wb20-sheet-accent,currentColor); padding-bottom: 7px; margin-bottom: 8px; }
+:is(.wb20-result-dialog,.wb20-local-roll-card) .beyond20-header :is(.beyond20-title,summary,summary a) { color: inherit; }
 .wb20-natural-original { display: none !important; }
 .wb20-opportunity-choose { max-width: 100%; white-space: normal; }
 .wb20-opportunity-prompt { display: grid; gap: 14px; min-width: 0; text-align: left; }
@@ -172,7 +202,7 @@
 .wb20-talent-category { font-size: 10px; line-height: 10px; text-transform: none; }
 .wb20-feature-option-name,.wb20-rule-label { display: block; }
 /* Match native readable dice ink; subtitles retain native secondary ink. */
-:is(.wb20-feature-option,.wb20-quick-row,.wb20-rule-row,.wb20-opportunity-attack) :is(.wb20-action-value,.ddbc-damage__value,.wb20-hit-value) { color:var(--wb20-action-value-color,inherit) !important; }
+:is(.wb20-feature-option,.wb20-quick-row,.wb20-rule-row,.wb20-opportunity-attack) :is(.wb20-action-value,.ddbc-damage__value,.wb20-hit-value) { color:var(--wb20-action-roll-ink,var(--wb20-action-value-color,inherit)) !important; }
 .wb20-hit-die-choices { display: flex; flex-wrap: wrap; gap: 4px; }
 .wb20-hit-die-choice {
     background: transparent; color: inherit; font: inherit;
@@ -569,15 +599,9 @@ span.dice-roll.beyond20-tooltip-content {
     pointer-events: none;
 }
 
-.beyond20-hotkeys-hidden {
-    display: none;
-}
-
-.ct-character-header-desktop__group--beyond20-hotkeys,
-.ct-character-header-tablet__group--beyond20-hotkeys,
-.ct-character-header-mobile__group--beyond20-hotkeys {
-    position: relative;
-}
+.wb20-hotkeys-anchor { position: relative; }
+.wb20-hotkeys-anchor:hover { z-index: 101; }
+.wb20-hotkeys-anchor:not(:hover):not(:has(.wb20-hotkeys-grid > button:focus-visible)) > .beyond20-hotkeys-list { display: none; }
 
 .beyond20-button-has-hotkeys {
     background-color: rgb(95, 0, 0);
@@ -588,16 +612,14 @@ span.dice-roll.beyond20-tooltip-content {
 
 .beyond20-hotkeys-list {
     min-width: 300px;
-    background-color: black;
+    background: var(--wb20-header-surface,var(--wb20-popup-surface));
+    color: var(--wb20-header-ink,CanvasText);
     z-index: 1000;
     position: absolute;
-    border: 1px solid rgb(95, 0, 0);
+    border: 1px solid var(--wb20-header-border,var(--wb20-popup-line));
     padding: 10px;
-    top: 16px;
-}
-
-.ct-character-header-mobile__group--beyond20-hotkeys > .beyond20-hotkeys-list {
-    right: -32px;
+    top: 100%;
+    right: 0;
 }
 .beyond20-hotkey-toggle {
     cursor: pointer;
@@ -607,11 +629,11 @@ span.dice-roll.beyond20-tooltip-content {
 }
 .beyond20-hotkey-checkmark {
     float: right;
-    color: green;
+    color: inherit;
 }
 .beyond20-hotkey-toggle:hover {
-    background-color: rgb(155, 208, 243);
-    border: 1px solid darkblue;
+    background: var(--wb20-popup-highlight);
+    border-color: var(--wb20-popup-line);
 }
 .beyond20-hotkeys-roll-types {
     text-align: center;
@@ -620,7 +642,7 @@ span.dice-roll.beyond20-tooltip-content {
 }
 .beyond20-hotkey-enabled {
     font-weight: bold;
-    color: yellow;
+    text-decoration: underline;
 }
 
 .beyond20-manage-hotkeys {
@@ -840,10 +862,10 @@ span.dice-roll.beyond20-tooltip-content {
 }
 
 .waybeyond20-effects-popout {
-    background: #ffffff;
-    border: 1px solid #cfd6dd;
+    background: var(--wb20-popup-surface);
+    border: 1px solid var(--wb20-popup-line);
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
-    color: #222222;
+    color: CanvasText;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 13px;
     line-height: 1.35;
@@ -856,8 +878,8 @@ span.dice-roll.beyond20-tooltip-content {
 
 .waybeyond20-effects-popout-header {
     align-items: center;
-    background: #f2f4f7;
-    border-bottom: 1px solid #cfd6dd;
+    background: var(--wb20-popup-highlight);
+    border-bottom: 1px solid var(--wb20-popup-line);
     display: flex;
     font-weight: 700;
     justify-content: space-between;
@@ -867,9 +889,9 @@ span.dice-roll.beyond20-tooltip-content {
 
 .waybeyond20-effects-popout-close,
 .waybeyond20-effects-popout-end {
-    background: #ffffff;
-    border: 1px solid #b8c0c8;
-    color: #222222;
+    background: var(--wb20-popup-surface);
+    border: 1px solid var(--wb20-popup-line);
+    color: inherit;
     cursor: pointer;
     font-size: 12px;
     line-height: 1.2;
@@ -883,7 +905,7 @@ span.dice-roll.beyond20-tooltip-content {
 
 .waybeyond20-effects-popout-row {
     align-items: flex-start;
-    border-bottom: 1px solid #e2e6ea;
+    border-bottom: 1px solid var(--wb20-popup-line);
     display: flex;
     gap: 8px;
     justify-content: space-between;
@@ -901,7 +923,6 @@ span.dice-roll.beyond20-tooltip-content {
 }
 
 .waybeyond20-effects-popout-empty {
-    color: #666666;
     padding: 9px;
 }
 
@@ -1221,7 +1242,6 @@ span.dice-roll.beyond20-tooltip-content {
     .waybeyond20-header-with-portent > .ct-character-header-desktop__group-tidbits { grid-column: 1; grid-row: 1 / 3; min-width: 0; }
     .waybeyond20-header-with-portent > .waybeyond20-portent { grid-column: 2; grid-row: 1 / 3; margin: 0; }
     .waybeyond20-header-with-portent > .ct-character-header-desktop__group--gap { display: none; }
-    .waybeyond20-header-with-portent > .ct-character-header-desktop__group--beyond20-hotkeys { position: absolute; width: 0; height: 0; }
     .waybeyond20-header-with-portent > .ct-character-header-desktop__group--beyond20 { grid-column: 3; grid-row: 1; }
     .waybeyond20-header-with-portent > .ct-character-header-desktop__group--share { grid-column: 3; grid-row: 2; }
     .waybeyond20-header-with-portent > .ct-character-header-desktop__group--short-rest { grid-column: 4; grid-row: 1; }
@@ -1264,8 +1284,6 @@ span.dice-roll.beyond20-tooltip-content {
     .wb20-compact-header > .waybeyond20-portent { grid-column: 2; grid-row: 1 / 4; margin: 0; align-self: center; }
     .wb20-compact-header .ddbc-character-tidbits__menu-callout { display: none; }
     .wb20-compact-header > .ct-character-header-desktop__group--gap { display: none; }
-    .wb20-compact-header > .ct-character-header-desktop__group--beyond20-hotkeys { position: relative; grid-column: 3; grid-row: 2; align-self: start; width: 0; height: 0; z-index: 101; }
-    .wb20-compact-header .beyond20-hotkeys-list { top: 26px; left: 0; }
     .wb20-compact-header > .wb20-header-manage,
     .wb20-compact-header > .ct-character-header-desktop__group--beyond20,
     .wb20-compact-header > .ct-character-header-desktop__group--share {
@@ -1284,7 +1302,7 @@ span.dice-roll.beyond20-tooltip-content {
     .wb20-compact-header.wb20-header-without-share > .wb20-header-manage { height:39px; background-size:100% 78px; }
     .wb20-compact-header.wb20-header-without-share > .ct-character-header-desktop__group--beyond20 { grid-row:2 / 4; height:39px; align-self:end; background-position:0 -39px; border-bottom:1px solid var(--wb20-header-border,currentColor); border-radius:0 0 4px 4px; }
     .wb20-compact-header .wb20-header-manage button,
-    .wb20-compact-header > .ct-character-header-desktop__group--beyond20 > div,
+    .wb20-compact-header > .ct-character-header-desktop__group--beyond20 > .ct-beyond20-settings-button,
     .wb20-compact-header > .ct-character-header-desktop__group--share > div {
         display: flex; align-items: center; justify-content: center; gap: 5px;
         width: 100%; height: 100%; min-width: 0; margin: 0; padding: 3px 5px;
@@ -1374,11 +1392,8 @@ span.dice-roll.beyond20-tooltip-content {
 .wb20-portent-correction { margin:12px 0; padding:8px; border:1px solid var(--wb20-sheet-accent,currentColor); border-radius:3px; }
 .wb20-portent-correction label { display:flex; align-items:center; gap:8px; margin:8px 0; }
 .wb20-portent-correction input[type="checkbox"] { flex:none; }
-.wb20-resource-dialog .ajs-header,.wb20-resource-dialog .ajs-footer,.wb20-resource-dialog .ajs-body { background:transparent; color:inherit; }
 .wb20-attack-outcome label { display:block; margin:0.5em 0; }
 .wb20-attack-outcome select { margin-left:0.5em; }
-.wb20-resource-dialog input,.wb20-resource-dialog select,.wb20-resource-dialog button { background:var(--wb20-sheet-surface,Canvas); color:inherit; border:1px solid var(--wb20-sheet-accent,currentColor); border-radius:3px; }
-.wb20-resource-dialog button:focus-visible,.wb20-resource-dialog input:focus-visible { outline:2px solid var(--wb20-sheet-accent,currentColor); }
 @media (max-width: 1199px) {
     .wb20-header-manage, .wb20-header-rest, .wb20-header-caption { display: none; }
 }
@@ -1402,6 +1417,17 @@ span.dice-roll.beyond20-tooltip-content {
     gap: 7px;
 }
 .waybeyond20-combat-toolbar > .waybeyond20-combat-resources { display: contents; }
+.wb20-local-turn-offer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+    margin-top: 7px;
+    padding-top: 7px;
+    border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+    font-size: 12px;
+}
+.wb20-local-turn-offer > [role="status"] { margin-right: auto; }
 .waybeyond20-combat-controls {
     justify-content: flex-end;
     margin-left: auto;
@@ -1439,7 +1465,7 @@ span.dice-roll.beyond20-tooltip-content {
     display:none; position:absolute; left:0; bottom:100%; z-index:100;
     grid-template-columns:repeat(3,minmax(72px,1fr)); gap:4px; padding:8px;
     min-width:260px; max-width:calc(100vw - 32px);
-    background:var(--wb20-sheet-surface,Canvas); color:var(--wb20-sheet-ink,inherit);
+    background:var(--wb20-sheet-surface,Canvas); color:var(--wb20-sheet-ink,CanvasText);
     border:1px solid var(--wb20-sheet-accent,currentColor); border-radius:4px;
     box-shadow:0 3px 10px #0004;
 }
@@ -1629,22 +1655,34 @@ span.dice-roll.beyond20-tooltip-content {
     opacity: 0.35;
 }
 
-/* Manual combat fallback for VTTs without turn synchronization. */
-.waybeyond20-open-combat-menu {
-    order: -1;
-    text-align: right;
+.wb20-hotkeys-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 4px;
+    --wb20-hotkeys-surface: var(--wb20-header-surface, Canvas);
+    --wb20-hotkeys-ink: var(--wb20-header-ink, CanvasText);
+    --wb20-hotkeys-border: var(--wb20-header-border, currentColor);
 }
-.waybeyond20-open-combat-menu {
-    border: 1px solid transparent;
+.wb20-hotkeys-grid > button {
+    background: var(--wb20-hotkeys-surface);
+    color: var(--wb20-hotkeys-ink);
+    border: 1px solid var(--wb20-hotkeys-border);
+    border-radius: 4px;
+    font: inherit;
     cursor: pointer;
-    padding-left: 3px;
-    padding-right: 3px;
+    padding: 4px 6px;
 }
-
-.waybeyond20-open-combat-menu:hover {
-    background-color: rgb(155, 208, 243);
-    border: 1px solid darkblue;
+.wb20-hotkeys-grid > button:is(:hover, :focus-visible) {
+    background: color-mix(in srgb, var(--wb20-hotkeys-ink) 12%, var(--wb20-hotkeys-surface));
 }
+.wb20-hotkeys-grid > button:is(:active, [aria-pressed="true"]) {
+    background: color-mix(in srgb, var(--wb20-hotkeys-ink) 23%, var(--wb20-hotkeys-surface));
+}
+.wb20-custom-help p { margin: 8px 0; }
+.wb20-custom-help ul { list-style: disc; padding-inline-start: 20px; }
+.wb20-custom-help li { margin-block: 3px; }
+.wb20-custom-help code { overflow-wrap: anywhere; }
 
 /* WayBeyond20 smite query */
 .waybeyond20-smite-query {
@@ -1931,10 +1969,61 @@ span.dice-roll.beyond20-tooltip-content {
     background-color:color-mix(in srgb,var(--wb20-header-border,currentColor) 12%,var(--wb20-header-surface,Canvas)) !important;
     color:var(--wb20-header-ink,inherit) !important;
 }
-.wb20-resource-dialog .ajs-header,.wb20-resource-dialog .ajs-footer,.wb20-resource-dialog .ajs-body,
-.wb20-resource-dialog .ajs-content,.wb20-resource-dialog .ajs-content p,.wb20-resource-dialog .ajs-content label,
-.wb20-resource-dialog .ajs-content strong,.wb20-resource-dialog .ajs-content h3 {
-    color:inherit !important; background-color:transparent !important;
+/* The portal dialogs and effects popout sit outside the native sheet. */
+:is(.wb20-action-sort-menu,.beyond20-hotkeys-list,.waybeyond20-effects-popout,.wb20-action-choices,#wb20-local-rolls),
+.alertify .ajs-dialog:is(.wb20-resource-dialog,.wb20-result-dialog),
+html:has(.ct-character-sheet,.ct-character-sheet--dark-mode,.ct-saving-throws-box,.ddbc-saving-throws-box) .alertify .ajs-dialog {
+    color-scheme: light;
+    --wb20-popup-surface: var(--wb20-sheet-surface, Canvas);
+    --wb20-popup-line: color-mix(in srgb, currentColor 36%, transparent);
+    --wb20-popup-highlight: color-mix(in srgb, currentColor 9%, var(--wb20-popup-surface));
+}
+:is(html[data-theme="dark"],html:has(.ct-character-sheet--dark-mode,.ct-sidebar--is-dark-mode,[data-theme="dark"]))
+    :is(.ajs-dialog:is(.wb20-resource-dialog,.wb20-result-dialog),.wb20-action-sort-menu,.beyond20-hotkeys-list,.waybeyond20-effects-popout,.wb20-action-choices,#wb20-local-rolls),
+html:has(.ct-character-sheet--dark-mode) .alertify .ajs-dialog,
+html:has(.ct-character-sheet,.ct-saving-throws-box,.ddbc-saving-throws-box):is([data-theme="dark"],:has(.ct-sidebar--is-dark-mode,[data-theme="dark"])) .alertify .ajs-dialog {
+    color-scheme: dark;
+    --wb20-popup-command-filter: invert(1);
+}
+:is(
+    .alertify .ajs-dialog:is(.wb20-resource-dialog,.wb20-result-dialog),
+    html:has(.ct-character-sheet,.ct-character-sheet--dark-mode,.ct-saving-throws-box,.ddbc-saving-throws-box) .alertify .ajs-dialog
+) {
+    background-color: var(--wb20-popup-surface);
+    color: CanvasText;
+
+    & :is(.ajs-header,.ajs-body,.ajs-footer,.ajs-content) {
+        color: inherit;
+        background: transparent;
+        border-color: var(--wb20-popup-line);
+    }
+    & .ajs-content :is(a,label,legend,summary,p,strong,h1,h2,h3,h4) { color: inherit; }
+    & :is(.ajs-content,.ajs-buttons) :is(button,input:not([type="checkbox"],[type="radio"]),select,textarea,option) {
+        color: inherit;
+        background: var(--wb20-popup-surface);
+        border: 1px solid var(--wb20-popup-line);
+        border-radius: 3px;
+    }
+    & :is(button,input,select,textarea):focus-visible { outline: 2px solid currentColor; }
+    & input::placeholder, & textarea::placeholder { color: inherit; opacity: .8; }
+    & :is(.ajs-content,.ajs-buttons) :is(.ajs-button.ajs-ok,button:enabled:hover) {
+        color: inherit;
+        background: var(--wb20-popup-highlight);
+    }
+    & .ajs-content button.waybeyond20-lay-on-hands-option { border-radius: 999px; }
+    & .ajs-content button.waybeyond20-lay-on-hands-option-selected {
+        background: var(--wb20-popup-highlight);
+        border-color: currentColor;
+        font-weight: 700;
+    }
+    & .ajs-content .waybeyond20-lay-on-hands-error { color: inherit; font-weight: 600; }
+    & .ajs-commands button { filter: var(--wb20-popup-command-filter,none); }
+}
+:is(.wb20-result-dialog,#wb20-local-rolls) .beyond20-button-roll-damages { color: inherit; }
+:is(.wb20-result-dialog,#wb20-local-rolls) .beyond20-tooltip .beyond20-tooltip-content {
+    color: inherit;
+    background: var(--wb20-popup-surface);
+    border-color: var(--wb20-popup-line);
 }
 
 /* Only WB20-owned value cells; native rows and five-column layout stay intact. */
@@ -1943,6 +2032,65 @@ span.dice-roll.beyond20-tooltip-content {
 .wb20-range-units { font-size: var(--wb20-range-label-font-size,10px); font-weight: 400; color: var(--wb20-range-label-color,#75838b); }
 .wb20-range-label { display: block; font-size: var(--wb20-range-label-font-size,10px); line-height: var(--wb20-range-label-line-height,1.1); color: var(--wb20-range-label-color,#75838b); font-weight: 400; }
 .wb20-action-value { display: inline-flex; align-items: center; justify-content: center; gap: 2px; box-sizing: border-box; border: 1px solid var(--wb20-value-border-color,#b7c9da); border-radius: var(--wb20-value-border-radius,3px); background: var(--wb20-value-background-color,transparent); color: inherit; padding: var(--wb20-value-padding-top,4px) var(--wb20-value-padding-right,6px) var(--wb20-value-padding-bottom,4px) var(--wb20-value-padding-left,6px); min-height: var(--wb20-value-min-height,28px); font: inherit; cursor: pointer; }
+/* D&D Beyond's integrated dice use the neutral hover in light mode and
+   lighten the character theme's HSL lightness by 10% in Underdark. */
+.wb20-action-value:enabled:is(:hover,:focus-visible,:active) {
+    --wb20-dice-hover-border: #bfccd6;
+    border-color: var(--wb20-dice-hover-border);
+    background-color: #ced9e0;
+    box-shadow: inset 0 0 0 1px var(--wb20-dice-hover-border);
+}
+:is(.ct-character-sheet--dark-mode,.ct-sidebar--is-dark-mode,[data-theme="dark"]) .wb20-action-value:enabled:is(:hover,:focus-visible,:active) {
+    --wb20-dice-theme: var(--theme-color,var(--wb20-value-border-color,#c53131));
+    --wb20-dice-hover-border: hsl(from var(--wb20-dice-theme) h s calc(l * 1.1));
+    background-color: color-mix(in srgb,var(--wb20-dice-theme) 20%,transparent);
+    box-shadow: none;
+}
+:is(.ct-character-sheet--dark-mode,.ct-sidebar--is-dark-mode,[data-theme="dark"]) .ddbc-combat-attack__damage .wb20-action-value:enabled:is(:hover,:focus-visible,:active) {
+    box-shadow: inset 0 0 0 1px var(--wb20-dice-hover-border);
+}
+.wb20-action-value[data-wb20-damage-tooltip] {
+    position: relative;
+    --wb20-damage-tip-surface: var(--ttui_grey-800,#25282c);
+    --wb20-damage-tip-ink: var(--ttui_grey-100,#eceff1);
+}
+:is(.ct-character-sheet--dark-mode,.ct-sidebar--is-dark-mode,[data-theme="dark"]) .wb20-action-value[data-wb20-damage-tooltip] {
+    --wb20-damage-tip-surface: var(--ttui_grey-100,#eceff1);
+    --wb20-damage-tip-ink: var(--ttui_grey-800,#25282c);
+}
+.wb20-action-value[data-wb20-damage-tooltip]:enabled:is(:hover,:focus-visible)::before,
+.wb20-action-value[data-wb20-damage-tooltip]:enabled:is(:hover,:focus-visible)::after {
+    position: absolute;
+    left: 50%;
+    z-index: 20;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+.wb20-action-value[data-wb20-damage-tooltip]:enabled:is(:hover,:focus-visible)::before {
+    content: "";
+    bottom: calc(100% + 2px);
+    border: 5px solid transparent;
+    border-top-color: var(--wb20-damage-tip-surface);
+    border-bottom: 0;
+}
+.wb20-action-value[data-wb20-damage-tooltip]:enabled:is(:hover,:focus-visible)::after {
+    content: attr(data-wb20-damage-tooltip);
+    bottom: calc(100% + 7px);
+    max-width: min(18rem,75vw);
+    width: max-content;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--wb20-damage-tip-surface);
+    color: var(--wb20-damage-tip-ink);
+    font: 14px/1.3 var(--font-family,system-ui,sans-serif);
+    text-align: center;
+    white-space: normal;
+}
+/* A sampled value may come from a plain roll or a control styled outside the
+   current theme. Underdark's integrated dice use white ink. */
+:is(.ct-character-sheet--dark-mode,.ct-sidebar--is-dark-mode,[data-theme="dark"]) .wb20-action-value {
+    --wb20-action-roll-ink: #fff;
+}
 .wb20-action-value:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
 .wb20-action-value:disabled { opacity: .5; cursor: default; }
 .wb20-action-value [data-wb20-value-icon] { display: inline-flex; flex: none; width: 14px; height: 14px; }
@@ -1950,9 +2098,6 @@ span.dice-roll.beyond20-tooltip-content {
 .wb20-action-note { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; width:100%; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; white-space:normal; overflow-wrap:normal; }
 .wb20-action-note:hover { text-decoration:underline; }
 .wb20-action-note:focus-visible { outline:1px solid currentColor; outline-offset:2px; }
-.wb20-opportunity-select { width:100%; min-width:0; padding:0; font:inherit; color:inherit; background:transparent; border:1px solid transparent; cursor:pointer; }
-.wb20-opportunity-select:hover,.wb20-opportunity-select:focus { border-color:currentColor; }
-.wb20-opportunity-select option { color:CanvasText; background:Canvas; }
 .wb20-action-value [data-wb20-value-icon] { color:var(--wb20-value-icon-color,#75838b); }
 
 [data-wb20-duplicate-weapon] { display: none !important; }

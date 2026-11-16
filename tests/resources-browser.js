@@ -1,7 +1,7 @@
 // Native-shaped controls + actual shared resource code; no live account.
 const {chromium}=require(process.env.WB20_PLAYWRIGHT||'playwright');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
-const root=path.resolve(__dirname,'..'),source=fs.readFileSync(path.join(root,'src/dndbeyond/content-scripts/character.js'),'utf8');
+const root=process.env.WB20_SOURCE_ROOT || path.resolve(__dirname,'..'),source=fs.readFileSync(path.join(root,'src/dndbeyond/content-scripts/character.js'),'utf8');
 function unit(name){const start=new RegExp(`^(?:async )?function ${name}\\(`,'m').exec(source);assert.ok(start,name);const tail=source.slice(start.index+start[0].length),end=/^(?:async )?function |^(?:const|let|var|class) /m.exec(tail);return source.slice(start.index,end?start.index+start[0].length+end.index:undefined);}
 const pool=(name,total,used)=>`<div class="ct-feature-snippet"><h3 class="ct-feature-snippet__heading">${name}</h3>${Array.from({length:total},(_,i)=>`<button type="button" role="checkbox" aria-label="use" aria-checked="${i<used}">use</button>`).join('')}</div>`;
 (async()=>{
@@ -15,10 +15,11 @@ const pool=(name,total,used)=>`<div class="ct-feature-snippet"><h3 class="ct-fea
   for(const file of ['libs/css/alertify.css','src/extension/beyond20.css'])await page.addStyleTag({path:path.join(root,file)});
   const names=['wayBeyond20ElementOwnText','wayBeyond20NormalizeFeatureLabel','wayBeyond20LimitedUseInputForControl','wayBeyond20LimitedUseControlIsVisible','wayBeyond20LimitedUseCanonicalControl','wayBeyond20LimitedUseControlIsUnused','wayBeyond20LimitedUseSelectors','wayBeyond20LimitedUseLabelsWithin','wayBeyond20LimitedUseLabelText','wayBeyond20LimitedUseControlOwnerLabel','wayBeyond20LimitedUseControlMatchesFeature','wayBeyond20FindLimitedUseControls','wayBeyond20WaitForLimitedUseSpend','wayBeyond20SpendLimitedUse'];
   await page.addScriptTag({content:names.map(unit).join('\n')});
+  await page.addScriptTag({content:unit('wb20CombatInitiativeTotal')});
   await page.evaluate(()=>{
    window.values={};window.state={inCombat:true,combatSource:'Manual',combatStartedAt:1,localTurnNumber:1,action:1,bonusAction:1,reaction:1,attacksRemaining:0};
    window.character={_id:'feat-owner',_class_features:[],_feats:['Hand of Healing'],_racial_traits:[],getClassLevel:()=>0,getAbility:()=>({mod:'+3'}),_proficiency:2,getSetting:(key,fallback)=>values[key]??fallback,mergeCharacterSettings:(data,callback)=>{Object.assign(values,structuredClone(data));callback?.();}};
-   window.wayBeyond20GetTurnTrackerState=()=>structuredClone(state);window.wayBeyond20SetTurnTrackerState=value=>Object.assign(state,value);
+   window.wayBeyond20GetTurnTrackerState=()=>structuredClone(state);window.wayBeyond20SetTurnTrackerState=(value,saved)=>{state=structuredClone(value);saved?.();};
    window.wayBeyond20AttacksPerAttackAction=()=>2;
    window.wayBeyond20AttackActivationTurnKey=()=>JSON.stringify([state.localTurnNumber]);window.wayBeyond20HasActiveCombatState=()=>state.inCombat;
    window.wayBeyond20CharacterDebug=()=>{};window.wayBeyond20ParseInteger=value=>Number.isFinite(Number(value))?Number(value):null;
@@ -43,6 +44,32 @@ const pool=(name,total,used)=>`<div class="ct-feature-snippet"><h3 class="ct-fea
   await page.getByLabel('Focus Points remaining').fill('3');await page.getByLabel('Healing Pool remaining').fill('14');await page.getByRole('button',{name:'Save corrections',exact:true}).click();await page.evaluate(()=>correcting);
   assert.equal(await page.evaluate(()=>wb20Resource('Focus Points').remaining),3);assert.equal(await page.evaluate(()=>wb20Resource('Healing Pool').remaining),14);assert.equal(await page.evaluate(()=>wb20Resource('Bardic Inspiration').remaining),3);
   assert.equal(await page.locator('.ct-slot-manager-large__diff').count(),0);
+  await page.evaluate(()=>{state.initiativeTotal=19.18;window.correcting=wb20CorrectResources();});
+  const initiative=page.getByRole('spinbutton',{name:'Initiative',exact:true});
+  const save=page.getByRole('button',{name:'Save corrections',exact:true});
+  const cancel=page.getByRole('button',{name:'Cancel',exact:true});
+  await initiative.waitFor({timeout:3000});
+  assert.equal(await initiative.getAttribute('placeholder'),'19.18');
+  await initiative.fill('0');await save.click();await page.evaluate(()=>correcting);
+  assert.deepEqual(await page.evaluate(()=>[wb20CombatInitiativeTotal(state),state.initiativeTotal,state.action]),[0,19.18,1]);
+  await page.evaluate(()=>{window.correcting=wb20CorrectResources();});
+  await initiative.fill('-2.75');await cancel.click();await page.evaluate(()=>correcting);
+  assert.equal(await page.evaluate(()=>state.initiativeOverride),0,'Cancel preserves the saved Initiative');
+  await page.evaluate(()=>{window.correcting=wb20CorrectResources();});
+  await initiative.fill('-2.75');await save.click();await page.evaluate(()=>correcting);
+  assert.equal(await page.evaluate(()=>wb20CombatInitiativeTotal(state)),-2.75);
+  await page.evaluate(()=>{window.correcting=wb20CorrectResources();});
+  await initiative.fill('12');await page.evaluate(()=>{state.initiativeOverride=7;});
+  await save.click();await page.evaluate(()=>correcting);
+  assert.equal(await page.evaluate(()=>state.initiativeOverride),7,'do not overwrite a newer correction');
+  await page.evaluate(()=>{window.correcting=wb20CorrectResources();});
+  await initiative.fill('');await save.click();await page.evaluate(()=>correcting);
+  assert.deepEqual(await page.evaluate(()=>[state.initiativeOverride ?? null,wb20CombatInitiativeTotal(state)]),[null,19.18]);
+  await page.evaluate(()=>{state.inCombat=false;delete state.initiativeTotal;window.correcting=wb20CorrectResources();});
+  assert.equal(await initiative.getAttribute('placeholder'),'Not set');
+  await initiative.fill('14.16');await save.click();await page.evaluate(()=>correcting);
+  assert.deepEqual(await page.evaluate(()=>[state.inCombat,state.initiativeOverride]),[false,14.16],'pre-entry does not start combat');
+  await page.evaluate(()=>{state.inCombat=true;delete state.initiativeOverride;});
   await page.evaluate(()=>{window.correcting=wb20CorrectResources();});await page.getByLabel('Focus Points remaining').fill('0');await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.evaluate(()=>correcting);assert.equal(await page.evaluate(()=>wb20Resource('Focus Points').remaining),3);
   await page.evaluate(()=>{state.maxHasteAction=1;state.hasteAction=1;state.featureGrants={flurry:{name:'Flurry of Blows attacks',turnKey:wayBeyond20AttackActivationTurnKey(),remaining:1,max:2}};window.correcting=wb20CorrectResources();});
   assert.equal(await page.getByLabel('Haste attack action remaining').inputValue(),'1');

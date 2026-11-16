@@ -446,7 +446,7 @@ function initializeAlertify() {
                 "build": () => { },
                 "prepare": function () {
                     this.elements.content.innerHTML = this.get('content');
-                    if (this.elements.content.querySelector('.wb20-resource-correction,.wb20-feature-prompt') && typeof wb20ThemeResourcePrompt === "function")
+                    if (typeof wb20ThemeResourcePrompt === "function")
                         wb20ThemeResourcePrompt(this.elements.dialog);
                     this.__internal.buttons[0].element.innerHTML = this.get('ok_label');
                     this.__internal.buttons[1].element.innerHTML = this.get('cancel_label');

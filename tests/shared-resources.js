@@ -1,6 +1,6 @@
 // Actual shared dispatcher + resource engine, with native counters as the boundary.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
-const root=path.resolve(__dirname,'..');
+const root=process.env.WB20_SOURCE_ROOT || path.resolve(__dirname,'..');
 const characterSource=fs.readFileSync(path.join(root,'src/dndbeyond/content-scripts/character.js'),'utf8');
 function unit(name){const start=new RegExp(`^(?:async )?function ${name}\\(`,'m').exec(characterSource);assert.ok(start,name);const tail=characterSource.slice(start.index+start[0].length),end=/^(?:async )?function |^(?:const|let|var|class) /m.exec(tail);return characterSource.slice(start.index,end?start.index+start[0].length+end.index:undefined);}
 function fixture(features=['Flurry of Blows','Martial Arts','Hand of Healing','Hand of Harm'],level=0){
@@ -30,7 +30,7 @@ function fixture(features=['Flurry of Blows','Martial Arts','Hand of Healing','H
     c.wayBeyond20FindLimitedUseControls=()=>({controls:Array.from({length:native.max},(_,i)=>({unused:i<native.focus,click:()=>native.focus++}))});
     c.wayBeyond20LimitedUseControlIsUnused=control=>control.unused;
     c.wayBeyond20SpendLimitedUse=async()=>{if(native.focus>0){native.focus--;return true;}return false;};
-    for(const name of ['wayBeyond20HasActiveCombatState','wayBeyond20SpendTurnResource','wayBeyond20AttacksPerAttackAction','wayBeyond20AttacksRemainingInAttackAction','wayBeyond20SpendAttackAction','wayBeyond20AttackActivationTurnKey','wayBeyond20CreateAttackActivation','wayBeyond20PerformGrantedAttack','wayBeyond20AttachTurnResource','wayBeyond20DispatchRollWithCharacter','sendRollWithCharacter'])vm.runInContext(unit(name),c);
+    for(const name of ['wayBeyond20HasActiveCombatState','wayBeyond20SpendTurnResource','wayBeyond20AttacksPerAttackAction','wayBeyond20AttacksRemainingInAttackAction','wayBeyond20SpendAttackAction','wayBeyond20AttackActivationTurnKey','wayBeyond20CreateAttackActivation','wayBeyond20PerformGrantedAttack','wayBeyond20AttachTurnResource','wayBeyond20DispatchRollWithCharacter','sendRollWithCharacter','wb20CombatInitiativeTotal'])vm.runInContext(unit(name),c);
     vm.runInContext(fs.readFileSync(path.join(root,'src/dndbeyond/content-scripts/feature-activations.js'),'utf8'),c);
     c.wayBeyond20NeedsAttackFollowup=()=>false;
     c.wb20FeatureNativeEntry=()=>({name:'Unarmed Strike',damage:'1d6+3'});
@@ -60,6 +60,21 @@ module.exports={fixture,form};
     c=fixture();assert.equal(await c.wb20SetResource('Focus Points',3,{expected:2}),true);assert.equal(c.native.focus,3,'Correction restores real native use');
     assert.equal(c.settings['waybeyond20-resources'].history.at(-1).reason,'Correction');assert.equal(await c.wb20SetResource('Focus Points',2,{expected:1}),false,'stale Correction is refused');
     c=fixture();c.forms.push(null);await c.wb20CorrectResources();assert.equal(c.native.focus,2);assert.equal(c.state.action,1,'Correction cancel is read-only');
+    c=fixture();
+    c.character.mergeCharacterSettings=(values,callback)=>{
+        if(values['waybeyond20-resources'])return Promise.resolve(); // Storage rejected; no success callback.
+        Object.assign(c.settings,structuredClone(values));callback?.();return Promise.resolve();
+    };
+    let writeTimeout;
+    try {
+        const result=await Promise.race([
+            c.sendRollWithCharacter('attack','',{name:'Sword',rollAttack:true,'waybeyond20-turn-resource':{resource:'action',actionType:'Attack'}}),
+            new Promise((_,reject)=>{writeTimeout=setTimeout(()=>reject(new Error('Attack hung waiting for a resource-history success callback')),600);})
+        ]);
+        assert.equal(result,true,'a resolved hit roll can continue after a storage failure');
+        assert.equal(c.sent.length,1);assert.equal(c.state.action,0);
+        assert.ok(c.warnings.some(warning=>warning.includes('resource update could not be saved')));
+    } finally {clearTimeout(writeTimeout);}
     c=fixture();const cost=()=>({name:'Shared feature','waybeyond20-resource-costs':[{name:'Focus Points',amount:2}]});
     const outcomes=await Promise.all([c.sendRollWithCharacter('trait',0,cost()),c.sendRollWithCharacter('trait',0,cost())]);assert.equal(outcomes[0],true);assert.equal(outcomes[1],false);assert.equal(c.native.focus,0,'serialized activations do not overdraw');
     c=fixture();await c.sendRollWithCharacter('trait',0,{name:'Combined costs','waybeyond20-resource-costs':[{name:'Focus Points',amount:1},{name:'Focus Points',amount:1}]});assert.equal(c.native.focus,0,'same-resource costs are summed');

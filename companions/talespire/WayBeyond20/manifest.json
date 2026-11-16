@@ -1,7 +1,7 @@
 {
   "manifestVersion": 1,
   "name": "LightCore Bridge",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "summary": "LightCore Bridge roll display and optional local board return connection. No Internet relay or DLL required.",
   "entryPoint": "/index.html",
   "descriptionFilePath": "/README.md",

@@ -2,6 +2,8 @@
 function wayBeyond20SettingsGroup(name, row) {
     if (row.classList.contains('effects-option')) return 'Current effects';
     if (name === 'character-option' || name in character_settings && !(name in options_list)) return 'Character options';
+    if (['use-digital-dice', 'roll-to-game-log', 'hide-results-with-digital-dice',
+        'hide-results-on-whisper-to-discord', 'local-roll-display-duration'].includes(name)) return 'Roll results';
     if (/^(?:vtt-tab|talespire-url|discord|custom-domains|roll20-discord)/.test(name)) return 'Connections';
     if (/hotkey|sticky-hotkeys/.test(name)) return 'Shortcuts';
     if (/debug|backup|restore|donate|support|changelog|version|last-version/.test(name)) return 'Support and backup';
@@ -13,6 +15,7 @@ function wayBeyond20SettingsGroup(name, row) {
 function wayBeyond20OrganizeSettings() {
     const list = document.querySelector('main .beyond20-options');
     if (!list) return;
+    const fullPage = location.pathname.endsWith('/options.html') || new URLSearchParams(location.search).has('sourceTab');
     let search = document.getElementById('wb20-settings-search');
     if (!search) {
         const bar = document.createElement('div'); bar.className = 'wb20-settings-search';
@@ -36,20 +39,20 @@ function wayBeyond20OrganizeSettings() {
         const definition = options_list[key] || character_settings[key];
         row.dataset.search = [definition?.title, definition?.description, definition?.short, key, row.querySelector('h4')?.textContent].filter(Boolean).join(' ').toLowerCase();
         row.style.removeProperty('display');
-        if (key === 'vtt-tab') { row.classList.add('wb20-destination'); list.prepend(row); continue; }
+        if (key === 'vtt-tab') { list.prepend(row); continue; }
         const group = wayBeyond20SettingsGroup(key, row);
         let section = groups.get(group);
         if (!section) {
             const li = document.createElement('li'); li.className = 'wb20-settings-group';
             section = document.createElement('details'); section.className = 'wb20-settings-section'; section.dataset.group = group;
-            section.open = false;
+            section.open = fullPage;
             const summary = document.createElement('summary'); summary.textContent = group;
             const body = document.createElement('ul'); body.className = 'list-group wb20-section-options';
             section.append(summary, body); li.append(section); list.append(li); groups.set(group, section);
         }
         section.querySelector('ul').append(row);
     }
-    const order = ['Connections', 'Dice and rolls', 'Sheet and combat', 'Character options', 'Current effects', 'Display and privacy', 'Shortcuts', 'Support and backup'];
+    const order = ['Roll results', 'Connections', 'Dice and rolls', 'Sheet and combat', 'Character options', 'Current effects', 'Display and privacy', 'Shortcuts', 'Support and backup'];
     for (const group of order) if (groups.has(group)) list.append(groups.get(group).parentElement);
     const footer = list.querySelector('#openOptions')?.closest('li.beyond20-option');
     if (footer) list.append(footer);

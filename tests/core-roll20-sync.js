@@ -14,7 +14,7 @@ const ddbEnd = ddbSource.indexOf('\n    updateHP() {', ddbStart);
 assert.ok(ddbStart >= 0 && ddbEnd > ddbStart);
 const ddbImplementation = ddbSource.slice(ddbStart, ddbEnd);
 const base = {
-    name: 'Calan Avrenson',
+    name: 'Test Hero',
     abilities: {str: 11, dex: 17, con: 15, int: 14, wis: 14, cha: 18},
     proficiency: 2, ac: 17, speed: 30,
     passives: {perception: 16, investigation: 13, insight: 13},
@@ -24,7 +24,7 @@ const base = {
     saveProficiencies: {str: 0, dex: 1, con: 0, int: 0, wis: 0, cha: 1}
 };
 
-function fixture(sheet = 'dnd2024byroll20', names = ['Calan Avrenson']) {
+function fixture(sheet = 'dnd2024byroll20', names = ['Test Hero']) {
     const posted = [];
     const attrs = new Map();
     const integrants = {};
@@ -80,7 +80,7 @@ function ddbFixture(sensesText, enabled = true, proficiencyLabel = 'Proficient')
     vm.runInContext(`class Reader {${ddbImplementation}}; globalThis.Reader = Reader`, context);
     const reader = new context.Reader();
     Object.assign(reader, {
-        _settings: {}, _name: 'Calan Avrenson', _id: '123',
+        _settings: {}, _name: 'Test Hero', _id: '123',
         _abilities: [['Strength', 'STR', '11'], ['Dexterity', 'DEX', '17'],
             ['Constitution', 'CON', '15'], ['Intelligence', 'INT', '14'],
             ['Wisdom', 'WIS', '14'], ['Charisma', 'CHA', '18']],
@@ -149,7 +149,7 @@ function ddbFixture(sensesText, enabled = true, proficiencyLabel = 'Proficient')
     assert.equal(missingPanel.attrs.has('wb20_darkvision_ft'), false,
         'an unreadable DDB senses panel must not erase existing vision');
 
-    const duplicate = fixture('dnd2024byroll20', ['Calan Avrenson', 'calan avrenson']);
+    const duplicate = fixture('dnd2024byroll20', ['Test Hero', 'test hero']);
     await duplicate.sync(base);
     assert.equal(duplicate.attrs.size, 0, 'ambiguous character names must not write');
     assert.equal(duplicate.posted.length, 0);

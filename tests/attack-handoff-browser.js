@@ -20,12 +20,14 @@ const portal=(name='Fangs',data=properties)=>`<div class="ct-sidebar__portal"><d
   await page.setContent('<main>'+row()+'</main><button id="outside">Outside</button>');
   await page.addScriptTag({path:path.join(root,'libs/jquery-3.4.1.min.js')});
   await page.addScriptTag({content:`
+   ${fn('reMatchAll',read('src/common/utils.js'))}
    var settings={},key_modifiers={},ddbRollHijackInstalled=false,ddbHijackPointerHandled=false;
    var quick_roll=false,quick_roll_force_attack=false,quick_roll_force_damage=false,quick_roll_force_versatile=false,
        quick_roll_force_mode=null,quick_roll_mode_target=null,quick_roll_timeout=0;
-   var destination={id:1,vtt:'roll20',title:'Test'},turn='turn1',character={_id:'1',_name:'Calan',
+   var destination={id:1,vtt:'roll20',title:'Test'},turn='turn1',character={_id:'1',_name:'Hero',
        updateInfo(){},getGlobalSetting:(key,fallback)=>key==='vtt-tab'?destination:fallback};
    var calls=[],nativeDice=0,disconnected=false;
+   var warnings=[],alertify={warning:message=>warnings.push(message)};
    var DigitalDiceManager={updateNotifications:()=>null};
    function wayBeyond20AttackActivationTurnKey(){return turn;}
    function isExtensionDisconnected(){return disconnected;}
@@ -86,6 +88,68 @@ const portal=(name='Fangs',data=properties)=>`<div class="ct-sidebar__portal"><d
    assert.equal(await page.evaluate(()=>calls.at(-1).pane),paneClass);
   }
   console.log('PASS native item/action pane chooses existing executor branch');
+  // A native row can retain its label while React replaces the mastery icon
+  // during the item sidebar render. Keep the original request on that row.
+  const beforeEverflame=await page.evaluate(html=>{
+   document.querySelectorAll('.ct-sidebar__portal').forEach(e=>e.remove());
+   document.querySelector('main').innerHTML=html;
+   const row=document.querySelector('.ddbc-combat-attack--item');
+   row.querySelector('.ddbc-combat-attack__label').innerHTML=
+    '<span class="styles_itemName__native">Everflame<span class="styles_asterisk__native">*</span><span class="ddbc-attunement-icon"></span></span>';
+   row.querySelector('.ddbc-combat-attack__icon').innerHTML='<svg width="18" height="18"><path d="M0 0H18V18H0Z"/></svg>';
+   row.querySelector('.integrated-dice__container').textContent='+8';
+   row.querySelector('.ddbc-combat-attack__label').onclick=()=>{
+    const icon=row.querySelector('.ddbc-combat-attack__icon');
+    icon.replaceWith(icon.cloneNode(true));
+    const sidebar=document.createElement('div');
+    sidebar.className='ct-sidebar__portal';
+    sidebar.innerHTML='<div><header class="ct-sidebar__header"><h1 class="ct-sidebar__heading"><div><span class="styles_itemName__native">Everflame<span class="styles_asterisk__native">*</span></span><button aria-label="Edit name"></button></div></h1></header><div class="ct-item-detail"><div role="list"><div><p class="styles_label__native">Attack Type:</p><p class="styles_value__native">Melee</p></div><div><p class="styles_label__native">Damage:</p><p class="styles_value__native"><span class="ddbc-damage__value">1d6+11</span><span class="ct-item-detail__additional-damage">2d6<span class="ddbc-damage-type-icon" aria-label="fire damage"><span class="ddbc-tooltip" data-original-title="fire"></span></span><span class="ct-item-detail__additional-damage-info">While your fists are ablaze</span></span></p></div><div><p class="styles_label__native">Damage Type:</p><p class="styles_value__native">Bludgeoning</p></div></div></div></div>';
+    document.body.append(sidebar);
+   };
+   return calls.length;
+  },row('Everflame*','ddbc-combat-attack--item'));
+  await page.getByRole('button',{name:'Everflame* full',exact:true}).locator('svg path').click();
+  await page.waitForFunction(n=>calls.length===n+1,beforeEverflame,{timeout:1500});
+  assert.deepEqual(await page.evaluate(()=>calls.at(-1)),{pane:'b20-item-pane',options:{force_to_hit_only:false,force_damages_only:false,force_versatile:false}});
+  assert.equal(await page.evaluate(()=>nativeDice),0);
+  await page.addScriptTag({content:`
+   ${['descriptionToString','findToHit','damagesToCrits','applyRogueSneakAttack','buildAttackRoll'].map(n=>fn(n,read('src/dndbeyond/base/utils.js'))).join('\n')}
+   ${['capitalize','rollItem','wayBeyond20IsProbablyMagicalItem','wayBeyond20SplitDamageFormula','wayBeyond20NextDamageId',
+    'wayBeyond20AddDamage','wayBeyond20DamageRowIndex','wayBeyond20NormalizeActionPoolToDamages'].map(n=>fn(n)).join('\n')}
+   var CriticalRules={PHB:0,HOMEBREW_MAX:1},weaponPackets=[],weaponError=null;
+   Object.assign(character,{getSetting:(key,fallback)=>fallback,_cacheToHit(){},hasClass:()=>false,
+    hasClassFeature:()=>false,hasFeat:()=>false});
+   function isItemATool(){return false;} function isItemAnInstruction(){return false;}
+   function applyGWFIfRequired(name,properties,damage){return damage;}
+   function addCustomDamages(){}
+   function handleSpecialGeneralAttacks(d,t,p,s,o){return o.to_hit;}
+   function handleSpecialWeaponAttacks(d,t,p,s,o){return o.to_hit;}
+   function handleSpecialMeleeAttacks(d,t,p,s,o){return o.to_hit;}
+   function wayBeyond20ApplySavageAttacker(){}
+   function wayBeyond20ApplyBedsideMannerIntent(){}
+   function wayBeyond20IsSmiteEligibleAttack(){return false;}
+   function wayBeyond20MaybeAddSmite(){}
+   function wayBeyond20CommitAfterDispatch(){}
+   function wayBeyond20AttachAttackActionResource(){}
+   function sendRollWithCharacter(type,fallback,request){weaponPackets.push({type,fallback,request});}
+  `});
+  await page.evaluate(()=>{
+   window.originalExecute=execute;
+   execute=(pane,options)=>rollItem(false,options.force_to_hit_only,options.force_damages_only,options.force_versatile)
+     .catch(error=>{weaponError=error.stack;});
+  });
+  await page.getByRole('button',{name:'Everflame* full',exact:true}).click();
+  await page.waitForFunction(()=>weaponPackets.length===1 || weaponError);
+  assert.equal(await page.evaluate(()=>weaponError),null);
+  const [weapon]=await page.evaluate(()=>{execute=window.originalExecute;return weaponPackets;});
+  assert.equal(weapon.type,'attack');
+  assert.equal(weapon.request.name,'Everflame');
+  assert.equal(weapon.request['to-hit'],'+8');
+  assert.equal(weapon.request.rollAttack,true);
+  assert.equal(weapon.request.rollDamage,true);
+  assert.deepEqual(weapon.request.damages,['1d6+11','2d6']);
+  assert.deepEqual(weapon.request['damage-types'],['Bludgeoning','Fire (While Your Fists Are Ablaze)']);
+  console.log('PASS customized Everflame icon stays attached to its item attack through an icon-only redraw');
   // Captured live Starry Wisp structure: no To Hit/Damage/Attack-Save
   // properties. Heading, metadata and rules can arrive before caster controls.
   const spellBefore=await page.evaluate(html=>{
@@ -128,7 +192,7 @@ const portal=(name='Fangs',data=properties)=>`<div class="ct-sidebar__portal"><d
    const before=await page.evaluate(({html,reason})=>{
     wb20CancelCombatHandoff();document.querySelectorAll('.ct-sidebar__portal').forEach(e=>e.remove());
     document.querySelector('main').innerHTML=html;
-    character={_id:'1',_name:'Calan',updateInfo(){},getGlobalSetting:(key,fallback)=>key==='vtt-tab'?destination:fallback};
+    character={_id:'1',_name:'Hero',updateInfo(){},getGlobalSetting:(key,fallback)=>key==='vtt-tab'?destination:fallback};
     const icon=document.querySelector('.ddbc-combat-attack__icon');
     wb20RequestCombatHandoff(icon,{force_to_hit_only:false,force_damages_only:false,force_versatile:false});
     if(reason==='owner')character={...character};
@@ -165,6 +229,7 @@ const portal=(name='Fangs',data=properties)=>`<div class="ct-sidebar__portal"><d
    wb20RequestCombatHandoff(document.querySelector('.ddbc-combat-attack__icon'),{});return calls.length;
   },row());
   await page.waitForFunction(()=>wb20CombatHandoff===null,{},{timeout:6500});
+  assert.deepEqual(await page.evaluate(()=>warnings),['LightCore Bridge could not open the attack. No roll was sent.']);
   await page.evaluate(html=>document.body.insertAdjacentHTML('beforeend',html),portal());
   await page.evaluate(async()=>{await new Promise(resolve=>setTimeout(resolve,30));});
   assert.equal(await page.evaluate(()=>calls.length),expiry);

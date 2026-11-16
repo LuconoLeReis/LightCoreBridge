@@ -21,13 +21,12 @@ function handleKeyModifierEvent(event, force=false) {
     handleKeyModifier(event.type, event.key, event.code, event.originalEvent.repeat);
 }
 
-function handleKeyModifier(etype, key, code, repeat) {
+function handleKeyModifier(etype, key, code, repeat, modifier = key_bindings?.[code] || key_bindings?.[key]) {
     if (repeat) return;
 
     const oldValue = key_modifiers.advantage << 0 | key_modifiers.disadvantage << 1 |
                      key_modifiers.normal_roll << 2 | key_modifiers.super_advantage << 3 |
                      key_modifiers.super_disadvantage << 4;
-    const modifier = (key_bindings || {})[code] || (key_bindings || {})[key];
     if (modifier) {
         if (modifier.startsWith("toggle-")) {
             // Permanent option toggle
@@ -90,7 +89,10 @@ function resumeHotkeyHandling() {
 function updateHotkeysList(popup) {
     // Ensure it runs only on pages with the hotkeys popup
     popup = popup || $(".beyond20-hotkeys-list");
-    if (!popup) return;
+    if (!popup.length) return;
+    const hasCharacterControls = typeof wayBeyond20InjectCombatMenuAction === "function";
+    const focusedControl = document.activeElement?.closest('.wb20-hotkeys-grid button');
+    const focusedModifier = popup[0].contains(focusedControl) ? focusedControl.dataset.modifier : null;
     let hotkeys_enabled = false;
     const bindings = settings['hotkeys-bindings'];
     const roll_types = {"disadvantage": "", "normal_roll": "", "advantage": ""};
@@ -104,6 +106,7 @@ function updateHotkeysList(popup) {
         if (binding.startsWith("toggle-")) continue;
         if (key_modifiers[binding])
             hotkeys_enabled = true;
+        if (hasCharacterControls && (binding === "super_disadvantage" || binding === "super_advantage")) continue;
         if (roll_types[binding] !== undefined) {
             roll_types[binding] = key;
         } else {
@@ -151,12 +154,18 @@ function updateHotkeysList(popup) {
         $('.ct-beyond20-settings-button').removeClass('beyond20-button-has-hotkeys');
     }
     popup.html(E.div({}, E.div({class: "beyond20-hotkeys-roll-types"}, ...roll_types_span), E.hr({}), E.ul({}, ...hotkeys_list)));
+    if (hasCharacterControls) {
+        wayBeyond20InjectCombatMenuAction(popup);
+        if (focusedModifier) popup.find('.wb20-hotkeys-grid button').filter((_, button) =>
+            button.dataset.modifier === focusedModifier)[0]?.focus();
+    }
     popup.off('click', '.beyond20-hotkey-toggle'); //this removes all instances of this listener
     popup.on('click', '.beyond20-hotkey-toggle', function () {
         const key = this.dataset.key;
         // Set the event to be keydown or keyup based on whether we have sticky or not and if the hotkey is pressed
         const keydown = settings['sticky-hotkeys'] || !key_modifiers[this.dataset.modifier];
-        handleKeyModifier(keydown ? 'keydown' : 'keyup', key, false);
+        const modifier = this.closest('.wb20-hotkeys-grid') ? this.dataset.modifier : undefined;
+        handleKeyModifier(keydown ? 'keydown' : 'keyup', key, false, false, modifier);
     });
     $(manage_button).click(async ev => {
         ev.preventDefault();

@@ -64,6 +64,20 @@ const alive=vm.createContext({URL,chrome:{runtime:{id:'live'}},__wb20RecoveryBoo
 vm.runInContext(read('src/reliability/recovery-scope.js')+'\n'+read('src/reliability/recovery-boot.js'),alive);
 assert.equal(reloads,1,'a duplicate injection in the same live context does nothing');
 console.log('PASS loader duplicate/orphan context guards.');
+for (const recovery of [false,true]) {
+    const source=read((recovery?'vendor/beyond20-2.21.0/':'')+'src/dndbeyond/base/character.js');
+    const method=source.match(/^    getDict\(\) \{[\s\S]*?^    \}/m)[0];
+    const c=vm.createContext({getDiscordChannel(){},sendCustomEvent(){},DNDBDisplayer:class {}});
+    vm.runInContext('class Character { type(){return "Character";} '+method+' }',c);
+    if (recovery) vm.runInContext(read('src/reliability/compat-delivery.js'),c);
+    const payload=vm.runInContext(`const owner=new Character();
+        owner._settings={"waybeyond20-turn-state":{initiativeTotal:19.18},"waybeyond20-foundry-turn-state":{},
+            "waybeyond20-talespire-turn-states":{},"discord-target":"existing"};
+        JSON.stringify(owner.getDict().settings)`,c);
+    assert.deepEqual(JSON.parse(payload),{'discord-target':'existing'},'outbound rolls omit local combat state');
+    assert.equal(vm.runInContext('owner._settings["waybeyond20-turn-state"].initiativeTotal',c),19.18,'local state is preserved');
+}
+console.log('PASS local combat initiative is omitted from outbound packets in both modes.');
 const native=vm.createContext({console:{warn:()=>{}},sendCustomEvent:()=>{},dndbeyondDiceRoller:{_settings:{}},clicks:0});
 vm.runInContext(read('src/dndbeyond/base/digital-dice-new.js')+'\nthis.Native=DigitalDiceManager;',native);
 native.Native._ensureRollerOpenWithRetry=async()=>true;

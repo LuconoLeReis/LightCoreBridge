@@ -83,8 +83,10 @@ class DigitalDice {
                     const diceArr = Array.isArray(s.dice) ? s.dice : [];
                     const values = [];
                     for (const d of diceArr) {
-                        const v = (d && typeof d.dieValue !== "undefined") ? parseInt(d.dieValue, 10) : NaN;
-                        if (Number.isFinite(v)) values.push(v);
+                        const v = (d && ['number','string'].includes(typeof d.dieValue)) ? Number(d.dieValue) : NaN;
+                        if (!Number.isInteger(v) || v<1 || v>faces)
+                            throw new Error('Invalid digital die value');
+                        values.push(v);
                     }
 
                     if (!byFaces.has(faces)) byFaces.set(faces, []);
@@ -92,6 +94,12 @@ class DigitalDice {
                 }
             }
 
+            const required=new Map();
+            for(const dice of this._dice)required.set(Number(dice.faces),(required.get(Number(dice.faces)) || 0)+Number(dice.amount));
+            for(const [faces,amount] of required)if((byFaces.get(faces) || []).length!==amount)
+                throw new Error('Incomplete digital dice result');
+            // Validate before changing any dice. Missing values must never be
+            // accepted as zero damage or a completed d20 result.
             // Reset rolls before re-assigning
             this._dice.forEach(d => {
                 d._rolls = [];
@@ -107,7 +115,7 @@ class DigitalDice {
 
                 const pool = byFaces.get(faces) || [];
                 for (let i = 0; i < amount; i++) {
-                    const value = pool.length ? pool.shift() : 0;
+                    const value = pool.shift();
                     dice._rolls.push({ roll: value });
                 }
                 byFaces.set(faces, pool);
@@ -262,6 +270,8 @@ class DigitalDiceManager {
     }
 
     static _handleDiceBrokerMessage(msg) {
+        // A Game Log rewrite is an echo of a result already handed to the roller.
+        if (msg.data?.__b20Override__) return;
         const pending = this._pendingRolls[0];
         if (!pending) return;
 
@@ -339,27 +349,20 @@ class DigitalDiceManager {
     }
 
     static async _makeRoll(roll) {
-        // New DDB roller is popup-based. We set target first (Self/Everyone) and then click Roll.
-        //
-        // IMPORTANT:
-        // Re-enable MBPendingRoll ONLY as a signal so message-broker.js can patch the next DDB fulfilled
-        // (it no longer interferes with the DDB roll chain).
-        if (dndbeyondDiceRoller?._settings?.["roll-to-game-log"]) {
-            sendCustomEvent("MBPendingRoll", [roll.toJSON()]);
-        } else {
-            sendCustomEvent("MBPendingRoll", null);
-        }
-
-        let opened = await DigitalDiceManager._ensureRollerOpenWithRetry();
+        const beforeClick = () => {
+            if (dndbeyondDiceRoller?._settings?.["roll-to-game-log"])
+                sendCustomEvent("MBPendingRoll", [{...roll.toJSON(), gameLog: roll.gameLog}]);
+        };
+        const opened = await DigitalDiceManager._ensureRollerOpenWithRetry();
         if (opened) {
             if (!await DigitalDiceManager._selectRollTargetWithRetry(roll.whisper))
                 throw new Error("D&D Beyond dice audience unavailable; use local dice instead.");
             await DigitalDiceManager._wait(80);
-            return await DigitalDiceManager._clickRollButtonWithRetry();
+            return await DigitalDiceManager._clickRollButtonWithRetry(beforeClick);
         }
 
         // Old toolbar roll fallback (encounters)
-        return await DigitalDiceManager._clickOldToolbarRollWithRetry(roll.whisper);
+        return await DigitalDiceManager._clickOldToolbarRollWithRetry(roll.whisper, beforeClick);
     }
 
     static _normalizeText(text) {
@@ -430,13 +433,14 @@ class DigitalDiceManager {
         return false;
     }
 
-    static async _clickRollButtonWithRetry(retries = 200, delay = 50) {
+    static async _clickRollButtonWithRetry(beforeClick, retries = 200, delay = 50) {
         const startedAt = Date.now();
 
         for (let i = 0; i <= retries; i++) {
             const rollEl = document.querySelector('button[data-testid="diceRollButton"]:not([disabled])');
 
             if (rollEl) {
+                beforeClick();
                 rollEl.click();
                 return true;
             }
@@ -486,7 +490,7 @@ class DigitalDiceManager {
     }
 
     // Old toolbar roll support (encounters page)
-    static async _clickOldToolbarRollWithRetry(whisper, retries = 50, delay = 10) {
+    static async _clickOldToolbarRollWithRetry(whisper, beforeClick, retries = 50, delay = 10) {
         // If whisper, try to select target in old toolbar menu
         if (whisper) {
             if (!await this._selectWhisperTargetWithRetry()) return false;
@@ -494,6 +498,7 @@ class DigitalDiceManager {
         for (let i = 0; i <= retries; i++) {
             const $rollButton = $(".dice-toolbar.rollable .dice-toolbar__target button:not(.dice-toolbar__target-menu-button)").first();
             if ($rollButton.length) {
+                beforeClick();
                 $rollButton.click();
                 return true;
             }
@@ -564,7 +569,8 @@ class DigitalDiceManager {
         return;
     }
 
-    static _finishPendingRoll(error=null) {
+    static _finishPendingRoll(error=null, expected=this._pendingRolls[0]) {
+        if(this._pendingRolls[0]!==expected)return;
         const pending = this._pendingRolls.shift();
         if (!pending) return;
 
@@ -573,6 +579,9 @@ class DigitalDiceManager {
         this._clearPendingTimeout(pending);
 
         if (error) {
+            if (roll.gameLog) {
+                try { sendCustomEvent("MBCancelCorrelatedRoll", [roll.gameLog.id]); } catch (_) {}
+            }
             rejecter(error);
         } else {
             roll.handleCompletedRoll().then(resolver).catch(rejecter);
@@ -609,6 +618,8 @@ class DigitalDiceManager {
     }
 
     static async _submitRoll(roll) {
+        const pending=this._pendingRolls[0];
+        if(!pending || pending[0]!==roll)return;
         try {
             const opened = await this._ensureRollerOpenWithRetry();
             if (opened) await this._resetDiceWithRetry();
@@ -617,11 +628,13 @@ class DigitalDiceManager {
             for (const dice of roll._dice) {
                 diceRolled += await this.rollDice(dice.amount, `d${dice.faces}`);
             }
+            if(this._pendingRolls[0]!==pending)return;
+            const required=roll._dice.reduce((sum,dice)=>sum+Number(dice.amount || 0),0);
+            if(diceRolled!==required)throw new Error('D&D Beyond dice controls unavailable; use local dice instead.');
 
             if (diceRolled > 0) {
                 if (opened) await this._wait(100);
 
-                const pending = this._pendingRolls[0];
                 const meta = this._getMeta(pending);
                 if (meta) {
                     meta.startedAtMs = Date.now();
@@ -630,14 +643,17 @@ class DigitalDiceManager {
 
                 const rolled = await this._makeRoll(roll);
                 if (!rolled) throw new Error("DigitalDiceManager: failed to click DDB roll button");
-                this._startPendingTimeout(pending, 15000);
+                if(this._pendingRolls[0]===pending)this._startPendingTimeout(pending, 15000);
             } else {
                 if (opened) await this._resetDiceWithRetry();
-                this._finishPendingRoll();
+                this._finishPendingRoll(null,pending);
             }
         } catch (err) {
             console.warn("DigitalDiceManager: digital roll failed, rejecting for native fallback", err);
-            this._finishPendingRoll(err);
+            if(this._pendingRolls[0]===pending){
+                try {this.clear();} catch (_) {}
+                this._finishPendingRoll(err,pending);
+            }
         }
     }
 

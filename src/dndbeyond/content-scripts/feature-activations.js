@@ -34,8 +34,8 @@ function wb20FeatureEscape(value) {
     return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"}[c]));
 }
 
-async function wb20FeatureForm(title, body, ok = "Use") {
-    return dndbeyondDiceRoller._prompter.prompt(title, `<form class="wb20-feature-prompt">${body}</form>`, ok, "Cancel");
+async function wb20FeatureForm(title, body, ok = "Use", cancel = "Cancel") {
+    return dndbeyondDiceRoller._prompter.prompt(title, `<form class="wb20-feature-prompt">${body}</form>`, ok, cancel);
 }
 
 function wb20FeatureTurn() {
@@ -404,14 +404,21 @@ function wb20FeatureRows(root) {
         row._wb20Owner = character;
         const set = (cls, value) => { const el = row.querySelector(cls); if (cls === ".ddbc-combat-attack__range" && typeof wb20SetActionRange === "function") wb20SetActionRange(el,value); else if (el.textContent !== value) el.textContent = value; };
         const healing = name.includes("Healing") || name.includes("Mercy");
-        set(".wb20-talent-category", healing ? "Heal Creature" : name.includes("Strike") || name.includes("Flurry") ? "Unarmed Strike" : "Feature");
-        set(".ddbc-combat-attack__range", healing ? "Touch" : name.includes("Strike") || name.includes("Flurry") ? "5 ft." : "Self");
-        set(".ddbc-combat-attack__action", name === "Deflect Attacks" ? `DEX DC ${p.dc}` : "—");
-        set(".ddbc-combat-attack__damage", healing ? `${name.includes("Ultimate") ? "4d10" : `1d${p.die}`}+${p.wis}` : name === "Slow Fall" ? `${5 * p.level} reduction` : name === "Deflect Attacks" ? `1d10+${p.dex + p.level}` : name.includes("Flurry") ? `${p.flurry} strikes` : "Use");
+        const strike = name.includes("Strike") || name.includes("Flurry");
+        const category = healing ? "Heal Creature" : strike ? "Unarmed Strike" : "Feature";
+        const fallbackRange = healing ? "Touch" : strike ? "5 ft." : "Self";
+        const save = name === "Deflect Attacks" ? `DEX DC ${p.dc}` : null;
         const live = typeof wayBeyond20LiveFeatureRules === "function" ? wayBeyond20LiveFeatureRules().find(rule => rule.name === name)?.text : "";
         const costNote=name === "Hand of Ultimate Mercy" ? "5 Focus · 1/Long Rest" : name === "Flurry of Blows" || healing ? "1 Focus" : "";
-        const reminder=live && typeof wb20FeaturePresentation==='function'?wb20FeaturePresentation(name,live).summary:'';
-        if(typeof wb20SetActionNote==='function')wb20SetActionNote(row.querySelector('.ddbc-combat-attack__notes'),[costNote,reminder].filter(Boolean).join(' · ') || 'View rules',()=>{if(row._wb20Owner===character)return wb20OpenFeatureDetails(name,live);},'Read '+name+' — full details');
+        const info = typeof wb20FeaturePresentation === 'function'
+            ? wb20FeaturePresentation(name,live,{category,fallbackRange,save,notePrefix:costNote})
+            : {label:name,category,range:fallbackRange,save,notes:costNote || "View rules"};
+        set(".wb20-feature-option-name", info.label);
+        set(".wb20-talent-category", info.category);
+        set(".ddbc-combat-attack__range", info.range || "—");
+        set(".ddbc-combat-attack__action", info.save || "—");
+        set(".ddbc-combat-attack__damage", healing ? `${name.includes("Ultimate") ? "4d10" : `1d${p.die}`}+${p.wis}` : name === "Slow Fall" ? `${5 * p.level} reduction` : name === "Deflect Attacks" ? `1d10+${p.dex + p.level}` : name.includes("Flurry") ? `${p.flurry} strikes` : "Use");
+        if(typeof wb20SetActionNote==='function')wb20SetActionNote(row.querySelector('.ddbc-combat-attack__notes'),info.notes,()=>{if(row._wb20Owner===character)return wb20OpenFeatureDetails(name,live);},'Read '+name+' — full details');
         else set('.ddbc-combat-attack__notes',costNote);
         const title = live || `${name} — open activation choices`;
         if (row.querySelector("button").title !== title) row.querySelector("button").title = title;

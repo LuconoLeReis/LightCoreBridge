@@ -228,7 +228,7 @@ function wb20BuildTurnCompass(state, animate = false) {
     const current = state.currentRoll20Turn;
     const order = Array.isArray(state.knownTargets) ? state.knownTargets : [];
     const index = current ? order.findIndex(t => String(t.tokenId || t.key) === String(current.tokenId)) : -1;
-    const currentName = current?.tokenName || current?.custom || (index >= 0 ? order[index].name : "") || "Manual turn";
+    const currentName = current?.tokenName || current?.custom || (index >= 0 ? order[index].name : "") || character?._name || "Your turn";
     const compass = $("<div>").addClass("wb20-turn-compass").attr({role:"group", "aria-label":"Combat turn order"});
     const face = (position, label, name) => $(position === "current" ? "<div>" : "<button type='button'>")
         .addClass(`wb20-compass-face wb20-compass-${position}`)

@@ -20,9 +20,9 @@ const root=path.resolve(__dirname,'..');
         await page.evaluate(()=>{
             window.wb20LocalReturnKey='a'.repeat(64);
             window.TS={boards:{whereAmI:async()=>({id:'board'})},campaigns:{whereAmI:async()=>({id:'campaign'})},
-                initiative:{getQueue:async()=>({items:[{id:'calan',name:'Calan',kind:'creature'},{id:'secret',name:'Hidden',kind:'creature'}],activeItemIndex:0})},
-                players:{whoAmI:async()=>({id:'player'})},creatures:{getSelectedCreatures:async()=>[],getCreaturesOwnedByPlayer:async()=>[{id:'calan'}],
-                    getMoreInfo:async()=>[{id:'calan',name:'Calan',boardId:'board',position:{x:0,y:0,z:0,locId:0}},{id:'secret',name:'Hidden',boardId:'board',isExplicitlyHidden:true,position:{x:1,y:1,z:0,locId:0}}]},
+                initiative:{getQueue:async()=>({items:[{id:'hero',name:'Hero',kind:'creature'},{id:'secret',name:'Hidden',kind:'creature'}],activeItemIndex:0})},
+                players:{whoAmI:async()=>({id:'player'})},creatures:{getSelectedCreatures:async()=>[],getCreaturesOwnedByPlayer:async()=>[{id:'hero'}],
+                    getMoreInfo:async()=>[{id:'hero',name:'Hero',boardId:'board',position:{x:0,y:0,z:0,locId:0}},{id:'secret',name:'Hidden',boardId:'board',isExplicitlyHidden:true,position:{x:1,y:1,z:0,locId:0}}]},
                 units:{getDistanceUnitsForThisCampaign:async()=>({name:'ft',numberPerTile:5})},picking:{startPicking:async()=> 'pick-1'}};
         });
         await page.addScriptTag({path:path.join(root,'companions/talespire/WayBeyond20/bridge.js')});
@@ -37,9 +37,9 @@ const root=path.resolve(__dirname,'..');
         await page.getByText('Click a mini on the board to choose your target. Escape cancels.',{exact:true}).waitFor();
         await page.evaluate(()=>wb20ReturnPicked({kind:'pickingCompleted',payload:{id:'wrong',kindOfPicked:'creature',idOfPicked:'secret'}}));
         assert.equal(await page.evaluate(()=>wb20ReturnTarget),'','wrong picking session ignored');
-        await page.evaluate(()=>wb20ReturnPicked({kind:'pickingCompleted',payload:{id:'pick-1',kindOfPicked:'creature',idOfPicked:'calan'}}));
+        await page.evaluate(()=>wb20ReturnPicked({kind:'pickingCompleted',payload:{id:'pick-1',kindOfPicked:'creature',idOfPicked:'hero'}}));
         await page.getByText('Connected · 1 minis · following turns',{exact:true}).waitFor();
-        assert.equal(await page.evaluate(()=>wb20ReturnTarget),'calan');
+        assert.equal(await page.evaluate(()=>wb20ReturnTarget),'hero');
         assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
         // Real DDB control construction in a fixture: linking saves only the
         // chosen ID; repeated position updates do not replace input nodes.
@@ -67,7 +67,7 @@ const root=path.resolve(__dirname,'..');
         await page.getByRole('button',{name:'Pick target in TaleSpire',exact:true}).click();
         await page.getByText('TaleSpire: not connected',{exact:true}).waitFor();
         assert.equal(await page.evaluate(()=>warnings.length),0,'disconnect during target picking is quiet');
-        await page.evaluate(()=>{wb20TSConnected=true;wb20TSFeed={v:1,campaignId:'campaign',boardId:'board',creatures:[{id:'calan',name:'Calan'}]};wb20TSContext='campaign|board';wb20TSRenderStatus();});
+        await page.evaluate(()=>{wb20TSConnected=true;wb20TSFeed={v:1,campaignId:'campaign',boardId:'board',creatures:[{id:'hero',name:'Hero'}]};wb20TSContext='campaign|board';wb20TSRenderStatus();});
         await page.getByRole('button',{name:'Link mini',exact:true}).click();
         await page.getByRole('combobox',{name:'TaleSpire character mini'}).waitFor();
         assert.equal(await page.getByRole('combobox').locator('option').count(),2);

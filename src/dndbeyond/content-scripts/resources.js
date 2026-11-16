@@ -30,11 +30,13 @@ function wb20ResourceStore(owner = character) {
     return {pools: {...raw.pools}, turns: {...raw.turns}, history: Array.isArray(raw.history) ? raw.history.slice(-30) : []};
 }
 
-function wb20ResourceSave(store, owner = character) {
-    return new Promise(resolve => owner.mergeCharacterSettings({[WB20_RESOURCE_KEY]: store}, () => {
+async function wb20ResourceSave(store, owner = character) {
+    let saved = false;
+    await owner.mergeCharacterSettings({[WB20_RESOURCE_KEY]: store}, () => {
+        saved = true;
         if (owner === character && typeof wayBeyond20ScheduleActiveEffectBadgeRefresh === "function") wayBeyond20ScheduleActiveEffectBadgeRefresh();
-        resolve();
-    }));
+    });
+    if (!saved) alertify.warning("A resource update could not be saved. Check Correction before the next action.");
 }
 
 function wb20ResourceLocked(operation, owner = character) {
@@ -453,12 +455,27 @@ async function wb20CorrectResources() {
         const esc=value=>String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
         const entries=[...pools].filter(([,pool])=>pool.remaining !== null || pool.kind === "local");
         const rows=entries.map(([id,pool],i)=>`<label>${esc(pool.name)} <input name="resource-${i}" type="number" min="0" ${pool.max === null || pool.uncapped ? '' : `max="${pool.max}"`} value="${pool.remaining ?? ''}" placeholder="Unknown" aria-label="${esc(pool.name)} remaining"><span>${pool.max === null ? '' : '/ '+pool.max}</span></label>`).join("");
+        const initiativeContext = () => JSON.stringify([
+            typeof settings !== "undefined" ? settings["vtt-tab"]?.vtt : null,
+            typeof wb20TSSelected === "function" && wb20TSSelected() ? wb20TSContext : null
+        ]);
+        const initiativeScope = initiativeContext();
+        const initiativeState = wayBeyond20GetTurnTrackerState();
+        const previousInitiative = initiativeState.initiativeOverride ?? null;
+        const recordedInitiative = wb20CombatInitiativeTotal({...initiativeState, initiativeOverride: null});
+        const initiativeRow = `<label>Initiative <input name="initiative" type="number" step="any" value="${esc(previousInitiative)}" placeholder="${esc(recordedInitiative ?? 'Not set')}" aria-label="Initiative" aria-describedby="wb20-initiative-correction-help"></label>
+            <p id="wb20-initiative-correction-help">Applies to this sheet’s Combat Tracker. Leave blank to use the recorded initiative.</p>`;
         const portent=typeof wayBeyond20HasPortent === 'function' && wayBeyond20HasPortent(owner) ? wayBeyond20PortentState(owner) : null;
         const portentTurn=portent ? wayBeyond20PortentTurnKey() : null;
         const portentRows=portent?.dice.length ? `<fieldset class="wb20-portent-correction"><legend>Portent dice</legend><p>Clear Used to restore a die. Its rolled value stays the same; this does not undo a roll already resolved at the table.</p>${portent.dice.map((die,i)=>`<label>Portent ${esc(die.value)} <input type="checkbox" name="portent-used-${i}" aria-label="Portent ${esc(die.value)} (die ${i+1}) used" ${die.used?'checked':''}> Used</label>`).join('')}${portentTurn && portent.lastTurn === portentTurn ? '<label><input type="checkbox" name="portent-clear-turn"> Also undo Portent use recorded for this turn</label>' : ''}</fieldset>` : '';
         const history=wb20ResourceStore(owner).history.slice().reverse().map(entry=>`<li>${esc(new Date(entry.at).toLocaleTimeString())} | ${esc(entry.name)}: ${entry.before ?? '?'} -> ${entry.after} | ${esc(entry.reason)}</li>`).join("");
-        const form=await dndbeyondDiceRoller._prompter.prompt("Correction",`<form class="wb20-resource-correction"><p>Remaining resources. Only changed values will be saved.</p>${rows || '<p>No feature resources are currently exposed on this sheet.</p>'}${portentRows}<details><summary>Recent resource history | local only</summary><ol>${history || '<li>No recorded changes.</li>'}</ol></details></form>`,"Save corrections","Cancel");
+        const form=await dndbeyondDiceRoller._prompter.prompt("Correction",`<form class="wb20-resource-correction"><p>Only changed values will be saved.</p>${initiativeRow}${rows || '<p>No feature resources are currently exposed on this sheet.</p>'}${portentRows}<details><summary>Recent resource history | local only</summary><ol>${history || '<li>No recorded changes.</li>'}</ol></details></form>`,"Save corrections","Cancel");
         if (!form || owner !== character || turn !== wayBeyond20AttackActivationTurnKey()) return;
+        const initiativeInput = form.find('[name="initiative"]')[0];
+        const initiative = initiativeInput.value === "" ? null : Number(initiativeInput.value);
+        if (initiativeInput.validity.badInput || (initiative !== null && !Number.isFinite(initiative))) {
+            alertify.warning("Enter a valid initiative number. Nothing was changed."); return;
+        }
         const updates=[];
         for (let i=0;i<entries.length;i++) {
             const raw=String(form.find(`[name="resource-${i}"]`).val()).trim(), value=raw === '' ? null : Number(raw), [id,pool]=entries[i];
@@ -476,6 +493,22 @@ async function wb20CorrectResources() {
             }
         }
         await wb20ResourceLocked(async()=>{
+            if (owner !== character || turn !== wayBeyond20AttackActivationTurnKey()) return;
+            if (initiative !== previousInitiative) {
+                const current = wayBeyond20GetTurnTrackerState();
+                if (initiativeContext() !== initiativeScope || (current.initiativeOverride ?? null) !== previousInitiative) {
+                    alertify.warning("Initiative changed while Correction was open. Reopen Correction to check it.");
+                } else {
+                    const next = {...current};
+                    if (initiative === null) delete next.initiativeOverride;
+                    else next.initiativeOverride = initiative;
+                    let saved = false;
+                    const write = wayBeyond20SetTurnTrackerState(next, () => { saved = true; });
+                    wayBeyond20ScheduleActiveEffectBadgeRefresh();
+                    await write;
+                    if (!saved) alertify.warning("Initiative could not be saved. Reopen Correction to check it.");
+                }
+            }
             for (const {id,pool,value} of updates) {
                 if (owner !== character || turn !== wayBeyond20AttackActivationTurnKey()) return;
                 if (!await wb20SetResource(id,value,{owner,expected:pool.remaining})) alertify.warning(`${pool.name} changed or could not be saved. Reopen Correction to check it.`);
@@ -493,6 +526,7 @@ async function wb20ResourcesRest(owner,rest) {
         }
         await wb20ResourceSave(store,owner);
         if (typeof wb20SummonsRest === 'function') await wb20SummonsRest(owner,rest);
+        if (typeof wb20ClericRest === 'function') await wb20ClericRest(owner);
     },owner);
 }
 

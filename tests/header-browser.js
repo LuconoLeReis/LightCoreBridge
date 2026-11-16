@@ -6,12 +6,12 @@ const headerSource=process.env.WB20_HEADER_SOURCE || path.join(root,"src/dndbeyo
 const headerCSS=process.env.WB20_HEADER_CSS || path.join(root,"src/extension/beyond20.css");
 const group=(name,text)=>`<div class="ct-character-header-desktop__group ct-character-header-desktop__group--${name}"><div class="ct-character-header-desktop__button" role="button" tabindex="0"><span class="ct-character-header-desktop__button-label">${text}</span></div></div>`;
 const html=`<style>.native-campaign { margin-left:20px; } [data-testid="campaign-summary"] > span:first-child {margin-right:5px} [data-testid="campaign-summary"] > span:last-child {max-width:150px} .ct-character-header-desktop__button-label {text-transform:uppercase !important;}</style><div class="ct-character-header-desktop">
-<div class="ct-character-header-desktop__group-tidbits"><div class="ddbc-character-tidbits"><div class="name">Dr. Rhonen</div><div class="ddbc-character-tidbits__menu-callout"><button>Manage</button></div><div>M Elf Monk 3</div><small>Level 3</small></div></div>
+<div class="ct-character-header-desktop__group-tidbits"><div class="ddbc-character-tidbits"><div class="name">Test Monk</div><div class="ddbc-character-tidbits__menu-callout"><button>Manage</button></div><div>M Elf Monk 3</div><small>Level 3</small></div></div>
 <div class="ct-character-header-desktop__group--gap"></div>
 <div class="ct-character-header-desktop__group--beyond20-hotkeys"></div>
 <div class="ct-character-header-desktop__group--beyond20"><div class="ct-character-header-desktop__button ct-beyond20-settings-button"><span class="ct-character-header-desktop__button-label">LightCore</span></div></div>
 ${group("share","Share")}${group("short-rest","Short Rest")}${group("long-rest","Long Rest")}
-<div class="native-campaign"><div data-testid="campaign-summary"><span>Campaign:</span><span>Chult After Hours</span></div><span><a href="/games/8097217" aria-label="Launch Game"><div class="styles_campaignButtonGroup__fixture"><div class="styles_campaignButton__fixture"><svg aria-hidden="true"><path fill="white" d="M0 0H10V10H0Z"/></svg></div></div></a></span><div><span><div role="button" aria-roledescription="Game Log" class="styles_campaignButtonGroup__fixture"><div class="styles_campaignButton__fixture"><svg aria-hidden="true"><path fill="white" d="M0 0H10V10H0Z"/></svg></div></div></span></div></div>
+<div class="native-campaign"><div data-testid="campaign-summary"><span>Campaign:</span><span>Example Campaign</span></div><span><a href="/games/9000001" aria-label="Launch Game"><div class="styles_campaignButtonGroup__fixture"><div class="styles_campaignButton__fixture"><svg aria-hidden="true"><path fill="white" d="M0 0H10V10H0Z"/></svg></div></div></a></span><div><span><div role="button" aria-roledescription="Game Log" class="styles_campaignButtonGroup__fixture"><div class="styles_campaignButton__fixture"><svg aria-hidden="true"><path fill="white" d="M0 0H10V10H0Z"/></svg></div></div></span></div></div>
 <div class="ct-character-header-desktop__group--builder"><a href="#builder" aria-label="Go to builder"><svg aria-hidden="true"><path fill="white" d="M0 0H10V10H0Z"/></svg></a></div>
 <div class="wb20-ts-status"><span class="wb20-ts-label">TaleSpire: return helper disconnected</span><button>Link mini</button><button>Pick target in TaleSpire</button></div>
 </div><button id="outside">Outside header</button><div class="ct-saving-throws-box" style="color:rgb(32,40,48);background:rgb(244,240,224);border:1px solid rgb(40,100,80)"><div class="ddbc-box-background"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="rgb(244,240,224)"/><path d="M0 0H100V3H0Z" fill="rgb(40,100,80)"/></svg></div></div>`;
@@ -155,7 +155,7 @@ ${group("share","Share")}${group("short-rest","Short Rest")}${group("long-rest",
         assert.deepEqual(await page.evaluate(()=>nativeClicks),{manage:1,wb20:1,share:1,short:0,long:0,log:1});
         await page.getByRole('link',{name:'Launch Game',exact:true}).click();
         await page.getByRole('link',{name:'Go to builder',exact:true}).click();
-        assert.deepEqual(await page.evaluate(()=>headerLinks),[['Launch Game','/games/8097217'],['Go to builder','#builder']],
+        assert.deepEqual(await page.evaluate(()=>headerLinks),[['Launch Game','/games/9000001'],['Go to builder','#builder']],
             'compact layout preserves native Maps and builder link activation');
         // Native sidebar opens from its own control, then dismisses on an
         // outside click. Forwarding Manage inside the proxy's same click used

@@ -18,7 +18,7 @@ function wb20TSGetState() {
 }
 function wb20TSSetState(state,callback) {
     const states=character.getSetting(wb20TSStateKey(),{});
-    character.mergeCharacterSettings({[wb20TSStateKey()]:{...states,[wb20TSContext]:state}},callback);
+    return character.mergeCharacterSettings({[wb20TSStateKey()]:{...states,[wb20TSContext]:state}},callback);
 }
 function wb20TSKey(id) {return 'ts:'+wb20TSContext+':'+id;}
 function wb20TSApplySnapshot(snapshot, continuous = false) {
@@ -55,9 +55,11 @@ function wb20TSApplySnapshot(snapshot, continuous = false) {
             state.combatSource='TaleSpire'; state.combatStartedAt=state.combatStartedAt || Date.now();
             state.currentRoll20Turn={tokenId:turnKey,tokenName:active.name,turnKey,isThisCharactersTurn:isOwn,pr:''};
         }
-    } else if (!snapshot.tracking) {
+    } else if (!snapshot.tracking && state.combatSource === 'TaleSpire') {
         state.inCombat=false;
-        // Pausing is not End Combat: retain counters, observations and turn history.
+        // Pausing releases only TaleSpire's turn authority. A manually opened
+        // Combat Window remains active while board observations keep updating.
+        // Retain counters, observations and turn history; pausing is not a reset.
     }
     const sheetTarget=wb20TSSheetTarget;
     const preserveSheetTarget=sheetTarget?.owner === character && sheetTarget.context === wb20TSContext && sheetTarget.event === wb20TSTargetEvent(snapshot);

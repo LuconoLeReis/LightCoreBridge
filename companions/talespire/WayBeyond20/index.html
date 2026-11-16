@@ -10,11 +10,11 @@ h1{font-size:23px;margin:0 0 8px}p{margin:8px 0 14px}textarea{display:block;widt
 <h2>Connect once</h2><p>Copy this connection into LightCore’s <b>TaleSpire connection</b> setting, then choose <b>TaleSpire</b> as the roll destination.</p>
 <textarea id="connection" aria-label="TaleSpire connection" readonly></textarea>
 <button id="copy" type="button" disabled>Copy connection</button><button id="test" type="button" disabled>Test board link</button>
-<p class="muted">The test posts a labeled, fixed result of 20, not a dice roll. LightCore results are marked by TaleSpire as Symbiote-supplied. Private rolls go only to GMs. Initiative, token positions and HP are not synced yet.</p>
+<p class="muted">The test posts a labeled, fixed result of 20, not a dice roll. LightCore results are marked by TaleSpire as Symbiote-supplied. Private rolls go only to GMs.</p>
 <h2>Board connection</h2>
 <p id="return-status" role="status">Start the LightCore local return helper to connect board information.</p>
 <label><input id="follow-turns" type="checkbox"> Follow this board’s turn order</label>
 <button id="pick-target" type="button">Choose target on board</button>
-<p class="muted">Link your mini from LightCore on your DDB sheet. Turn following is paused initially; enabling it changes only LightCore tracking, never TaleSpire’s battle.</p>
+<p class="muted">With the local helper connected, link your mini from LightCore on your DDB sheet to read board positions and targets. Enable turn following here to send the board’s initiative order to LightCore. This does not move minis or change TaleSpire’s initiative or HP.</p>
 <h2>Recent handoffs</h2><ol id="history"></ol>
 </body></html>

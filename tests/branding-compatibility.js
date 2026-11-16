@@ -2,11 +2,22 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const root=path.resolve(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const chrome=JSON.parse(read('manifest.json')),firefox=JSON.parse(read('manifest_ff.json'));
+const {version}=JSON.parse(read('package.json'));
 for(const manifest of [chrome,firefox]) {
     assert.equal(manifest.name,'LightCore Bridge');assert.equal(manifest.short_name,'LightCore');
-    assert.equal(manifest.version,'2.20.204');
+    assert.equal(manifest.version,version);
 }
-assert.equal(chrome.version_name,'LightCore Bridge 1.73.72');
+assert.match(chrome.version_name,/^LightCore Bridge \d+\.\d+\.\d+$/);
+assert.equal(firefox.version_name,chrome.version_name);
+for (const manifest of [chrome, firefox, {...chrome, version_name: 'LightCore Bridge 1.73.999', version: '2.20.999'}]) {
+    const elements = {'installed-version': {}, 'browser-build': {hidden: true}};
+    const document = {getElementById: id => elements[id]};
+    vm.runInNewContext(read('src/extension/updates.js'), {document, chrome: {runtime: {getManifest: () => manifest}}});
+    assert.equal(document.title, `${manifest.version_name} updates`);
+    assert.equal(elements['installed-version'].textContent, manifest.version_name);
+    assert.equal(elements['browser-build'].textContent, `Browser build ${manifest.version}`);
+    assert.equal(elements['browser-build'].hidden, false);
+}
 assert.equal(firefox.browser_specific_settings.gecko.id,'beyond20@kakaroto.homelinux.net');
 const symbiote=JSON.parse(read('companions/talespire/WayBeyond20/manifest.json'));
 assert.equal(symbiote.name,'LightCore Bridge');

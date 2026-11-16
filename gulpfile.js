@@ -169,6 +169,9 @@ const SRC_FILES = {
         "src/dndbeyond/content-scripts/attack-handoff.js",
         "src/dndbeyond/content-scripts/header.js",
         "src/reliability/sheet-load-diagnostics.js",
+        "src/dndbeyond/content-scripts/healing-cast.js",
+        "src/dndbeyond/content-scripts/healing-actions.js",
+        "src/dndbeyond/content-scripts/cleric-features.js",
         "src/dndbeyond/content-scripts/character.js",
     ],
     dndbeyond_source: [
@@ -343,6 +346,7 @@ for (const [name, files] of Object.entries(COMPAT_FILES)) {
 }
 SRC_FILES.recovery_boot = ['src/common/sandbox-header.js', 'src/reliability/recovery-scope.js', 'src/reliability/sheet-load-diagnostics.js', 'src/reliability/recovery-boot.js', 'src/common/sandbox-footer.js'];
 SRC_FILES.recovery_popup = ['src/common/sandbox-header.js', 'src/reliability/recovery-scope.js', 'src/reliability/recovery-popup.js', 'src/common/sandbox-footer.js'];
+SRC_FILES.updates = ['src/extension/updates.js'];
 const CSS_FILES = ['src/extension/beyond20.css']
 
 const compatCSS = () => gulp.src('vendor/beyond20-2.21.0/src/extension/beyond20.css').pipe(concat('compat_beyond20.css')).pipe(gulp.dest('dist'));

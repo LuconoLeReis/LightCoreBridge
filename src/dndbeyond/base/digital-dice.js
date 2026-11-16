@@ -175,7 +175,7 @@ class DigitalDiceManager {
     static async _makeRoll(roll) {
         // New DDB roll button has 2 buttons, one to roll, one to select target, so pick the first one only.
         if (dndbeyondDiceRoller._settings["roll-to-game-log"]) {
-            sendCustomEvent("MBPendingRoll", [roll.toJSON()]);
+            sendCustomEvent("MBPendingRoll", [{...roll.toJSON(), gameLog: roll.gameLog}]);
         } else {
             // Stop the pending roll and fulfilled result from being posted
             sendCustomEvent("MBPendingRoll", null);

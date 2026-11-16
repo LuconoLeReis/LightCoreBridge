@@ -321,8 +321,10 @@ class Beyond20RollRenderer {
         // - more than 1 critical damage
         // - or, more than 1 non-critical damage
         // - and the 2 non-critical damages are not 1 handed + 2 handed
-        let add_totals = damage_rolls.filter((r) => (r[2] & DAMAGE_FLAGS.CRITICAL) == 0).length > 1 ||
-                        damage_rolls.filter((r) => (r[2] & DAMAGE_FLAGS.CRITICAL) != 0).length > 1;
+        let add_totals = request["waybeyond20-local-summary"] ||
+                        damage_rolls.filter((r) => (r[2] & DAMAGE_FLAGS.CRITICAL) == 0).length > 1 ||
+                        damage_rolls.filter((r) => (r[2] & DAMAGE_FLAGS.CRITICAL) != 0).length > 1 ||
+                        (damage_rolls.some(r=>r[2] & DAMAGE_FLAGS.CRITICAL) && damage_rolls.some(r=>!(r[2] & DAMAGE_FLAGS.CRITICAL)));
         const total_damages = {}
         let conditionalFormula = "";
         for (let [roll_name, roll, flags] of damage_rolls) {
@@ -397,7 +399,7 @@ class Beyond20RollRenderer {
                 total_damages["Critical 2-Handed Damage"] = two_handed;
             }
             // HACK: need to be simplified and merged with the code above
-            if(request.name.includes("Toll the Dead") && request.character.settings["toll-choice"] === "both") {
+            if(request.name.includes("Toll the Dead") && request.character.settings?.["toll-choice"] === "both") {
                 if(total_damages["2-Handed Damage"]) {
                     total_damages["Full HP Damage"] = total_damages["1-Handed Damage"];
                     total_damages["Missing HP Damage"] = total_damages["2-Handed Damage"];
@@ -420,7 +422,6 @@ class Beyond20RollRenderer {
             const hasCritical1Handed = total_damages["Critical 1-Handed Damage"] || total_damages["Critical Full HP Damage"];
             const hasCritical2Handed = total_damages["Critical 2-Handed Damage"] || total_damages["Critical Missing HP Damage"];
             
-            const hasAttackRolls = attack_rolls && attack_rolls.length > 0;
             
             // The combined totals are what this attack deals to its target, so conditional damage
             // stays out of them. It is either damage dealt to a different creature -- Efreeti's
@@ -429,7 +430,7 @@ class Beyond20RollRenderer {
             // its own condition is met. Either way a Critical Hit doubles the attack's damage dice
             // against the target (PHB, Rules Glossary: Critical Hit), and this is neither. It keeps
             // its own Conditional row on the card (B131-O4f).
-            if (hasAttackRolls) {
+            {
                 if (has1Handed && hasCritical1Handed) {
                     total_damages["Combined 1 Handed"] = `${total_damages["1-Handed Damage"] || total_damages["Full HP Damage"]} + ${total_damages["Critical 1-Handed Damage"] || total_damages["Critical Full HP Damage"]}`;
                 }
@@ -480,7 +481,8 @@ class Beyond20RollRenderer {
         }
         
         for (const key of outputOrder) {
-            const is_total = (roll === null);
+            const is_total = outputOrder.some(name=>name.startsWith('Combined')) ? key.startsWith('Combined') :
+                key===outputOrder.find(name=>name!=='Conditional');
             roll = this._roller.roll(total_damages[key]);
             roll.setRollType("damage");
             await roll.roll();
@@ -491,9 +493,11 @@ class Beyond20RollRenderer {
             if (key.includes("Combined")) total_classes += " beyond20-combined-damage";
             if (key === "Conditional") total_classes += " beyond20-conditional-total";
             let label = key;
+            if(key==='Conditional')label='Conditional · not included';
+            if(key==='Damage' && request['waybeyond20-local-summary'])label='Total damage';
+            if(key==='Combined')label='Total damage';
             if (key === "Combined 1 Handed" || key === "Combined 2 Handed") {
-                const rest = key.substring(9);
-                label = `Total${rest} Combined`;
+                label = key==='Combined 1 Handed'?'Total · One-handed':'Total · Two-handed';
             }
             html += `<div class='${total_classes}'><b>${label}: </b>${roll_html}</div>`;
         }
@@ -506,7 +510,7 @@ class Beyond20RollRenderer {
         html += "</div>";
         const character = (request.whisper == WhisperType.HIDE_NAMES) ? this._settings["hidden-monster-replacement"] : request.character.name;
         const discordChannel = getDiscordChannel(this._settings, request.character)
-        postToDiscord(discordChannel ? discordChannel.secret : "", request, title, source, attributes, description, attack_rolls, roll_info, damage_rolls, total_damages, open, this._settings).then(discord_error => {
+        if(!request['waybeyond20-local-summary'])postToDiscord(discordChannel ? discordChannel.secret : "", request, title, source, attributes, description, attack_rolls, roll_info, damage_rolls, total_damages, open, this._settings).then(discord_error => {
             if (discord_error != undefined)
                 console.warn("WayBeyond20: optional Discord delivery unavailable; the roll remains local.");
         });
@@ -520,7 +524,7 @@ class Beyond20RollRenderer {
         const shouldHideResultswithDD = this._settings["hide-results-with-digital-dice"];
 
         const canPostHTML = !(isWhispering && isSendingResultToDiscordOnly && shouldHideResultsOnWhispersToDiscord) &&
-                            !(useDD && shouldHideResultswithDD);
+                            !(useDD && shouldHideResultswithDD && !request['waybeyond20-digital-dice-fallback']);
 
         const json_attack_rolls = attack_rolls.map(r => r.toJSON ? r.toJSON() : r);
         const json_damage_rolls = damage_rolls.map(([l, r, f]) => r.toJSON ? [l, r.toJSON(), f] : [l, r, f]);
@@ -1194,6 +1198,10 @@ class Beyond20RollRenderer {
             const continuation = request["waybeyond20-attack-continuation"];
             if (typeof wayBeyond20ContinueAttackDamage === "function")
                 return wayBeyond20ContinueAttackDamage(continuation.id);
+            if(!Number.isInteger(continuation.tab)) {
+                this._displayer.displayError?.('Resume this attack on its original character sheet.');
+                return false;
+            }
             const message = { action: "forward", tab: continuation.tab,
                 message: { action: "waybeyond20-continue-attack", id: continuation.id } };
             if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage)

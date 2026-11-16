@@ -13,7 +13,7 @@ function wayBeyond20NeedsAttackFollowup(args) {
     // A producer's name or Smite eligibility must not gate an unarmed on-hit rule.
     wayBeyond20NormalizeAttackSemantics(args, args.name);
     const parsedDraining = typeof wb20RuleDrainingSource === "function" && wb20RuleDrainingSource();
-    return !!((typeof wb20FeatureNeedsHit === "function" && wb20FeatureNeedsHit(args)) || args["waybeyond20-smite-eligible"] || args["waybeyond20-savage-attacker"]?.mode === "post-result" ||
+    return !!((typeof wb20ClericNeedsHit === 'function' && wb20ClericNeedsHit(args)) || (typeof wb20FeatureNeedsHit === "function" && wb20FeatureNeedsHit(args)) || args["waybeyond20-smite-eligible"] || args["waybeyond20-savage-attacker"]?.mode === "post-result" ||
         (args["waybeyond20-unarmed-strike"] && (parsedDraining || character.hasRacialTrait("Draining Attack", true) &&
             character.hasRacialTrait("Natural Attack", true))));
 }
@@ -44,6 +44,7 @@ async function wayBeyond20ConfirmAttackHit(name, rolls) {
 }
 
 async function wayBeyond20ResolveAttackFollowup(rollType, fallback, args) {
+    args['waybeyond20-local-result-group'] ||= `attack-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     // Do not navigate to Spells to discover fuel before the attack is even rolled.
     // Actual Smite choices are read after a confirmed hit and weapon damage, when
     // the rider can be used. A miss/cancel never needs to mount the Spells tab.
@@ -55,7 +56,8 @@ async function wayBeyond20ResolveAttackFollowup(rollType, fallback, args) {
     const draining = args["waybeyond20-temp-hp-on-hit"];
     args["waybeyond20-followup-phase"] = "base";
     const monk = typeof wb20FeatureNeedsHit === "function" && wb20FeatureNeedsHit(args);
-    if (!smiteOptions && savage?.mode !== "post-result" && !draining && !monk) {
+    const cleric = typeof wb20ClericNeedsHit === 'function' && wb20ClericNeedsHit({...args,'waybeyond20-followup-phase':undefined});
+    if (!smiteOptions && savage?.mode !== "post-result" && !draining && !monk && !cleric) {
         return sendRollWithCharacter(rollType, fallback, args);
     }
 
@@ -70,9 +72,9 @@ async function wayBeyond20ResolveAttackFollowup(rollType, fallback, args) {
     let continuation = null;
     if (args.rollAttack && !args.rollDamage) {
         const tab = await wayBeyond20SendRuntimeMessage({ action: "get-current-tab" });
-        if (tab.ok && Number.isInteger(tab.response?.id)) {
+        {
             const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-            continuation = { tab: tab.response.id, id };
+            continuation = { tab: tab.ok && Number.isInteger(tab.response?.id)?tab.response.id:null, id };
             base["waybeyond20-attack-continuation"] = continuation;
             wayBeyond20PendingAttackDamage.set(id, { ready: false });
             // Bound old chat links without growing an unbounded session history.
@@ -89,13 +91,16 @@ async function wayBeyond20ResolveAttackFollowup(rollType, fallback, args) {
         }
     }
     if (!await wayBeyond20ConfirmAttackHit(args.name || fallback, resolved.attacks)) {
-        if (continuation) wayBeyond20PendingAttackDamage.set(continuation.id, { ready: true, declined: true });
+        if (continuation) {
+            wayBeyond20PendingAttackDamage.set(continuation.id, { ready: true, declined: true });
+            if (typeof wb20ClearLocalDamageControl === "function") wb20ClearLocalDamageControl(continuation.id);
+        }
         return true;
     }
 
     const critical = !!args.rollCritical || resolved.attacks.some(roll => !roll.isDiscarded() && roll.isCriticalHit());
     const pending = { ready: true, owner: character, args, rollType, fallback, critical,
-        whisper: resolved.request?.whisper, savage, draining, smiteOptions, monk };
+        whisper: resolved.request?.whisper, savage, draining, smiteOptions, monk, attacks:resolved.attacks };
     if (args.rollDamage) await wayBeyond20FinishAttackDamage(pending);
     else if (continuation) wayBeyond20PendingAttackDamage.set(continuation.id, pending);
     return true;
@@ -104,8 +109,24 @@ async function wayBeyond20ResolveAttackFollowup(rollType, fallback, args) {
 // Default keeps existing callers intact. The secondary lifecycle supplies its own
 // dispatcher so damage/riders reuse these rules without restarting the old entry.
 async function wayBeyond20FinishAttackDamage(pending, dispatch = sendRollWithCharacter) {
+    try {
+        return await wayBeyond20ResolveAttackDamage(pending, dispatch);
+    } finally {
+        const group = pending.args?.["waybeyond20-local-result-group"];
+        if (group && typeof sendCustomEvent === "function") {
+            try { sendCustomEvent("MBAttackDamageEnd", [group]); } catch (_) {}
+        }
+    }
+}
+
+async function wayBeyond20ResolveAttackDamage(pending, dispatch) {
     if (pending.owner !== character) return false;
     const { args, rollType, fallback, critical, savage, draining, smiteOptions } = pending;
+    const send=dispatch;
+    dispatch=(type,value,properties)=>{
+        if(args['waybeyond20-local-result-group'])properties['waybeyond20-local-result-group']=args['waybeyond20-local-result-group'];
+        return send(type,value,properties);
+    };
     const damageArgs = { ...args, rollAttack: false, rollDamage: true, rollCritical: critical,
         advantage: RollType.NORMAL, "waybeyond20-await-hit": true, "waybeyond20-followup-phase": "damage" };
     // This is the damage from an already-performed attack, not another attack/action.
@@ -127,6 +148,7 @@ async function wayBeyond20FinishAttackDamage(pending, dispatch = sendRollWithCha
     // on-hit riders. Deferred damage follows this same path when its button is used;
     // it must not spend Smite/CD while still waiting for the weapon damage roll.
     const riderDamage = [];
+    if (typeof wb20ClericAfterHit === 'function') riderDamage.push(...await wb20ClericAfterHit(args,resolved,dispatch,critical));
     if (smiteOptions && pending.owner === character &&
         (!args["waybeyond20-attack-context"] ||
             args["waybeyond20-attack-context"].turnKey === wayBeyond20AttackActivationTurnKey())) {
@@ -159,6 +181,18 @@ async function wayBeyond20FinishAttackDamage(pending, dispatch = sendRollWithCha
         }, 0);
         await dndbeyondDiceRoller._roller.applyDamageBasedTempHP(damage, resolved.request);
     }
+    if(typeof wb20ShowLocalAttackTotal==='function') {
+        // A rider's own base row is additional to either handedness of the
+        // weapon. Preserve critical/healing/conditional flags in the summary.
+        // A flat weapon has no critical subtotal: let the rider establish it
+        // rather than adding to a subtotal that does not exist.
+        const added=riderDamage.map(([name,roll,flags])=>[name,roll,
+            flags & DAMAGE_FLAGS.REGULAR && resolved.damages.some(([, ,weaponFlags])=>
+                (weaponFlags & DAMAGE_FLAGS.REGULAR) &&
+                !!(weaponFlags & DAMAGE_FLAGS.CRITICAL)===!!(flags & DAMAGE_FLAGS.CRITICAL))
+                ? (flags & ~DAMAGE_FLAGS.REGULAR) | DAMAGE_FLAGS.ADDITIONAL : flags]);
+        await wb20ShowLocalAttackTotal(args,pending.attacks || [],resolved.damages.concat(added),pending.whisper);
+    }
     return true;
 }
 
@@ -182,6 +216,7 @@ async function wayBeyond20AfterDivineSmite(args, dispatch = sendRollWithCharacte
             advantage: RollType.NORMAL,
             "waybeyond20-followup-phase": "elemental"
         };
+        if(args['waybeyond20-local-result-group'])rider['waybeyond20-local-result-group']=args['waybeyond20-local-result-group'];
         const whisper = args["waybeyond20-resolved-whisper"] ?? args.whisper;
         if (whisper !== undefined) rider.whisper = whisper;
         const choice = await wayBeyond20MaybeAddElementalStrike(rider, "Divine Smite");

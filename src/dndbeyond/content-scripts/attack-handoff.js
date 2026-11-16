@@ -15,7 +15,7 @@ function wb20ContinueCombatHandoff() {
     if (!request.isCurrent()) { wb20CancelCombatHandoff(); return false; }
     const rowName = row => $(row).find('.ct-combat-attack__label,.ddbc-combat-attack__label').first().text().trim();
     if (request.row.isConnected) {
-        if (!request.control.isConnected || rowName(request.row) !== request.name) {
+        if (rowName(request.row) !== request.name) {
             wb20CancelCombatHandoff(); return false;
         }
     } else {
@@ -25,8 +25,12 @@ function wb20ContinueCombatHandoff() {
             .filter(row => row.getClientRects().length && rowName(row) === request.name && row.querySelector(request.controlSelector));
         if (rows.length !== 1) return false;
         request.row = rows[0];
-        request.control = rows[0].querySelectorAll(request.controlSelector)[request.controlIndex];
-        if (!request.control) { wb20CancelCombatHandoff(); return false; }
+    }
+    // DDB may redraw just the icon or dice inside an unchanged native row.
+    // Keep the original control kind and die position; never select another row.
+    if (!request.control || !request.row.contains(request.control)) {
+        request.control = request.row.querySelectorAll(request.controlSelector)[request.controlIndex];
+        if (!request.control) return false;
     }
     for (const paneClass of ['b20-item-pane','b20-action-pane','ct-custom-action-pane','b20-custom-action-pane','ct-spell-pane']) {
         const panes = [...document.querySelectorAll('.' + paneClass)];
@@ -89,12 +93,16 @@ function wb20RequestCombatHandoff(control, options) {
             return;
         }
         if (wb20ContinueCombatHandoff() || wb20CombatHandoff !== request) return;
-        const label = request.row.querySelector('.ct-combat-attack__name .ct-combat-attack__label,.ddbc-combat-attack__name .ddbc-combat-attack__label');
+        const label = request.row.isConnected && request.row.querySelector('.ct-combat-attack__name .ct-combat-attack__label,.ddbc-combat-attack__name .ddbc-combat-attack__label');
         if (label) label.click();
         else wb20CancelCombatHandoff();
     }, 0);
     request.expiryTimer = setTimeout(() => {
-        if (wb20CombatHandoff === request) wb20CancelCombatHandoff();
+        if (wb20CombatHandoff !== request) return;
+        const current = request.isCurrent();
+        wb20CancelCombatHandoff();
+        if (current && typeof alertify !== 'undefined')
+            alertify.warning('LightCore Bridge could not open the attack. No roll was sent.');
     }, 5000);
     return true;
 }

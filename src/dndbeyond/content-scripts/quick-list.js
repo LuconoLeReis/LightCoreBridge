@@ -612,8 +612,15 @@ async function wb20QuickManage(root) {
                 session.spells.map((spell, index) => `<label>${escape(spell.name)} (${escape(spell.source)}, level ${spell.level})<select name="category-${index}">` +
                     categories(spell).replace(draft.categories?.[spell.key] ? `<option>${draft.categories[spell.key]}</option>` : 'value=""', draft.categories?.[spell.key] ? `<option selected>${draft.categories[spell.key]}</option>` : 'value="" selected') +
                     "</select></label>").join("") + "</details>" +
-                '<details><summary>Custom lines</summary><p>Your dice formula will be shown with the result.</p><p>Combine dice and numbers with + or -. Keep/drop: 2d20kh1, 4d6dl1, kl (keep lowest), dh (drop highest). Reroll once: 2d6ro&lt;=2. Minimum dice-group total: 2d6min6. Example: 4d6dl1+1d4+3. Modifiers go in reroll, keep/drop, minimum order. Up to 100 dice, 240 characters. Parentheses, multiplication, division, exploding dice, variables and scripts are not yet supported.</p><p>Damage type labels the result; it does not automatically change HP. No automatic spell slots, feature uses or attack riders. The selected Action/Bonus Action/Reaction cost is tracked after a successful roll.</p>' +
-                '<p>Type individual parts with braces: {Fire:3d6}+{Piercing:1d6+6}+{Radiant:3d8}. Unmarked parts use the Damage type above. Each type gets a subtotal. Shortcuts: F Fire, P Piercing, Po Poison, Ps Psychic, R Radiant, D Divine (custom). Full type names also work.</p>' +
+                '<details><summary>Custom lines</summary><div class="wb20-custom-help">' +
+                '<p><strong>Dice formulas</strong><br>Combine dice and numbers with <code>+</code> or <code>-</code>. Try <code>4d6dl1+1d4+3</code>. The formula appears in the result.</p>' +
+                '<ul><li>Reroll once: <code>2d6ro&lt;=2</code></li>' +
+                '<li>Keep or drop: <code>2d20kh1</code> keeps the highest and <code>4d6dl1</code> drops the lowest. Use <code>kl</code> to keep the lowest or <code>dh</code> to drop the highest.</li>' +
+                '<li>Set a group minimum: <code>2d6min6</code></li></ul>' +
+                '<p>Use modifiers in that order. The limit is 100 dice and 240 characters. Parentheses, multiplication, division, exploding dice, variables and scripts are unsupported.</p>' +
+                '<p><strong>Damage types</strong><br>Use braces for separate subtotals, for example <code>{Fire:3d6}+{Piercing:1d6+6}+{Radiant:3d8}</code>. Unmarked parts use the selected Damage type.</p>' +
+                '<p>Use full names or shortcuts: F Fire, P Piercing, Po Poison, Ps Psychic, R Radiant, D Divine (custom).</p>' +
+                '<p><strong>Resource tracking</strong><br>After a successful roll, LightCore tracks the selected Action, Bonus Action or Reaction. Apply HP, spell slots, feature uses and attack riders yourself.</p></div>' +
                 (draft.custom || []).map(customFields).join("") + customFields(draft.newCustom || {}, "new") + "</details></form>";
             const response = await dndbeyondDiceRoller._prompter.prompt("Manage quick list", html, "Save", "Cancel");
             if (!response || owner !== character) return;

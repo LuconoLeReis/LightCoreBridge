@@ -47,18 +47,113 @@ function wb20ItemWeaponBonus() {
 function wb20ItemMasteries() {
     return [...new Set(wb20CurrentFeatureRules().flatMap(rule=>(rule.actions || []).map(s=>s.match(/^([a-z]+)\s*\([^)]*\):\s*\d*\s*action/i)?.[1]).filter(Boolean)))];
 }
+// Read current owned descriptions at activation time. Different Unarmed damage
+// options are alternatives, not mutually exclusive feature ownership gates.
+function wb20UnarmedProfiles(owner=character) {
+    const str=Number(owner.getAbility?.('STR')?.mod),dex=Number(owner.getAbility?.('DEX')?.mod);
+    if(!Number.isFinite(str) || !Number.isFinite(dex))return [];
+    const rules=wb20CurrentFeatureRules(owner);
+    const flexible=rules.some(rule=>{
+        const text=wb20RuleText(rule.text);
+        return /unarmed strikes?/i.test(text) &&
+            (/(?:Dexterity|Dex\.?)(?: modifier)?\s+(?:instead of|in place of)\s+(?:your )?(?:Strength|Str\.?)/i.test(text) ||
+             /(?:Strength|Str\.?)\s+or\s+(?:Dexterity|Dex\.?)\s+modifier/i.test(text));
+    });
+    const ability=flexible && dex>str?'DEX':'STR',mod=ability==='DEX'?dex:str;
+    const profile=(base,type,source)=>({base,damageType:type,source,attackAbility:ability,attackMod:mod,
+        damageFormula:base+(mod>=0?'+':'')+mod,damageMode:source?'feature':'standard',
+        expectedDamage:/d/i.test(base)?Number(base.split('d')[0]||1)*(Number(base.split('d')[1])+1)/2+mod:Number(base)+mod,
+        toHit:String((Number(owner._proficiency)||0)+mod)});
+    const profiles=[profile('1','Bludgeoning',null)];
+    for(const rule of rules) {
+        const text=wb20RuleText(rule.text);
+        if(!/unarmed strikes?/i.test(text))continue;
+        // Extra/rider dice are added elsewhere, never used as replacement dice.
+        const clauses=text.split(/(?<=[.!?])\s+(?=[A-Z])/);
+        for(const clause of clauses) {
+            if(/(?:extra|additional)\s+\d*d\d+/i.test(clause))continue;
+            const direct=clause.match(/(?:unarmed strikes? (?:deal|deals)|you can deal)\s+(\d*d\d+)\b/i);
+            let base=direct?.[1];
+            const reference=clause.match(/(?:a roll of )?your ([a-z ]+?) die plus your (?:Dexterity|Strength|Dex\.|Str\.) modifier/i);
+            if(!base && reference)base=wb20UnarmedReferencedDie(reference[1],rule,owner,rules);
+            const replaced=clause.match(/roll\s+(\d*d\d+)\s+(?:in place of|instead of).*?(?:normal damage|Unarmed Strike)/i);
+            if(!base && replaced)base=replaced[1];
+            if(!base)continue;
+            // A cached feature description may predate a level change. A live
+            // action belonging to this same option supplies its current die.
+            base=wb20UnarmedReferencedDie('',rule,owner,[]) || base;
+            const type=clause.match(/\b(Bludgeoning|Piercing|Slashing|Force|Necrotic|Radiant|Fire|Cold|Lightning|Thunder|Acid|Poison|Psychic) damage/i)?.[1] || 'Bludgeoning';
+            profiles.push(profile(base,type,rule.name));
+        }
+    }
+    return profiles.sort((a,b)=>b.expectedDamage-a.expectedDamage || b.attackMod-a.attackMod);
+}
+
+function wb20UnarmedReferencedDie(reference,rule,owner,rules) {
+    // Prefer the current native action's resolved die over a progression table.
+    // This also handles newly leveled characters without a class/level table.
+    if(typeof document!=='undefined')for(const row of document.querySelectorAll('.ct-combat-attack,.ddbc-combat-attack')) {
+        const name=wb20RuleText(row.querySelector('.ct-combat-attack__name,.ddbc-combat-attack__name')?.textContent);
+        const names=[reference,rule.name,...(rule.actions || []).map(value=>value.replace(/:\s*\d*\s*(?:bonus action|action|reaction|special)\s*$/i,''))];
+        if(!names.some(value=>value && wb20ResourceId(value)===wb20ResourceId(name)))continue;
+        const value=row.querySelector('.ct-combat-attack__damage,.ddbc-combat-attack__damage')?.textContent || '';
+        const die=value.match(/\b(\d*d\d+)\b/i);if(die)return die[1].replace(/^d/i,'1d');
+    }
+    const related=rules.find(r=>wb20ResourceId(r.name)===wb20ResourceId(reference));
+    const dice=[...new Set((related?.text || '').match(/\b\d*d\d+\b/gi) || [])];
+    // A description containing several progression dice isn't a current value.
+    return dice.length===1?dice[0].replace(/^d/i,'1d'):null;
+}
+
 function wb20NaturalUnarmedDamage(args) {
-    if(args['attack-source']==='item' || !wayBeyond20RollIsUnarmedStrike(args,args.name))return;
-    const natural=wb20CurrentFeatureRules().map(wb20RuleOperators).find(o=>o.unarmedDie);
-    const formula=String(args.damages?.[0] || '');
-    if(!natural || !/^\d+(?:\s*[+\-]\s*\d+)*$/.test(formula))return;
-    // DDB's ordinary Unarmed row starts with base 1 damage and already includes
-    // native flat bonuses. Replace that base only; leave every modifier intact.
-    const total=(formula.match(/[+\-]?\s*\d+/g) || []).reduce((sum,n)=>sum+Number(n.replace(/\s/g,'')),0);
-    args.damages[0]=natural.unarmedDie+(total-1>=0?'+':'')+(total-1);
-    const type=args['damage-types']?.[0] || 'Bludgeoning';
-    const crit=typeof damagesToCrits==='function'?damagesToCrits(character,[natural.unarmedDie])[0]:natural.unarmedDie;
-    args['critical-damages']=[...(args['critical-damages'] || []),crit];args['critical-damage-types']=[...(args['critical-damage-types'] || []),type];
+    if(!wayBeyond20RollIsUnarmedStrike(args,args.name) || args['attack-source']==='spell' ||
+        args['waybeyond20-unarmed-normalized'])return;
+    const profiles=wb20UnarmedProfiles(),best=profiles[0];
+    if(!best)return;
+    const str=Number(character.getAbility('STR').mod),dex=Number(character.getAbility('DEX').mod);
+    const hint=args['waybeyond20-unarmed-attack-ability'] ||
+        (String(args.name).match(/\((Strength|Dexterity)\)/i)?.[1]?.slice(0,3).toUpperCase());
+    const rawHit=Number(args['waybeyond20-native-unarmed-hit'] ?? args['to-hit']);
+    // An unlabeled native row may already include Dexterity plus a magic/custom
+    // attack bonus. Never add the ability difference again to such a row.
+    const remainder=rawHit-(Number(character._proficiency)||0);
+    const nativeMod=hint==='DEX'?dex:hint==='STR'?str:
+        Number.isFinite(rawHit) && remainder===dex?dex:
+        Number.isFinite(rawHit) && remainder>=best.attackMod?best.attackMod:str;
+    // Never revoke a better native ability supplied by another rule.
+    const delta=Math.max(0,best.attackMod-nativeMod);
+    if(delta && args['to-hit']!==undefined && /^[-+]?\d+$/.test(String(args['to-hit']).trim()))
+        args['to-hit']=String(Number(args['to-hit'])+delta);
+    const formula=String(args.damages?.[0] || '').replace(/\s/g,'');
+    // Preserve the native flat bonuses and all separate riders. Complex formulas
+    // stay native rather than guessing which component is the ability modifier.
+    const parsed=formula.match(/^(\d*d\d+|-?\d+)((?:[+-](?:\d*d\d+|\d+))*)$/i);
+    if(parsed) {
+        const nativeBase=parsed[1],nativeDice=/d/i.test(nativeBase);
+        const nativeAverage=nativeDice?Number(nativeBase.split('d')[0]||1)*(Number(nativeBase.split('d')[1])+1)/2:1;
+        const bestAverage=best.expectedDamage-best.attackMod;
+        const upgrade=bestAverage>nativeAverage;
+        // A flat default row is already summed by DDB (e.g. 0 = 1 + STR -1).
+        const terms=parsed[2].match(/[+-](?:\d*d\d+|\d+)/gi) || [];
+        const extraDice=terms.filter(term=>/d/i.test(term)).join('');
+        const constants=terms.filter(term=>!/d/i.test(term)).reduce((sum,n)=>sum+Number(n),0);
+        const flat=nativeDice?constants:Number(nativeBase)+constants-1;
+        const base=upgrade?best.base:nativeDice?nativeBase:'1';
+        if(upgrade || delta)args.damages[0]=base+(flat+delta>=0?'+':'')+(flat+delta)+extraDice;
+        if(upgrade) {
+            const oldType=args['damage-types']?.[0] || 'Bludgeoning';
+            if(!args['damage-types'])args['damage-types']=[];
+            args['damage-types'][0]=best.damageType;
+            const critical=typeof damagesToCrits==='function'?damagesToCrits(character,[args.damages[0]])[0]:base+extraDice;
+            const types=args['critical-damage-types'] || [],crits=args['critical-damages'] || [];
+            const index=nativeDice?types.indexOf(oldType):-1;
+            if(index>=0){crits[index]=critical;types[index]=best.damageType;}
+            else {crits.unshift(critical);types.unshift(best.damageType);}
+            args['critical-damages']=crits;args['critical-damage-types']=types;
+        }
+    }
+    args['waybeyond20-unarmed-attack-ability']=best.attackAbility;
+    args['waybeyond20-unarmed-normalized']=true;
 }
 async function wb20SetItemFlames(item, active, owner=character) {
     await new Promise(resolve=>owner.mergeCharacterSettings({'waybeyond20-rule-flames':{...(owner.getSetting('waybeyond20-rule-flames',{}) || {}),[wb20ResourceId(item.name)]:active}},resolve));

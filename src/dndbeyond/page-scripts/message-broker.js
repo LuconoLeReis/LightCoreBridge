@@ -16,6 +16,17 @@ if (!window.__beyond20_mb2_initialized__) {
 
     const b20OverrideQueue =
         window[OVERRIDE_QUEUE_KEY] || (window[OVERRIDE_QUEUE_KEY] = []);
+    const attackDamageLogGroups = new Map();
+    const nativeRollTypes = {
+        "to-hit": "to hit",
+        "damage": "damage",
+        "critical-damage": "damage",
+        "skill-check": "check",
+        "ability-check": "check",
+        "initiative": "check",
+        "saving-throw": "save",
+        "death-save": "save"
+    };
 
     let lastCharacter = null;
 
@@ -56,6 +67,7 @@ if (!window.__beyond20_mb2_initialized__) {
     }
 
     function rollToDDBRoll(roll, forceResults = false, damageType = null) {
+        const initiative = roll.type === "initiative";
         let constant = 0;
         let lastOperation = "+";
         const sets = [];
@@ -70,7 +82,7 @@ if (!window.__beyond20_mb2_initialized__) {
             }
 
             if (typeof part === "number") {
-                constant += parseInt(part, 10) * signMultiplier;
+                constant += (initiative ? part : parseInt(part, 10)) * signMultiplier;
                 continue;
             }
 
@@ -107,18 +119,7 @@ if (!window.__beyond20_mb2_initialized__) {
             "critical-damage": "critical hit"
         };
 
-        const rollToType = {
-            "to-hit": "to hit",
-            "damage": "damage",
-            "critical-damage": "damage",
-            "skill-check": "check",
-            "ability-check": "check",
-            "initiative": "check",
-            "saving-throw": "save",
-            "death-save": "save",
-        };
-
-        let rollType = rollToType[roll.type] || "roll";
+        let rollType = nativeRollTypes[roll.type] || "roll";
         if (damageType && (roll.type === "damage" || roll.type === "critical-damage")) {
             rollType = damageType;
         }
@@ -145,7 +146,7 @@ if (!window.__beyond20_mb2_initialized__) {
 
                     return rolls.length ? rolls.join("+") : String(p.total);
                 }).join(""),
-                total: parseInt(roll.total, 10),
+                total: initiative ? Number(roll.total) : parseInt(roll.total, 10),
                 values: results
             };
         }
@@ -188,14 +189,7 @@ if (!window.__beyond20_mb2_initialized__) {
 
         const isAdv = isAdvantage || isSuperAdvantage;
         const indexes = { regular: 0, critical: 0 };
-        const combinedD20RollType = {
-            "to-hit": "to hit",
-            "skill-check": "check",
-            "ability-check": "check",
-            "initiative": "check",
-            "saving-throw": "save",
-            "death-save": "save"
-        }[d20Rolls[0]?.type] || "roll";
+        const combinedD20RollType = nativeRollTypes[d20Rolls[0]?.type] || "roll";
 
         return [
             ...(d20Rolls.length ? [combineD20Rolls(
@@ -397,6 +391,9 @@ if (!window.__beyond20_mb2_initialized__) {
 
     function wayBeyond20RollDataExpectsCriticalDamage(rollData) {
         const request = rollData?.request || {};
+        // Hit-confirmed attacks publish their attack first; damage has a separate
+        // request and log group. Holding this result would later expose raw dice.
+        if (request.rollDamage === false) return false;
         const criticalDamages = request["critical-damages"] || [];
         if (!criticalDamages.length) return false;
         if (request.rollCritical) return true;
@@ -546,15 +543,83 @@ if (!window.__beyond20_mb2_initialized__) {
         return true;
     }
 
-    function _dispatchOriginalFulfilled(entry, idx) {
+    function dispatchGameLogRoll(message) {
+        if (messageBroker._mbDispatch) messageBroker._mbDispatch(message);
+        else if (messageBroker._mb) messageBroker._mb.dispatch(message);
+    }
+
+    function flushAttackDamageLogGroup(group) {
+        clearTimeout(group.timer);
+        group.abandoned = true;
+        for (const message of group.messages.splice(0)) {
+            try { dispatchGameLogRoll(message); }
+            catch (error) { console.warn("LightCore Bridge: could not restore a damage entry to the Game Log.", error); }
+        }
+    }
+
+    function getAttackDamageLogGroup(id) {
+        let group = attackDamageLogGroups.get(id);
+        if (group) return group;
+        if (attackDamageLogGroups.size >= 20) {
+            const [oldId, old] = attackDamageLogGroups.entries().next().value;
+            flushAttackDamageLogGroup(old);
+            attackDamageLogGroups.delete(oldId);
+        }
+        group = {messages: [], audiences: new Set(), abandoned: false};
+        group.timer = setTimeout(() => flushAttackDamageLogGroup(group), 90000);
+        attackDamageLogGroups.set(id, group);
+        return group;
+    }
+
+    function takeAttackDamageLogGroup(id) {
+        const group = attackDamageLogGroups.get(id);
+        if (!group) return;
+        attackDamageLogGroups.delete(id);
+        clearTimeout(group.timer);
+        return group;
+    }
+
+    function endAttackDamageLog(id) {
+        const group = takeAttackDamageLogGroup(id);
+        if (group) flushAttackDamageLogGroup(group);
+    }
+
+    function finishAttackDamageLog(summary) {
+        const group = takeAttackDamageLogGroup(summary?.group);
+        if (!group) return;
+        if (group.abandoned || !group.messages.length) return;
+        const first = group.messages[0];
+        const keys = ["messageScope", "messageTarget", "gameId", "userId", "entityType", "entityId", "whisper"];
+        const sameAudience = first.messageScope && group.audiences.size === 1 && group.audiences.has(summary.whisper) &&
+            group.messages.every(message => keys.every(key => message[key] === first[key] &&
+                message.data?.[key] === first.data?.[key] && message.data?.context?.[key] === first.data?.context?.[key]));
+        if (!sameAudience || !summary.results?.length) {
+            flushAttackDamageLogGroup(group);
+            return;
+        }
         try {
+            const combined = cloneMessage(first);
+            combined.data.action = summary.action;
+            combined.data.rolls = summary.results.map(({roll, label}) =>
+                rollToDDBRoll(roll, true, label));
+            dispatchGameLogRoll(combined);
+        } catch (error) {
+            console.warn("LightCore Bridge: could not combine the Game Log damage entries.", error);
+            flushAttackDamageLogGroup(group);
+        }
+    }
+
+    function _dispatchOriginalFulfilled(entry) {
+        try {
+            if (entry?.gameLog?.group && entry.rollId)
+                flushAttackDamageLogGroup(getAttackDamageLogGroup(entry.gameLog.group));
             if (!entry?.ddbFulfilled) return;
-            if (messageBroker._mbDispatch) messageBroker._mbDispatch(entry.ddbFulfilled);
-            else if (messageBroker._mb) messageBroker._mb.dispatch(entry.ddbFulfilled);
+            dispatchGameLogRoll(entry.ddbFulfilled);
         } catch (e) {
             console.warn("WayBeyond20: failed to dispatch original fulfilled", e);
         } finally {
-            b20OverrideQueue.splice(idx, 1);
+            const index = b20OverrideQueue.indexOf(entry);
+            if (index >= 0) b20OverrideQueue.splice(index, 1);
         }
     }
 
@@ -566,8 +631,7 @@ if (!window.__beyond20_mb2_initialized__) {
             }
 
             const base = entry.ddbFulfilled;
-            if (!base) return _dispatchOriginalFulfilled(entry, idx);
-            if (!entry.rollData) return _dispatchOriginalFulfilled(entry, idx);
+            if (!base || !entry.rollData) return _dispatchOriginalFulfilled(entry);
 
             const patched = cloneMessage(base);
             patched.data = patched.data || {};
@@ -578,11 +642,18 @@ if (!window.__beyond20_mb2_initialized__) {
             );
             patched.data[B20_OVERRIDE_MARKER] = true;
 
-            if (messageBroker._mbDispatch) messageBroker._mbDispatch(patched);
-            else if (messageBroker._mb) messageBroker._mb.dispatch(patched);
+            if (entry.gameLog?.group) {
+                const group = getAttackDamageLogGroup(entry.gameLog.group);
+                if (!group.abandoned) {
+                    group.messages.push(patched);
+                    if (group.messages.length >= 24) flushAttackDamageLogGroup(group);
+                    return;
+                }
+            }
+            dispatchGameLogRoll(patched);
         } catch (e) {
             console.warn("WayBeyond20: failed to dispatch override fulfilled", e);
-            _dispatchOriginalFulfilled(entry, idx);
+            _dispatchOriginalFulfilled(entry);
             return;
         } finally {
             const stillThere = b20OverrideQueue[idx] === entry;
@@ -595,10 +666,14 @@ if (!window.__beyond20_mb2_initialized__) {
         window[HOOKS_INSTALLED_KEY] = true;
 
         const bindRollIdIfNeeded = (message) => {
-            const head = b20OverrideQueue[0];
+            const entry = b20OverrideQueue.at(-1);
             const rid = message?.data?.rollId;
-            if (!head || head.rollId || !rid) return;
-            head.rollId = rid;
+            if (!entry || !rid || (entry.rollId && entry.rollId !== rid)) return;
+            entry.rollId = rid;
+            if (entry.action && messageBroker._mbDispatch) {
+                dispatchGameLogRoll(nameNativeRoll(message, entry));
+                return false;
+            }
         };
 
         // Let deferred/pending flow normally so DDB can mint the native rollId/context
@@ -638,7 +713,8 @@ if (!window.__beyond20_mb2_initialized__) {
             }
 
             if (!entry.rollId && rid) entry.rollId = rid;
-            entry.ddbFulfilled = message;
+            entry.ddbFulfilled = nameNativeRoll(message, entry);
+            entry.ddbFulfilled.data[B20_OVERRIDE_MARKER] = true;
 
             if (entry.rollData) {
                 _dispatchOverrideFulfilled(entry, queueIdx);
@@ -649,7 +725,7 @@ if (!window.__beyond20_mb2_initialized__) {
             if (!entry.fallbackTimer) {
                 entry.fallbackTimer = setTimeout(() => {
                     entry.fallbackTimer = null;
-                    _dispatchOriginalFulfilled(entry, queueIdx);
+                    _dispatchOriginalFulfilled(entry);
                 }, 2000);
             }
             
@@ -658,13 +734,27 @@ if (!window.__beyond20_mb2_initialized__) {
         }, { once: false, send: true, recv: true });
     }
 
+    function nameNativeRoll(message, entry) {
+        const named = cloneMessage(message);
+        if (entry.action) named.data.action = entry.action;
+        if (entry.rollType) {
+            for (const roll of named.data.rolls || []) roll.rollType = entry.rollType;
+        }
+        return named;
+    }
+
     function pendingRoll(rollData) {
         if (!rollData) return;
 
+        // DDB's broker may have mounted since this page script initialized.
+        messageBroker.register();
         _installB20OverrideHooksOnce();
 
+        const types = new Set((rollData.rolls || []).map(roll => nativeRollTypes[roll.type]));
         b20OverrideQueue.push({
-            action: normalizeActionName(rollData.name || "WayBeyond20"),
+            action: rollData.gameLog?.initiative ? "Initiative" : normalizeActionName(rollData.name),
+            rollType: types.size === 1 ? types.values().next().value : undefined,
+            gameLog: rollData.gameLog,
             rollId: null,
             rollData: null,
             ddbFulfilled: null,
@@ -674,22 +764,36 @@ if (!window.__beyond20_mb2_initialized__) {
         });
     }
 
+    function cancelCorrelatedRoll(id) {
+        if (!id) return;
+        const entry = b20OverrideQueue.find(item => item.gameLog?.id === id);
+        if (!entry) return;
+        clearTimeout(entry.fallbackTimer);
+        _dispatchOriginalFulfilled(entry);
+    }
+
     function fulfilledRoll(rollData) {
         if (!rollData) return;
+        const request = rollData.request;
+        const groupId = request?.rollDamage && !request.rollAttack ? request["waybeyond20-local-result-group"] : null;
+        if (groupId) getAttackDamageLogGroup(groupId).audiences.add(request.whisper);
+        if ((groupId || request?.type === "initiative") && !rollData.gameLog?.id) return;
+        const index = b20OverrideQueue.findIndex(entry => entry.gameLog?.id === rollData.gameLog?.id);
+        if (rollData.gameLog?.id && index < 0) return;
 
         const criticalAggregate = window[WAYBEYOND20_CRITICAL_GAME_LOG_KEY];
-        if (criticalAggregate && wayBeyond20RollDataHasCriticalDamage(rollData)) {
-            const currentEntry = b20OverrideQueue.length ? b20OverrideQueue[0] : null;
+        if (!groupId && criticalAggregate && wayBeyond20RollDataHasCriticalDamage(rollData)) {
+            const currentEntry = b20OverrideQueue[index] || null;
             return wayBeyond20DispatchCriticalGameLogAggregate(
                 rollData,
                 currentEntry,
-                currentEntry ? 0 : -1
+                index
             );
         }
 
-        if (!b20OverrideQueue.length) return;
+        if (index < 0) return;
 
-        const entry = b20OverrideQueue[0];
+        const entry = b20OverrideQueue[index];
         entry.rollData = rollData;
 
         if (rollData.request) {
@@ -697,12 +801,12 @@ if (!window.__beyond20_mb2_initialized__) {
         }
 
         if (entry.ddbFulfilled) {
-            if (!wayBeyond20RollDataHasCriticalDamage(rollData) &&
+            if (!groupId && !wayBeyond20RollDataHasCriticalDamage(rollData) &&
                 wayBeyond20RollDataExpectsCriticalDamage(rollData)) {
-                wayBeyond20HoldGameLogForCritical(entry, 0);
+                wayBeyond20HoldGameLogForCritical(entry, index);
                 return;
             }
-            _dispatchOverrideFulfilled(entry, 0);
+            _dispatchOverrideFulfilled(entry, index);
         }
     }
 
@@ -1232,6 +1336,8 @@ if (!window.__beyond20_mb2_initialized__) {
             }
         }
         wayBeyond20ClearCriticalGameLogAggregate();
+        for (const group of attackDamageLogGroups.values()) flushAttackDamageLogGroup(group);
+        attackDamageLogGroups.clear();
 
         b20OverrideQueue.length = 0;
         window[EVENTS_KEY] = [];
@@ -1245,6 +1351,9 @@ if (!window.__beyond20_mb2_initialized__) {
     registered_events.push(addCustomEventListener("roll", sendRollToGameLog));
     registered_events.push(addCustomEventListener("MBPendingRoll", pendingRoll));
     registered_events.push(addCustomEventListener("MBFulfilledRoll", fulfilledRoll));
+    registered_events.push(addCustomEventListener("MBCancelCorrelatedRoll", cancelCorrelatedRoll));
+    registered_events.push(addCustomEventListener("MBAttackDamageSummary", finishAttackDamageLog));
+    registered_events.push(addCustomEventListener("MBAttackDamageEnd", endAttackDamageLog));
     registered_events.push(addCustomEventListener("WayBeyond20SpendLimitedUse", spendLimitedUse));
     registered_events.push(addCustomEventListener("WayBeyond20ChangeSpellSlot", changeSpellSlot));
     registered_events.push(addCustomEventListener("WayBeyond20SpendPaladinSmiteUse", spendPaladinSmiteUse));

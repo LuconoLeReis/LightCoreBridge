@@ -12,7 +12,7 @@ function fn(source, name) {
 const roll20 = read('src/roll20/page-script.js');
 const char = read('src/dndbeyond/content-scripts/character.js');
 const target = read('src/dndbeyond/content-scripts/my-target.js');
-const graphics = [{id:'self',attributes:{name:'Calan',layer:'objects',left:0,top:0}},
+const graphics = [{id:'self',attributes:{name:'Hero',layer:'objects',left:0,top:0}},
     {id:'mob',attributes:{name:'Zombie',layer:'objects',left:210,top:280,bar1_value:99}},
     {id:'hidden',attributes:{name:'Secret',layer:'gmlayer',left:70,top:70}}];
 const page = {id:'map',attributes:{scale_number:5,scale_units:'ft'},thegraphics:{models:graphics}};
@@ -49,7 +49,7 @@ const scaleDiagnostic={};
 page.attributes.scale_number=undefined;c.wayBeyond20ReadTokenPosition('mob',scaleDiagnostic);
 assert.match(scaleDiagnostic.reason,/scale/);page.attributes.scale_number=5;
 vm.runInContext(fn(target,'wb20TargetDistance'),c);
-c.character={_name:'Calan',getSetting:(_key,fallback)=>fallback};
+c.character={_name:'Hero',getSetting:(_key,fallback)=>fallback};
 const state={knownTargets:JSON.parse(JSON.stringify(c.wayBeyond20ReadTurnOrderTargets(order)))};
 assert.equal(c.wb20TargetDistance(state,state.knownTargets[1]),'25 ft');
 state.knownTargets[1].position.pageId='other';assert.equal(c.wb20TargetDistance(state,state.knownTargets[1]),null);
@@ -66,7 +66,7 @@ assert.match(bindingDiagnostic.reason,/linked token is not in this turn order/);
 // Run the real character receiver twice with the same turn and new coordinates.
 c.state={inCombat:true,combatSource:'Roll20',combatStartedAt:1,localTurnNumber:4,action:0,bonusAction:0,reaction:0,
     currentRoll20Turn:{tokenId:'self',isThisCharactersTurn:true},lastRoll20TurnKey:messages[0].current.turnKey};
-c.character={_name:'Calan',getSetting:(key,fallback)=>key==='waybeyond20-roll20-token-id'?'self':key==='waybeyond20-roll20-token-ids'?['self']:fallback};
+c.character={_name:'Hero',getSetting:(key,fallback)=>key==='waybeyond20-roll20-token-id'?'self':key==='waybeyond20-roll20-token-ids'?['self']:fallback};
 c.wayBeyond20GetTrackedSpellEffects=()=>[];
 c.wayBeyond20GetTurnTrackerState=()=>c.state;
 c.wayBeyond20NormalizeTurnTrackerState=(s,_effects,options)=>{assert.notEqual(options?.reset,true,'movement cannot reset resources');return {...s};};

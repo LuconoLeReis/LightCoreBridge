@@ -398,7 +398,7 @@ function wayBeyond20OpportunityRow(root) {
         const name = document.createElement("div"); name.className = "ddbc-combat-attack__name";
         const label = document.createElement("button"); label.type = "button";
         label.className = "wb20-feature-option-name"; label.textContent = "Opportunity Attack";
-        const category = document.createElement("div"); category.className = "wb20-talent-category";
+        const category = document.createElement("div"); category.className = "wb20-talent-category wb20-opportunity-choice";
         category.textContent = "Melee Attack";
         name.append(label, category); row.append(icon, name);
         for (const [field, text] of [["range", "Reach"], ["action", "Weapon"], ["damage", "Weapon"], ["notes", ""]]) {

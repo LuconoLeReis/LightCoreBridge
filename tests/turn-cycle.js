@@ -23,14 +23,14 @@ let state = {inCombat:true,combatSource:'Roll20',combatStartedAt:1,localTurnNumb
 const messages = [];
 const c = vm.createContext({console,Campaign:{get:()=>raw,activePage:()=>page},
     document:{get readyState(){return readyState;},getElementById:()=>({getClientRects:()=>loading?[{}]:[]})},
-    character:{_name:'Calan',getSetting:(k,f)=>k==='waybeyond20-roll20-token-id'?'self':k==='waybeyond20-roll20-token-ids'?['self']:f},
+    character:{_name:'Hero',getSetting:(k,f)=>k==='waybeyond20-roll20-token-id'?'self':k==='waybeyond20-roll20-token-ids'?['self']:f},
     wayBeyond20GetTrackedSpellEffects:()=>[],wayBeyond20GetTurnTrackerState:()=>state,
     wayBeyond20SetTurnTrackerState:s=>{state=s;},wayBeyond20ScheduleActiveEffectBadgeRefresh:()=>{},
     wayBeyond20CharacterDebug:()=>{},wayBeyond20NormalizeNameForTokenMatch:s=>String(s||'').toLowerCase(),
     wayBeyond20ParseInteger:v=>Number.isFinite(Number(v))?Math.trunc(Number(v)):null,
     wayBeyond20BuildTurnResourceDefaults:()=>({action:1,bonusAction:1,reaction:1,movement:30,
         maxAction:1,maxBonusAction:1,maxReaction:1,maxMovement:30,maxHasteAction:0,hasteAction:0}),
-    wayBeyond20GetGraphicName:id=>id==='self'?'Calan':'Zombie',
+    wayBeyond20GetGraphicName:id=>id==='self'?'Hero':'Zombie',
     wayBeyond20ReadTurnOrderTargets:order=>order.map(e=>({key:e.id,tokenId:e.id})),
     sendCustomEvent:(_name,args)=>{messages.push(args[0]);c.wayBeyond20ResetTurnResourcesFromRoll20(args[0].current);}});
 for(const name of ['wayBeyond20NormalizeTurnTrackerState','wayBeyond20HasActiveCombatState','wayBeyond20ResetTurnResourcesFromRoll20'])

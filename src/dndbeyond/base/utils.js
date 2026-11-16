@@ -290,16 +290,22 @@ async function applyRogueSneakAttack(character, name, properties, damages,
 async function buildAttackRoll(character, attack_source, name, description, properties,
                          damages = [], damage_types = [], to_hit = null,
                          brutal = 0, force_to_hit_only = false, force_damages_only = false, {weapon_damage_length=0}={}, settings_to_change = []) {
+    // A healing-only cast has no attack phase to defer its healing behind.
+    const healingOnly = attack_source === "spell" && !to_hit && !force_to_hit_only &&
+        damages.length > 0 && damages.every((_, index) => /\bHealing\b/i.test(damage_types[index] || ""));
     const roll_properties = {
         "name": name,
         "attack-source": attack_source,
         "description": description,
-        "rollAttack": force_to_hit_only || !force_damages_only,
-        "rollDamage": force_damages_only || (!force_to_hit_only && character.getGlobalSetting("auto-roll-damage", true)),
+        "rollAttack": force_to_hit_only || (!force_damages_only && !healingOnly),
+        "rollDamage": healingOnly || force_damages_only || (!force_to_hit_only && character.getGlobalSetting("auto-roll-damage", true)),
         "rollCritical": false
     }
+    if (healingOnly) roll_properties.advantage = RollType.NORMAL;
     if (to_hit !== null)
         roll_properties["to-hit"] = to_hit;
+    if (properties["wb20-native-unarmed-hit"] !== undefined)
+        roll_properties["waybeyond20-native-unarmed-hit"] = properties["wb20-native-unarmed-hit"];
 
     if (properties["Reach"] !== undefined) {
         roll_properties["reach"] = properties["Reach"];

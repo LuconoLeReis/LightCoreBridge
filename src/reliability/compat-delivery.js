@@ -1,4 +1,14 @@
 // The baseline has no WB20 rules/UI/automation. Only delivery is hardened here.
+if (typeof Character !== "undefined") {
+    const wb20BaselineCharacterDict = Character.prototype.getDict;
+    Character.prototype.getDict = function () {
+        const result = wb20BaselineCharacterDict.call(this);
+        delete result.settings["waybeyond20-turn-state"];
+        delete result.settings["waybeyond20-foundry-turn-state"];
+        delete result.settings["waybeyond20-talespire-turn-states"];
+        return result;
+    };
+}
 const wb20BaselineDiscordChannel = getDiscordChannel;
 getDiscordChannel = function(...args) {
     try {

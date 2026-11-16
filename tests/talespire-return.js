@@ -1,10 +1,10 @@
 const assert=require('node:assert/strict'), fs=require('node:fs'), path=require('node:path'), vm=require('node:vm');
 const {createBridge,normalizeSnapshot}=require('../companions/talespire/local-bridge.cjs');
 const root=path.resolve(__dirname,'..'), ext='abcdefghijklmnopabcdefghijklmnop';
-function snapshot() {return {v:1,campaignId:'campaign',boardId:'board',tracking:true,order:[{id:'enemy',name:'Enemy',kind:'creature'},{id:'calan',name:'Calan',kind:'creature'}],activeIndex:0,
-    creatures:[{id:'enemy',name:'Enemy',boardId:'board',position:{x:3,y:4,z:12,locId:0}},{id:'calan',name:'Calan',boardId:'board',position:{x:0,y:0,z:0,locId:0}},{id:'other',name:'Other',boardId:'board',position:{x:1,y:1,z:0,locId:0}}],units:{name:'ft',numberPerTile:5},targetId:'enemy',targetRevision:1};}
+function snapshot() {return {v:1,campaignId:'campaign',boardId:'board',tracking:true,order:[{id:'enemy',name:'Enemy',kind:'creature'},{id:'hero',name:'Hero',kind:'creature'}],activeIndex:0,
+    creatures:[{id:'enemy',name:'Enemy',boardId:'board',position:{x:3,y:4,z:12,locId:0}},{id:'hero',name:'Hero',boardId:'board',position:{x:0,y:0,z:0,locId:0}},{id:'other',name:'Other',boardId:'board',position:{x:1,y:1,z:0,locId:0}}],units:{name:'ft',numberPerTile:5},targetId:'enemy',targetRevision:1};}
 function sheet() {
-    const store={'waybeyond20-turn-state':{action:0,bonusAction:0,reaction:0,combatSource:'Roll20'},'waybeyond20-talespire-mini':{campaignId:'campaign',id:'calan'}};
+    const store={'waybeyond20-turn-state':{action:0,bonusAction:0,reaction:0,combatSource:'Roll20'},'waybeyond20-talespire-mini':{campaignId:'campaign',id:'hero'}};
     let writes=0;
     const c=vm.createContext({settings:{'vtt-tab':{vtt:'talespire'}},character:{getSetting:(key,fallback)=>store[key] ?? fallback,mergeCharacterSettings:(values,callback)=>{Object.assign(store,values); writes++; callback?.();}},
         setInterval:()=>{},Date,console,wayBeyond20GetTrackedSpellEffects:()=>[],wayBeyond20ScheduleActiveEffectBadgeRefresh:()=>{},

@@ -44,7 +44,7 @@ function wb20TaleSpireValidate(packet) {
             !Number.isInteger(row.total) || Math.abs(row.total) > 2147483647)
             throw new Error('Invalid LightCore result.');
         if (row.diceResult != null && wb20TaleSpireResultValue(row.diceResult) !== row.total)
-            throw new Error('WB20 dice detail does not match its total.');
+            throw new Error('LightCore dice detail does not match its total.');
     }
     return packet;
 }

@@ -96,9 +96,18 @@ function createSandbox({ traits = [], features = [], abilities = { STR: 1, DEX: 
         wayBeyond20SendCustomMessageToExtension: message => log.roll20Messages.push(clone(message)),
         log
     };
+    // Native descriptions supply current values; feature names alone no longer
+    // synthesize hardcoded unarmed profiles.
+    context.wb20RuleText=value=>String(value || '').replace(/\s+/g,' ').trim();
+    context.wb20ResourceId=value=>String(value).toLowerCase();
+    context.wb20CurrentFeatureRules=()=>[
+        ...(traits.includes('Natural Attack')?[{name:'Natural Attack',text:'Your Unarmed Strikes deal 1d6 + your Strength or Dexterity modifier Slashing damage.'}]:[]),
+        ...(features.includes('Bardic Damage')?[{name:'Bardic Damage',text:`You can use Dexterity instead of Strength for the attack rolls of your Unarmed Strikes. When you deal damage with it, you can deal ${bardLevel<5?'1d6':'1d8'}+3 Bludgeoning damage.`}]:[])
+    ];
     vm.createContext(context);
     vm.runInContext([
         damageFlagsSource,
+        ...['wb20UnarmedProfiles','wb20UnarmedReferencedDie'].map(name=>topLevelFunction(read('src/dndbeyond/content-scripts/item-rules.js'),name)),
         topLevelFunction(baseUtilsSource, "buildAttackRoll"),
         ...[
             "sendRollWithCharacter", "wayBeyond20DispatchRollWithCharacter", "wayBeyond20RestoreCharacterSheetTab", "addEffect", "wayBeyond20FormatSignedNumber",
@@ -180,25 +189,25 @@ const nativeUnarmedStrike = {
         assert.ok(hasIntent(lastRequest(ctx2)), "natural weapon description still qualifies on an action row");
     }
     {
-        // Agile Strikes: the profile picker chooses naturalDex when no Bardic Damage.
+        // Agile Strikes obtains its flexible ability from the owned description.
         const ctx = createSandbox({ traits: BOTH, features: ["Dazzling Footwork"], abilities: { STR: 1, DEX: 3 } });
         await run(ctx, "wayBeyond20RollAgileStrike")();
-        assert.equal(lastRequest(ctx)["waybeyond20-unarmed-damage-mode"], "naturalDex");
+        assert.equal(lastRequest(ctx)["waybeyond20-unarmed-attack-ability"], "DEX");
         assert.ok(hasIntent(lastRequest(ctx)), "Agile naturalDex qualifies");
     }
     {
         const ctx = createSandbox({ traits: BOTH, abilities: { STR: 4, DEX: 1 } });
         await run(ctx, "wayBeyond20RollAgileStrike")();
-        assert.equal(lastRequest(ctx)["waybeyond20-unarmed-damage-mode"], "naturalStr");
+        assert.equal(lastRequest(ctx)["waybeyond20-unarmed-attack-ability"], "STR");
         assert.ok(hasIntent(lastRequest(ctx)), "Agile naturalStr qualifies");
     }
     {
-        // Ian's reproduction: equal expectation and modifier sorts bardic first. It must still qualify.
+        // Equal alternatives still qualify; selection isn't a class-name gate.
         const ctx = createSandbox({ traits: BOTH, features: ["Bardic Damage"], bardLevel: 1, abilities: { STR: 0, DEX: 3 } });
         const profile = await run(ctx, "wayBeyond20ChooseUnarmedStrikeProfile")();
-        assert.equal(profile.damageMode, "bardic", "tie-break is unchanged");
+        assert.equal(profile.damageFormula, "1d6+3");
         await run(ctx, "wayBeyond20RollAgileStrike")();
-        assert.equal(lastRequest(ctx)["waybeyond20-unarmed-damage-mode"], "bardic");
+        assert.equal(lastRequest(ctx)["waybeyond20-unarmed-damage-mode"], "feature");
         assert.ok(hasIntent(lastRequest(ctx)), "Agile bardic qualifies");
     }
     {

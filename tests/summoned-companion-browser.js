@@ -17,7 +17,7 @@ const char='src/dndbeyond/content-scripts/character.js',util='src/dndbeyond/base
  var RollType={NORMAL:0,QUERY:2,ADVANTAGE:3,DISADVANTAGE:4,SUPER_ADVANTAGE:6,SUPER_DISADVANTAGE:7,OVERRIDE_ADVANTAGE:8,OVERRIDE_DISADVANTAGE:9};
  var WhisperType={NO:0,YES:1,QUERY:2,HIDE_NAMES:3},CriticalRules={PHB:0,HOMEBREW_MAX:1,HOMEBREW_DOUBLE:2,HOMEBREW_MOD:3,HOMEBREW_REROLL:4};
  class CharacterBase {constructor(type,global){constructed++;this._type=type;this._global_settings=global;this._url='https://www.dndbeyond.com/characters/test';}type(){return this._type;}getSetting(k,d='',s=null){return(s||this._settings||{})[k]??d;}getGlobalSetting(k,d=''){return this._global_settings[k]??d;}}
- var character={_id:'caster',_name:'Eversius',_spell_attacks:{Paladin:'+9'},_spell_saves:{Paladin:'17'},_classes:{Paladin:9},
+ var character={_id:'caster',_name:'Test Paladin',_spell_attacks:{Paladin:'+9'},_spell_saves:{Paladin:'17'},_classes:{Paladin:9},
   getSetting:(k,d)=>saved[k]??d,mergeCharacterSettings:(patch,done)=>{writes.push(structuredClone(patch));Object.assign(saved,structuredClone(patch));done?.();}};
  var owner=character;
  function wb20FeatureEscape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -139,7 +139,7 @@ const char='src/dndbeyond/content-scripts/character.js',util='src/dndbeyond/base
  await page.addScriptTag({content:[fn(char,'sendRollWithCharacter'),fn(char,'wayBeyond20DispatchRollWithCharacter'),fn('src/dndbeyond/content-scripts/resources.js','wb20DispatchResources')].join('\n')});
  await page.evaluate(()=>{
   character.type=()=> 'Character';character.getGlobalSetting=(k,d)=>settings[k]??d;
-  character.getDict=()=>({name:'Eversius',type:'Character'});character.hasRacialTrait=()=>false;
+  character.getDict=()=>({name:'Test Paladin',type:'Character'});character.hasRacialTrait=()=>false;
   window.wayBeyond20CharacterDebug=()=>{};window.wayBeyond20AttackActivationTurnKey=()=> 'turn';window.wayBeyond20GetTurnTrackerState=()=>({});
   window.wayBeyond20AttachActivationResource=args=>args['waybeyond20-resource-costs']=[];
   dndbeyondDiceRoller.queryAdvantage=async()=>RollType.NORMAL;

@@ -100,7 +100,7 @@ const options_list = {
 
     "hide-results-on-whisper-to-discord": {
         "title": "Hide roll results on D&D Beyond when whispering to Discord",
-        "description": "Don't show the roll results on D&D Beyond when using whisper and sending results to \"D&D Beyond Dice Roller & Discord\"",
+        "description": "Hide private roll results on the sheet when using D&D Beyond (no VTT) and whispering to Discord.",
         "type": "bool",
         "default": false,
         "advanced": true
@@ -385,7 +385,7 @@ const options_list = {
 
     "vtt-tab": {
         "title": "Send rolls to",
-        "description": "Automatically send to all available VTTs. If delivery is unavailable, show the result on D&D Beyond. Rolls and actions continue without waiting for a connection. Digital dice and Game Log display follow their own settings.",
+        "description": "Automatic sends to available VTTs and shows results here when none confirms delivery. Choose D&D Beyond (no VTT) for local play. Rolls and actions continue even if a connection is unavailable. Set Digital Dice and Game Log below, and optional Discord delivery under Connections.",
         "type": "special",
         "default": null
         // callbacks will be added after the functions are defined
@@ -467,6 +467,21 @@ const options_list = {
         "type": "bool",
         "default": false,
         "advanced": true
+    },
+
+    "export-hotkey-preferences": {
+        "title": "Export shortcuts and preferences",
+        "description": "Save shortcuts and general preferences for another computer. Connection details and character data stay on this computer.",
+        "type": "special",
+        "advanced": true,
+        "default": null
+    },
+    "import-hotkey-preferences": {
+        "title": "Import shortcuts and preferences",
+        "description": "Apply a preferences file while keeping this computer's connections and character data.",
+        "type": "special",
+        "advanced": true,
+        "default": null
     },
 
     "backup-settings": {
@@ -1647,7 +1662,7 @@ function createRoll20TabCombobox(name, short, dropdown_options) {
 
     return E.li({
         id: "beyond20-option-vtt-tab",
-        class: "list-group-item beyond20-option beyond20-option-combobox" + (short ? " vtt-tab-short" : "")
+        class: "list-group-item beyond20-option beyond20-option-combobox wb20-destination" + (short ? " vtt-tab-short" : "")
     },
         E.label({ class: "list-content", for: name },
             E.h4({ class: "select" }, title),
@@ -1662,6 +1677,8 @@ function createRoll20TabCombobox(name, short, dropdown_options) {
     );
 }
 
+const localRollDestinationLabel = "D&D Beyond (no VTT)";
+
 function createVTTTabSetting(name, short) {
     // "This World/Tab" belongs only to an actual VTT, never a DDB sheet.
     short = !!(short && current_tab && (isFVTT(current_tab.title) || isRoll20(current_tab.title)));
@@ -1669,7 +1686,7 @@ function createVTTTabSetting(name, short) {
         "Only Roll20 Tabs",
         "Only Foundry VTT Tabs",
         "TaleSpire",
-        "D&D Beyond Dice Roller & Discord"];
+        localRollDestinationLabel];
 
     if (short) {
         const vtt = isFVTT(current_tab.title) ? "Foundry VTT" : "Roll20";
@@ -1693,7 +1710,7 @@ function setVTTTabSetting(name, settings) {
         if (vtt == "talespire") {
             choice = "TaleSpire";
         } else if (vtt == "dndbeyond") {
-            choice = "D&D Beyond Dice Roller & Discord";
+            choice = localRollDestinationLabel;
         } else {
             const vtt_name = vtt == "roll20" ? "Roll20" : "Foundry VTT";
             choice = "Only " + vtt_name + " Tabs";
@@ -1721,7 +1738,7 @@ function setVTTTabSetting(name, settings) {
                     "Only Roll20 Tabs",
                     "Only Foundry VTT Tabs",
                     "TaleSpire",
-                    "D&D Beyond Dice Roller & Discord",
+                    localRollDestinationLabel,
                     "This " + current_campaign,
                     "This Specific Tab"];
                 if (current_vtt == vtt) {
@@ -1737,7 +1754,7 @@ function setVTTTabSetting(name, settings) {
                 "Only Roll20 Tabs",
                 "Only Foundry VTT Tabs",
                 "TaleSpire",
-                "D&D Beyond Dice Roller & Discord",
+                localRollDestinationLabel,
                 campaign + ": " + title];
             if (id != 0) {
                 new_options.push("Tab #" + id + " (" + title + ")");
@@ -1783,7 +1800,7 @@ function getVTTTabSetting(name) {
         ret = { "id": 0, "title": null, "vtt": "fvtt" }
     } else if (value == "TaleSpire") {
         ret = { "id": 0, "title": null, "vtt": "talespire" }
-    } else if (value == "D&D Beyond Dice Roller & Discord") {
+    } else if (value === localRollDestinationLabel || value === "D&D Beyond Dice Roller & Discord") {
         ret = { "id": 0, "title": null, "vtt": "dndbeyond" }
     } else if (value.startsWith("Campaign: ") || value.startsWith("World: ")) {
         ret = { "id": 0, "title": saved_title, "vtt": saved_vtt }
@@ -2448,8 +2465,35 @@ function setRoll20DiscordActivitySetting(name, settings) {
 function getRoll20DiscordActivitySetting(name) {
 }
 
+function wayBeyond20PortablePreferences(settings) {
+    if (!settings || typeof settings !== "object" || Array.isArray(settings)) return {};
+    const portable = {};
+    for (const [name, value] of Object.entries(settings)) {
+        const option = Object.hasOwn(options_list, name) && options_list[name];
+        if (!option || option.hidden || name === "waybeyond20-debug-log") continue;
+        if ((option.type === "bool" && typeof value === "boolean") ||
+            (option.type === "combobox" && ["string", "number"].includes(typeof value) && Object.hasOwn(option.choices, value)) ||
+            (["crit-prefix", "component-prefix", "hidden-monster-replacement", "combat-unknown-monster-name"].includes(name) &&
+                typeof value === "string" && value.length <= 500)) {
+            portable[name] = value;
+        } else if (name === "hotkeys-bindings") {
+            if (value === null) portable[name] = null;
+            else if (value && typeof value === "object" && !Array.isArray(value)) {
+                const bindings = Object.entries(value);
+                if (bindings.length <= 200 && bindings.every(([key, binding]) =>
+                    /^[a-zA-Z0-9_.-]{1,64}$/.test(key) && !Object.hasOwn(Object.prototype, key) &&
+                    (binding === null || typeof binding === "string" && binding.length <= 256))) {
+                    portable[name] = Object.fromEntries(bindings);
+                }
+            }
+        }
+    }
+    return portable;
+}
+
 function createBackupRestoreSetting(name, short) {
-    const backup = (name === "backup-settings");
+    const portable = name.endsWith("-hotkey-preferences");
+    const backup = name === "backup-settings" || name === "export-hotkey-preferences";
     const opt = options_list[name];
     const description_p = opt.description.split("\n").map(desc => E.p({}, desc));
     const label = backup ? "Export" : "Import";
@@ -2479,7 +2523,13 @@ function createBackupRestoreSetting(name, short) {
         ev.stopPropagation();
         ev.preventDefault();
         if (backup) {
-            // Export
+            if (portable) {
+                storageGet("settings", {}, saved => {
+                    const data = {beyond20: {format: 2}, preferences: wayBeyond20PortablePreferences(saved)};
+                    saveAs(new Blob([JSON.stringify(data)], {type: "application/json"}), "LightCore-Bridge-preferences.json");
+                });
+                return;
+            }
             storageGetEverything(allSettings => {
                 allSettings.beyond20 = {format: 1};
                 const blob = new Blob([JSON.stringify(allSettings)], {type: "application/json"});
@@ -2498,6 +2548,21 @@ function createBackupRestoreSetting(name, short) {
             fr.addEventListener("load", () => {
                 try {
                     const allSettings = JSON.parse(fr.result);
+                    if (portable) {
+                        if (allSettings?.beyond20?.format !== 2) throw new Error("Select a LightCore Bridge preferences file.");
+                        const preferences = wayBeyond20PortablePreferences(allSettings.preferences);
+                        if (!Object.keys(preferences).length) throw new Error("No valid portable preferences in this file.");
+                        let applied = false;
+                        mergeSettings(preferences, merged => {
+                            applied = true;
+                            loadSettings(merged);
+                            chrome.runtime.sendMessage({action: "settings", type: "general", settings: merged});
+                            alertify.success("LightCore Bridge preferences imported.");
+                        }).then(() => {
+                            if (!applied) alertify.error("LightCore Bridge could not save the imported preferences.");
+                        });
+                        return;
+                    }
                     if (!allSettings.beyond20 || allSettings.beyond20.format !== 1) {
                         throw new Error("File doesn't contain LightCore Bridge settings");
                     }
@@ -2549,6 +2614,12 @@ options_list["roll20-discord-activity"]["get"] = getRoll20DiscordActivitySetting
 character_settings["discord-target"]["createHTMLElement"] = createDiscordTargetSetting;
 character_settings["discord-target"]["set"] = setDiscordTargetSetting;
 character_settings["discord-target"]["get"] = getDiscordTargetSetting;
+
+for (const name of ["export-hotkey-preferences", "import-hotkey-preferences"]) {
+    options_list[name].createHTMLElement = createBackupRestoreSetting;
+    options_list[name].set = setBackupRestoreSetting;
+    options_list[name].get = getBackupRestoreSetting;
+}
 
 options_list["backup-settings"]["createHTMLElement"] = createBackupRestoreSetting;
 options_list["backup-settings"]["set"] = setBackupRestoreSetting;

@@ -1,5 +1,5 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
-const root=path.resolve(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p),'utf8');
+const root=process.env.WB20_SOURCE_ROOT || path.resolve(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const source=read('src/dndbeyond/content-scripts/character.js');
 function fn(name,text=source){const m=new RegExp(`^(?:async )?function ${name}\\(`,'m').exec(text);assert.ok(m,name);const rest=text.slice(m.index+m[0].length),end=/^(?:async )?function |^(?:const|let|class) /m.exec(rest);return text.slice(m.index,end?m.index+m[0].length+end.index:undefined);}
 const rules=[
@@ -21,7 +21,7 @@ function fixture(){
  const state={inCombat:true,combatSource:'Manual',combatStartedAt:1,localTurnNumber:1,action:1,bonusAction:1,reaction:1,attacksRemaining:0,featureGrants:{}};
  const pools=new Map([['channel divinity',{name:'Channel Divinity',kind:'native',remaining:2,max:2}],['protected luck points',{name:'Protected: Luck Points',kind:'native',remaining:4,max:4}],['spiked shield',{name:'Spiked Shield',kind:'native',remaining:1,max:1}]]);
  const c={console,setTimeout,clearTimeout,Promise,Map,WeakMap,WeakSet,Set,Date,Math,JSON,structuredClone,
-  RollType:{NORMAL:0,ADVANTAGE:3,DISADVANTAGE:4,OVERRIDE_ADVANTAGE:6,OVERRIDE_DISADVANTAGE:7},
+  RollType:{NORMAL:0,ADVANTAGE:3,DISADVANTAGE:4,SUPER_ADVANTAGE:6,OVERRIDE_ADVANTAGE:8,OVERRIDE_DISADVANTAGE:9},
   character:{_id:'different-character',_proficiency:4,_class_features:[],_racial_traits:[],_feats:rules.map(r=>r.name),_hp:0,
    getAbility:()=>({mod:'+4'}),getSetting:(k,d)=>values[k]??d,getGlobalSetting:(k,d)=>d,
    hasRacialTrait:n=>['Natural Attack','Draining Attack'].includes(n),
@@ -102,6 +102,44 @@ async function test(name,run){await run();console.log('PASS',name);}
  await test('Protected ignores damage, Portent replacements, high dice and declined prompts',async()=>{
   for(const mode of ['damage','portent','high','declined']) {const {c,forms,pools}=fixture(),roll=new c.DNDBRoll('1d20+8');roll.dice[0]._rolls=[{roll:mode==='high'?10:9}];roll.calculateTotal();if(mode==='damage')roll.setRollType('damage');forms.push(null);
    await c.wb20RuleRerollD20([roll],{type:'attack',character:{type:'Character',id:c.character._id},...(mode==='portent'?{'waybeyond20-portent-value':9}:{})},{roll:()=>{throw Error('should not reroll');}});assert.equal(pools.get('protected luck points').remaining,4);
+  }
+ });
+ await test('Protected offers Keep Roll and declining preserves the original total and Luck Points',async()=>{
+  const {c,pools}=fixture();
+  const roll=new c.DNDBRoll('1d20+8');
+  roll.dice[0]._rolls=[{roll:2}];
+  roll.dice[0].calculateTotal();
+  roll.calculateTotal();
+  const prompts=[];
+  c.dndbeyondDiceRoller={_prompter:{prompt:async(...args)=>{prompts.push(args);return null;}}};
+  vm.runInContext(fn('wb20FeatureForm',read('src/dndbeyond/content-scripts/feature-activations.js')),c);
+  await c.wb20RuleRerollD20([roll],{type:'attack',character:{type:'Character',id:c.character._id}},
+   {roll:()=>{throw Error('Keep Roll must not roll again');}});
+  assert.equal(prompts.length,1);
+  assert.equal(prompts[0][0],'Protected');
+  assert.deepEqual(prompts[0].slice(2),['Spend and reroll','Keep Roll']);
+  assert.equal(roll.total,10);
+  assert.equal(roll.dice[0].rolls[0].roll,2);
+  assert.equal(pools.get('protected luck points').remaining,4);
+  await c.wb20FeatureForm('Another feature','<p>Example</p>');
+  assert.deepEqual(prompts[1].slice(2),['Use','Cancel']);
+ });
+ await test('Protected skips advantage with any natural d20 above the threshold',async()=>{
+  for (const [mode,faces,expectedPrompts] of [
+   ['ADVANTAGE',[7,10],0],['ADVANTAGE',[10,7],0],['SUPER_ADVANTAGE',[4,15,9],0],
+   ['ADVANTAGE',[9,5],1],['SUPER_ADVANTAGE',[9,5,2],1],['DISADVANTAGE',[7,10],1]
+  ]) {
+   const {c,pools}=fixture();
+   const rolls=faces.map(face=>{
+    const roll=new c.DNDBRoll('1d20+11');
+    roll.dice[0]._rolls=[{roll:face}];roll.dice[0].calculateTotal();roll.calculateTotal();
+    return roll;
+   });
+   let prompts=0;
+   c.wb20FeatureForm=async()=>{prompts++;return null;};
+   await c.wb20RuleRerollD20(rolls,{type:'attack',advantage:c.RollType[mode],character:{type:'Character',id:c.character._id}},{});
+   assert.equal(prompts,expectedPrompts,`${mode} with ${faces.join('/')}`);
+   assert.equal(pools.get('protected luck points').remaining,4);
   }
  });
  await test('the real local roller runs the reroll hook before publishing its Game Log result',async()=>{

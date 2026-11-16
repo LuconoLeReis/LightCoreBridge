@@ -818,7 +818,7 @@ class Character extends CharacterBase {
             this._settings[k] = changedData[k];
             this._pendingSettings[k] = { value: changedData[k], sequence };
         }
-        mergeSettings(changedData, cb, "character-" + this._id, character_settings);
+        return mergeSettings(changedData, cb, "character-" + this._id, character_settings);
     }
 
     updateSettings(new_settings = null, origin = null) {
@@ -848,7 +848,8 @@ class Character extends CharacterBase {
         // Make a copy of the settings but without the features since they are;
         // the.includes(already) dict;
         for (let key in this._settings) {
-            if (!["class-features", "racial-traits", "feats", "actions", "waybeyond20-portent", "waybeyond20-resources", "waybeyond20-monk-2024", "waybeyond20-foundry-turn-state",
+            if (!["class-features", "racial-traits", "feats", "actions", "waybeyond20-portent", "waybeyond20-resources", "waybeyond20-monk-2024",
+                "waybeyond20-turn-state", "waybeyond20-foundry-turn-state", "waybeyond20-talespire-turn-states",
                 "spell_modifiers", "spell_saves", "spell_attacks",
                 "conditions", "exhaustion-level"].includes(key))
                 settings[key] = this._settings[key];

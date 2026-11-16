@@ -14,7 +14,7 @@ function fn(name,text){const start=text.search(new RegExp(`^(?:async )?function 
  });
  await page.addScriptTag({content:read('src/dndbeyond/base/dice.js').split('class DNDBRoller {')[0]+'\nwindow.testDisplayer=new DNDBDisplayer();'});
  await page.evaluate(async()=>{
-  window.showRoll=request=>testDisplayer.sendMessage(request,'Everflame','<div class="beyond20-message"><header class="beyond20-header">Everflame</header><div class="beyond20-roll-total">23</div></div>','Eversius',0,false,'',{},'',[],[],[],{},false);
+  window.showRoll=request=>testDisplayer.sendMessage(request,'Everflame','<div class="beyond20-message"><header class="beyond20-header">Everflame</header><div class="beyond20-roll-total">23</div></div>','Test Paladin',0,false,'',{},'',[],[],[],{},false);
   await showRoll({type:'attack'});
  });
  assert.equal(await page.evaluate(()=>modals),0,'delivered attack never opens an information modal');assert.equal(await page.locator('#wb20-local-rolls').isVisible(),false,'confirmed VTT delivery suppresses duplicate local display');assert.equal(await page.locator('#wb20-local-rolls').getAttribute('open'),null);assert.equal(await page.locator('.wb20-local-roll-card').count(),0,'confirmed delivery discards its hidden local record');assert.equal(await page.evaluate(()=>runtimeSends),1);
@@ -46,11 +46,20 @@ function fn(name,text){const start=text.search(new RegExp(`^(?:async )?function 
  // Existing private/digital-dice suppression remains respected.
  await page.evaluate(async()=>{dndbeyondDiceRoller._settings={'use-digital-dice':true,'hide-results-with-digital-dice':true};outcome={ok:false};await showRoll({type:'attack'});});
  assert.equal(await page.locator('#wb20-local-rolls').isVisible(),false);
+ await page.evaluate(async()=>{await showRoll({type:'attack','waybeyond20-digital-dice-fallback':true});});
+ assert.equal(await page.locator('#wb20-local-rolls').isVisible(),true,'native fallback remains visible even when successful digital dice normally suppress the local card');
+ await page.evaluate(()=>document.getElementById('wb20-local-rolls').remove());
  await page.evaluate(()=>{dndbeyondDiceRoller._settings={};});
  await page.evaluate(async()=>{outcome={ok:false,error:'receiving end missing'};await showRoll({type:'attack'});});assert.equal(await page.evaluate(()=>modals),0);assert.notEqual(await page.locator('#wb20-local-rolls').getAttribute('open'),null,'a local fallback opens its temporary nonmodal result');const local=page.locator('.wb20-local-roll-card:not([hidden])').first();assert.notEqual(await local.getAttribute('open'),null,'the latest local result is immediately readable');assert.match(await local.innerText(),/23/);
  const sends=await page.evaluate(()=>runtimeSends);await page.evaluate(async()=>showRoll({type:'attack','waybeyond20-local-only':true}));assert.equal(await page.evaluate(()=>runtimeSends),sends,'local only never transmits');
+ await page.addStyleTag({content:'.beyond20-header summary a{color:#000}'});
+ await page.evaluate(()=>testDisplayer.sendMessage({type:'trait','waybeyond20-local-only':true},'Everflame',
+  '<div class="beyond20-message"><div class="beyond20-header"><details open><summary><a>Everflame</a></summary><p>Flames</p></details></div></div>',
+  'Test Paladin',0,false,'',{},'',[],[],[],{},false));
+ const traitTitle=page.locator('.wb20-local-roll-card:not([hidden]) .beyond20-header summary a');
+ assert.equal(await traitTitle.evaluate(node=>getComputedStyle(node).color),'rgb(238, 238, 238)','expandable title uses readable sheet ink');
  await page.evaluate(async()=>{for(let n=0;n<24;n++)await showRoll({type:'attack','waybeyond20-local-only':true});});assert.equal(await page.locator('.wb20-local-roll-card').count(),20,'retention is bounded');
- await page.evaluate(()=>testDisplayer.postHTML({type:'item'},'Explicit details','<div class="beyond20-message"><div class="beyond20-roll-total">23</div></div>','Eversius',0,false,'',{},'',[],[],[],{},false));assert.equal(await page.evaluate(()=>modals),1,'an explicit information request still opens its dialog');assert.equal(await page.locator('.wb20-result-dialog').evaluate(n=>getComputedStyle(n).color),'rgb(238, 238, 238)');
+ await page.evaluate(()=>testDisplayer.postHTML({type:'item'},'Explicit details','<div class="beyond20-message"><div class="beyond20-roll-total">23</div></div>','Test Paladin',0,false,'',{},'',[],[],[],{},false));assert.equal(await page.evaluate(()=>modals),1,'an explicit information request still opens its dialog');assert.equal(await page.locator('.wb20-result-dialog').evaluate(n=>getComputedStyle(n).color),'rgb(238, 238, 238)');
  await page.addScriptTag({content:fn('wayBeyond20InjectBuffsBadge',read('src/dndbeyond/content-scripts/character.js'))});
  await page.evaluate(()=>{
   window.wayBeyond20FindVisibleTextElement=label=>$(label==='DEFENSES'?'#defense-heading':'#conditions-heading');window.wayBeyond20UpsertEffectBadge=()=>{};window.wayBeyond20EffectKey=e=>e.name;window.wayBeyond20GetTrackedSpellEffects=()=>[];

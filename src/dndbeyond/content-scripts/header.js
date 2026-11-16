@@ -63,6 +63,8 @@ function wb20HeaderTheme(header) {
     if (paletteChanged && typeof wayBeyond20MatchActionTypography === 'function')
         document.querySelectorAll('.ct-actions-list,[class*="styles_actionsList__"]').forEach(wayBeyond20MatchActionTypography);
     if (typeof wb20ThemeResourcePrompt === "function") document.querySelectorAll('.wb20-resource-dialog').forEach(wb20ThemeResourcePrompt);
+    if (paletteChanged)
+        document.querySelectorAll('.wb20-result-dialog,#wb20-local-rolls').forEach(node => wayBeyond20ApplySheetTheme(node, {panel:true}));
 }
 
 function wb20RefreshCompactHeader() {
