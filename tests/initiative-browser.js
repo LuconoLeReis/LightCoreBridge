@@ -51,7 +51,7 @@ async function checkInitiativeClick(browser) {
             function handleAbilityIntegratedDie(){return false;}
             function handleSavingThrowIntegratedDie(){return false;}
             function handleSkillIntegratedDie(){return false;}
-            ${['wb20InitiativeRow','wayBeyond20ReadInitiativeModifier','wayBeyond20InitiativeJoatModifier','rollInitiative','wayBeyond20FormatSignedNumber','handleInitiativeIntegratedDie','canHandleDDBRollTarget',
+            ${['wb20InitiativeRow','wayBeyond20ReadInitiativeModifier','wayBeyond20InitiativeJoatModifier','wayBeyond20FinalizeInitiativeProficiency','rollInitiative','wayBeyond20FormatSignedNumber','handleInitiativeIntegratedDie','canHandleDDBRollTarget',
                 'wayBeyond20DDBRollInputAvailable','swallowRollEvent','installDDBRollHijack']
                 .filter(name=>characterSource.includes('function '+name+'(')).map(functionSource).join('\n')}
             installDDBRollHijack();

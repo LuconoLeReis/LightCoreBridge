@@ -1,7 +1,7 @@
-LIGHTCORE BRIDGE 1.73.111
-Browser build: 2.20.243
+LIGHTCORE BRIDGE 1.73.112 CANDIDATE
+Browser build: 2.20.244
 
-Jack of All Trades now supports the requested2014-style Initiative treatment through the existing enabled-by-default setting. It adds half proficiency when absent and preserves native proficiency. Ambiguous extra bonuses require confirmation once per unchanged calculation. See RELEASE-NOTES.md for verification and limits. Experimental session-sync code is not included.
+Private112 candidate: Initiative-only final proficiency guard. Not published or staged. Every other Jack-of-All-Trades path is unchanged. See RELEASE-NOTES.md.
 
 This release repairs slot-funded spell casts made with the LightCore roll icon, including Chromatic Orb. Successful dispatch spends one slot at the selected casting level. Cancel/failure does not spend. Native Cast/Use payment, free casts, rituals and separate damage rolls remain separate. Accounting failures warn without recasting. See RELEASE-NOTES.md for verification and known limits. This applies to LightCore spell buttons, including spell-list to-hit dice and Actions-tab spell attack dice; do not also mark the slot pip by hand. Free spells labeled Cast instead of Use and Pact Magic pool selection remain unverified on native sheets.
 

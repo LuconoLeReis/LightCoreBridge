@@ -1,3 +1,11 @@
+# LightCore Bridge 1.73.112 candidate
+
+Browser build **2.20.244**. Owner-directed Initiative-only final proficiency guard. No other ability-check, skill or saving-throw behavior changes. Not published or staged.111 was not published.
+
+The proficiency check runs at the end of Initiative preparation, immediately before dispatch. Existing native proficiency and an already-applied request effect are preserved. A request-local guard prevents repeated or concurrent processing from applying Jack of All Trades more than once. Independent bonuses and the Initiative tiebreaker are retained.42 focused cases pass, including repeated/concurrent finalization, existing half/full proficiency, an earlier unlabelled addition, stale native/request provenance, and cancellation without consuming Initiative advantage. Unknown components use the existing conservative confirmation path.
+
+---
+
 # LightCore Bridge 1.73.111
 
 Browser build **2.20.243**. This release adds the requested Jack of All Trades handling to Initiative, building on stable1.73.108.

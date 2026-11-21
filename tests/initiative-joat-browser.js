@@ -21,16 +21,30 @@ function fn(name,optional=false){const a=src.search(new RegExp('^(?:async )?func
  function wayBeyond20GetTrackedSpellEffects(){return [];}
  async function sendRollWithCharacter(type,formula,data){rolls.push({type,formula,name:data.name,initiative:data.initiative,modifier:data.modifier,effects:data.effects,advantage:data.advantage});if(fail)return false;data['waybeyond20-capture-result']?.(data,[{total:12+Number(data.initiative),isDiscarded:()=>false}]);return true;}
  `});
- for(const name of ['wayBeyond20ReadInitiativeModifier','wayBeyond20InitiativeJoatModifier','wb20InitiativeRow','rollInitiative','wayBeyond20FormatSignedNumber','handleInitiativeIntegratedDie']){
-  const text=fn(name,name.startsWith('wayBeyond20Read')||name==='wayBeyond20InitiativeJoatModifier');if(text)await page.addScriptTag({content:text});
+ for(const name of ['wayBeyond20ReadInitiativeModifier','wayBeyond20InitiativeJoatModifier','wayBeyond20FinalizeInitiativeProficiency','wb20InitiativeRow','rollInitiative','wayBeyond20FormatSignedNumber','handleInitiativeIntegratedDie']){
+  const text=fn(name,name.startsWith('wayBeyond20Read')||name==='wayBeyond20InitiativeJoatModifier'||name==='wayBeyond20FinalizeInitiativeProficiency');if(text)await page.addScriptTag({content:text});
  }
+ // Use the actual final gate; the111 control follows its actual modifier helper.
+ await page.evaluate(()=>window.finalGate=async(properties,tie=0)=>{
+  const row=document.querySelector('.ct-combat__summary-group--initiative');
+  if(typeof wayBeyond20FinalizeInitiativeProficiency==='function')return wayBeyond20FinalizeInitiativeProficiency(row,properties,tie);
+  const adjusted=await wayBeyond20InitiativeJoatModifier(row,Number(properties.initiative)-tie);
+  if(!adjusted)return false;properties.initiative=wayBeyond20FormatSignedNumber(adjusted.modifier+tie);
+  if(adjusted.applied)addEffect(properties,'Jack of All Trades');return true;
+ });
+ const repeated=await page.evaluate(async()=>{
+  const label=document.createElement('span');label.setAttribute('aria-label','Not Proficient');document.querySelector('section').append(label);
+  const properties={initiative:'+3'};await finalGate(properties);await finalGate(properties);label.remove();return properties;
+ });
+ assert.equal(repeated.initiative,'+4','reprocessing one Initiative request must never add half proficiency twice');
+ assert.deepEqual(repeated.effects,['Jack of All Trades']);
  await page.evaluate(()=>{const actual=rollInitiative;rollInitiative=(...args)=>window.pending=actual(...args);document.querySelector('button').addEventListener('click',event=>handleInitiativeIntegratedDie(event.target));});
  const click=async()=>{await page.locator('button').click();return page.evaluate(()=>pending);};
  assert.equal(await click(),true);assert.equal(await page.evaluate(()=>rolls.at(-1).initiative),'+4','DEX+3 and PB+2 must roll Initiative+4 with Jack of All Trades');
  assert.deepEqual(await page.evaluate(()=>rolls.at(-1).effects),['Jack of All Trades']);
  assert.equal(await page.locator('.styles_numberDisplay__fixture').textContent(),'+3','native sheet value is not rewritten');
- let checks=1;
- async function setup(v){await page.evaluate(v=>{dex=v.dex??3;pb=v.pb??2;feature=v.feature??true;enabled=v.enabled??true;tie=!!v.tie;answer=Object.prototype.hasOwnProperty.call(v,'answer')?v.answer:'native';queryAction=null;queries=[];warnings=[];rolls=[];starts=[];fail=false;character=originalOwner;document.querySelector('.styles_numberDisplay__fixture').textContent=String(v.native??dex);document.querySelector('[data-prof]')?.remove();if(v.marker){const s=document.createElement('span');s.dataset.prof='true';s.setAttribute('aria-label',v.marker);document.querySelector('section').append(s);}if(typeof wayBeyond20InitiativeJoatModifier==='function')delete wayBeyond20InitiativeJoatModifier.answers;},v);}
+ let checks=2;
+ async function setup(v){await page.evaluate(v=>{dex=v.dex??3;pb=v.pb??2;feature=v.feature??true;enabled=v.enabled??true;tie=!!v.tie;answer=Object.prototype.hasOwnProperty.call(v,'answer')?v.answer:'native';queryAction=null;queries=[];dndbeyondDiceRoller.queryGeneric=async(...args)=>{queries.push(args);if(queryAction)queryAction();return answer;};warnings=[];rolls=[];starts=[];fail=false;character=originalOwner;document.querySelector('.styles_numberDisplay__fixture').textContent=String(v.native??dex);document.querySelector('[data-prof]')?.remove();if(v.marker){const s=document.createElement('span');s.dataset.prof='true';s.setAttribute('aria-label',v.marker);document.querySelector('section').append(s);}if(typeof wayBeyond20InitiativeJoatModifier==='function')delete wayBeyond20InitiativeJoatModifier.answers;},v);}
  for(const v of [{dex:-1,pb:3,expected:'+0'},{dex:2,pb:4,expected:'+4'},{dex:2,pb:5,expected:'+4'},{dex:5,pb:6,expected:'+8'},
   {feature:false,expected:'+3'},{enabled:false,expected:'+3'},
   {native:4,marker:'Half Proficient',expected:'+4'},{native:5,marker:'Proficient',expected:'+5'},{native:7,marker:'Expert',expected:'+7'},
@@ -58,5 +72,31 @@ function fn(name,optional=false){const a=src.search(new RegExp('^(?:async )?func
  assert.equal(await page.evaluate(()=>rolls.at(-1).modifier),'+4','existing raw ability checks still receive half proficiency once');checks++;
  await page.evaluate(()=>applyAbilityOrSavingThrowEffects({rollType:'saving-throw',ability_name:'Dexterity',ability:'DEX',modifier:'+5',proficiency:'Proficiency'}));
  assert.equal(await page.evaluate(()=>rolls.at(-1).modifier),'+5','saving throw proficiency is unchanged');checks++;
+ for(const v of [
+  {native:3,properties:{initiative:'+4',effects:['Jack of All Trades']},expected:'+4',queries:0},
+  {native:3,properties:{initiative:'+5',proficiency:'Proficiency'},expected:'+5',queries:0},
+  {native:3,properties:{initiative:'+4',proficiency:'Half Proficiency'},expected:'+4',queries:0},
+  {native:3,marker:'Not Proficient',properties:{initiative:'+4'},expected:'+4',queries:1},
+  {native:4,marker:'Not Proficient',properties:{initiative:'+4'},expected:'+5',queries:0},
+  {native:5,marker:'Proficient',properties:{initiative:'+5'},expected:'+5',queries:0},
+  {native:3,tie:true,properties:{initiative:'+3.16'},offset:0.16,expected:'+4.16',queries:0}
+ ]){
+  await setup(v);const result=await page.evaluate(async v=>{const properties=v.properties;const results=await Promise.all([finalGate(properties,v.offset||0),finalGate(properties,v.offset||0)]);await finalGate(properties,v.offset||0);return {properties,results,queryCount:queries.length};},v);
+  assert.equal(result.properties.initiative,v.expected,JSON.stringify(v));assert.deepEqual(result.results,[true,true]);assert.equal(result.queryCount,v.queries);
+  assert.ok((result.properties.effects||[]).filter(e=>e==='Jack of All Trades').length<=1);checks++;
+ }
+ await setup({native:8,answer:'missing'});
+ await page.evaluate(()=>{dndbeyondDiceRoller.queryGeneric=(...args)=>{queries.push(args);return new Promise(resolve=>window.resolveChoice=resolve);};window.guardProperties={initiative:'+8'};window.guardBoth=Promise.all([finalGate(guardProperties),finalGate(guardProperties)]);});
+ assert.equal(await page.evaluate(()=>queries.length),1);await page.evaluate(()=>resolveChoice('missing'));assert.deepEqual(await page.evaluate(()=>guardBoth),[true,true]);assert.deepEqual(await page.evaluate(()=>guardProperties),{initiative:'+9',effects:['Jack of All Trades']});checks++;
+ await setup({tie:true});
+ await page.evaluate(()=>{const actual=wayBeyond20FinalizeInitiativeProficiency;window.beforeFinal=[];wayBeyond20FinalizeInitiativeProficiency=(row,properties,offset)=>{beforeFinal.push({initiative:properties.initiative,advantage:properties.advantage,offset});return actual(row,properties,offset);};});
+ await click();assert.deepEqual(await page.evaluate(()=>beforeFinal),[{initiative:'+3.16',advantage:3,offset:0.16}]);assert.equal(await page.evaluate(()=>rolls.at(-1).initiative),'+4.16');checks++;
+ await setup({native:8,answer:'missing'});const mutated=await page.evaluate(async()=>{const props={initiative:'+8'};dndbeyondDiceRoller.queryGeneric=async()=>{props.initiative='+10';return 'missing';};return {ok:await finalGate(props),props};});assert.equal(mutated.ok,false);assert.equal(mutated.props.initiative,'+10');checks++;
+ await setup({native:8,answer:'missing'});const labelChange=await page.evaluate(async()=>{const props={initiative:'+8'};dndbeyondDiceRoller.queryGeneric=async()=>{document.querySelector('section').insertAdjacentHTML('beforeend','<span data-prof="true" aria-label="Proficient"></span>');return 'missing';};return {ok:await finalGate(props),props};});assert.equal(labelChange.ok,false);assert.equal(labelChange.props.initiative,'+8');checks++;
+ await setup({});assert.equal(await page.evaluate(()=>finalGate({initiative:'unreadable'})),false);checks++;
+ await setup({native:8,answer:'missing'});const lateProficiency=await page.evaluate(async()=>{const props={initiative:'+8'};dndbeyondDiceRoller.queryGeneric=async()=>{props.proficiency='Proficient';return 'missing';};return {ok:await finalGate(props),props};});assert.equal(lateProficiency.ok,false);assert.equal(lateProficiency.props.initiative,'+8');checks++;
+ await setup({});const changedAfter=await page.evaluate(async()=>{const props={initiative:'+3'};await finalGate(props);props.initiative='+8';return {ok:await finalGate(props),props};});assert.equal(changedAfter.ok,false);assert.equal(changedAfter.props.initiative,'+8');checks++;
+ await setup({native:8,answer:null});await page.evaluate(()=>{window.settingsWrites=[];character.hasClassFeature=name=>['Jack of All Trades','Assassinate 2024'].includes(name);character.getSetting=(key,fallback)=>key==='bard-joat'||key==='rogue-assassinate-2024'?true:fallback;character.mergeCharacterSettings=changes=>settingsWrites.push(changes);});assert.equal(await click(),false);assert.equal(await page.evaluate(()=>settingsWrites.length),0,'canceling the final check cannot consume Initiative advantage');checks++;
+ await setup({});await click();assert.deepEqual(await page.evaluate(()=>settingsWrites),[{'rogue-assassinate-2024':false}]);checks++;
  assert.deepEqual(errors,[]);console.log('PASS Jack-of-All-Trades Initiative: '+checks+' cases; native click, rounding, native proficiency, ambiguous bonuses, cancellation, stale state and tiebreaker.');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
