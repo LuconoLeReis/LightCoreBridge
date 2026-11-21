@@ -161,13 +161,13 @@ async function wayBeyond20DispatchRollWithCharacter(rollType, fallback, args, in
                 wayBeyond20SpendTurnResource(request.resource, options);
             }
         });
-        afterDispatchCommits.forEach(commit => {
+        for (const commit of afterDispatchCommits) {
             try {
-                commit();
+                await commit();
             } catch (error) {
                 console.warn("WayBeyond20: a post-dispatch update failed", error);
             }
-        });
+        }
     }
     if (result === true && limitedUseRequest && limitedUsePreflight.tracked) {
         const spent = await wayBeyond20SpendLimitedUse(limitedUseRequest.feature);
@@ -7552,22 +7552,25 @@ function wayBeyond20SpellSlotState(level) {
     return { total: controls.length, available: available.length, availableControls: available };
 }
 
-async function wayBeyond20WaitForSpellSlotBelow(level, before, attempts) {
+async function wayBeyond20WaitForSpellSlotBelow(level, before, attempts, owner = character) {
     for (let attempt = 0; attempt < attempts; attempt++) {
+        if (owner !== character) return false;
         const state = wayBeyond20SpellSlotState(level);
         if (state && state.available < before) return true;
         await new Promise(resolve => setTimeout(resolve, 75));
     }
+    if (owner !== character) return false;
     const state = wayBeyond20SpellSlotState(level);
     return !!(state && state.available < before);
 }
 
-// Spends one slot of exactly `level` on D&D Beyond after a dispatched Smite. Brings up the Spells tab
+// Spends one slot of exactly `level` on D&D Beyond after a dispatched cast. Brings up the Spells tab
 // when that level is not mounted (the Elemental Strike rider shows Actions) and restores the previous
 // tab. Success means the live available count dropped; a missing or unverified control is failure.
 // `expectedAvailable` is the count shown before dispatch: if D&D Beyond already shows fewer (its own
 // cast spent the slot), nothing more is deducted.
-async function wayBeyond20SpendSpellSlot(level, { expectedAvailable = null } = {}) {
+async function wayBeyond20SpendSpellSlot(level, { expectedAvailable = null, owner = character } = {}) {
+    if (owner !== character) return false;
     const previousTab = wayBeyond20ActiveCharacterSheetTab();
     const spellsTab = wayBeyond20CharacterSheetTab("Spells");
     let switchedTab = false;
@@ -7577,6 +7580,7 @@ async function wayBeyond20SpendSpellSlot(level, { expectedAvailable = null } = {
         switchedTab = true;
         for (let attempt = 0; attempt < 15 && !state; attempt++) {
             await new Promise(resolve => setTimeout(resolve, 100));
+            if (owner !== character) return false;
             state = wayBeyond20SpellSlotState(level);
         }
     }
@@ -7591,23 +7595,27 @@ async function wayBeyond20SpendSpellSlot(level, { expectedAvailable = null } = {
     } else if (state.available > 0) {
         const before = state.available;
         const pageResult = await wayBeyond20RequestPageSpellSlotChange(level, "spend", before);
-        spent = await wayBeyond20WaitForSpellSlotBelow(level, before, pageResult && pageResult.changed ? 5 : 2);
+        if (owner !== character) return false;
+        spent = await wayBeyond20WaitForSpellSlotBelow(level, before, pageResult && pageResult.changed ? 5 : 2, owner);
+        if (owner !== character) return false;
         const retry = spent ? null : wayBeyond20SpellSlotState(level);
         // One content-side click, only while the count is still unchanged, so a late page click is never doubled.
         if (retry && retry.available === before && retry.availableControls[0]) {
             try {
                 retry.availableControls[0].click();
-                spent = await wayBeyond20WaitForSpellSlotBelow(level, before, 8);
+                spent = await wayBeyond20WaitForSpellSlotBelow(level, before, 8, owner);
             } catch (error) {
                 wayBeyond20CharacterDebug("Spell slot spend click failed", { level, error: String(error) });
             }
         }
+        if (owner !== character) return false;
         const after = wayBeyond20SpellSlotState(level);
         if (spent && after && after.available !== before - 1) {
             wayBeyond20CharacterDebug("Spell slot count changed by more than one", { level, before, after: after.available });
         }
     }
 
+    if (owner !== character) return false;
     wayBeyond20SpellSlotCache = null;
     wayBeyond20AvailableSpellSlots();
     if (switchedTab && previousTab && previousTab !== spellsTab && previousTab.isConnected !== false &&
@@ -9623,6 +9631,30 @@ function wayBeyond20ApplyRitualMode(rollProperties, ritualMode) {
     addEffect(rollProperties, "Cast as a Ritual; no spell slot expended");
 }
 
+// The roll icon does not click DDB's Cast control. Capture its selected slot level
+// before any chooser can redraw the pane; native Cast/Use callers keep their own
+// payment callback. A Use control is feature/item fuel, never evidence of a slot.
+function wayBeyond20SpellIconCastCommit(level, castas, name) {
+    const slotLevel = wayBeyond20SpellCastLevel(level, castas);
+    if (slotLevel < 1) return null;
+    const controls = Array.from(document.querySelectorAll(
+        ".ct-spell-pane .ct-spell-caster__casting-action > button,.ct-spell-pane .ddbc-spell-caster__casting-action > button"));
+    if (controls.length !== 1 || controls[0].textContent.trim().toLowerCase() !== "cast") return null;
+    const owner = character;
+    let payment = null;
+    return () => payment ||= (async () => {
+        let paid = false;
+        try {
+            paid = owner === character && await wayBeyond20SpendSpellSlot(slotLevel, {owner});
+        } catch (error) {
+            wayBeyond20CharacterDebug("Spell icon payment failed", {level:slotLevel, error:String(error)});
+        }
+        if (!paid) {
+            alertify.warning(`LightCore Bridge sent ${name}, but could not verify its level ${slotLevel} spell slot payment. Check the slot counter; do not cast again to retry payment.`);
+        }
+    })();
+}
+
 async function rollSpell(force_display = false, force_to_hit_only = false, force_damages_only = false, nativeCast = null, force_roll_mode = null, attack_context = null) {
     const properties = propertyListToDict($(".ct-spell-pane .ct-spell-detail [role=list] > div"));
     //console.log("Properties are : " + String(properties));
@@ -9630,13 +9662,15 @@ async function rollSpell(force_display = false, force_to_hit_only = false, force
     const spell_full_name = $(".ct-sidebar__heading .ct-spell-name,.ct-sidebar__heading .ddbc-spell-name, .ct-sidebar__heading span[class*='styles_spellName']").text();
     const spell_name = $(".ct-sidebar__heading .ct-spell-name,.ct-sidebar__heading .ddbc-spell-name, .ct-sidebar__heading span[class*='styles_spellName']")[0].firstChild.textContent;
     const description = descriptionToString(`.ct-spell-pane .ct-spell-detail__description, .ct-spell-pane div[class*='styles_description']`);
-    if (attack_context && !await wayBeyond20ConfirmReactiveSpell(attack_context, properties, spell_name, description)) return false;
     const damage_modifiers = $(".ct-spell-pane .ct-spell-caster__modifiers--damages .ct-spell-caster__modifier--damage");
     const healing_modifiers = $(".ct-spell-pane .ct-spell-caster__modifiers--healing .ct-spell-caster__modifier--hp");
     const temp_hp_modifiers = $(".ct-spell-pane .ct-spell-caster__modifiers--healing .ct-spell-caster__modifier--temp");
     const castas = $(".ct-spell-caster__casting-level-current").text();
     const level = $(".ct-spell-pane .ct-spell-detail__level-school-item").toArray().map((i) => i.textContent).join(" ");
     const waybeyond20_intervention = typeof wb20InterventionProperties === 'function' && wb20InterventionProperties(character,spell_source,properties,level);
+    if (nativeCast === null && !force_display && !force_damages_only && !waybeyond20_intervention)
+        nativeCast = wayBeyond20SpellIconCastCommit(level, castas, spell_name);
+    if (attack_context && !await wayBeyond20ConfirmReactiveSpell(attack_context, properties, spell_name, description)) return false;
     const ritual = $(".ct-spell-pane .ct-spell-name__icon--ritual,.ct-spell-pane .ddbc-spell-name__icon--ritual, .ct-spell-pane .ct-sidebar__header-primary ddbc-ritual-icon").length > 0;
     const waybeyond20_ritual_mode = attack_context ? "normal" : await wayBeyond20ChooseRitualMode({ ritual, forceDisplay: force_display });
     if (waybeyond20_ritual_mode === null) return;
@@ -9845,7 +9879,7 @@ async function rollSpell(force_display = false, force_to_hit_only = false, force
         await wayBeyond20ApplyOccultistIntrusion(roll_properties, {
             forceDisplay: force_display, ritualMode: waybeyond20_ritual_mode, level, castas
         });
-        if (!force_display && waybeyond20_ritual_mode === "normal" && nativeCast)
+        if (!force_display && !force_damages_only && waybeyond20_ritual_mode === "normal" && nativeCast)
             wayBeyond20CommitAfterDispatch(roll_properties, nativeCast);
         if (force_roll_mode !== null && roll_properties.rollAttack) {
             roll_properties.advantage = force_roll_mode;
@@ -9908,7 +9942,7 @@ async function rollSpell(force_display = false, force_to_hit_only = false, force
         await wayBeyond20ApplyOccultistIntrusion(roll_properties, {
             forceDisplay: force_display, ritualMode: waybeyond20_ritual_mode, level, castas
         });
-        if (!force_display && waybeyond20_ritual_mode === "normal" && nativeCast)
+        if (!force_display && !force_damages_only && waybeyond20_ritual_mode === "normal" && nativeCast)
             wayBeyond20CommitAfterDispatch(roll_properties, nativeCast);
         if (attack_context && !await wayBeyond20ConfirmAttackContext(attack_context, roll_properties)) return false;
         if (waybeyond20_intervention) wb20InterventionPacket(roll_properties);
@@ -10338,7 +10372,9 @@ function injectRollButton(paneClass) {
         }
 
         $(".ct-spell-caster__casting-action > button,.ddbc-spell-caster__casting-action > button").off('click').on('click', (event) => {
-            execute(paneClass);
+            // This is DDB's native button, whose own click already owns payment.
+            // false distinguishes it from an icon with no payment callback yet.
+            execute(paneClass, {nativeCast:false});
         });
     } else if (paneClass == "ct-reset-pane") {
         const hitdice = $(".ct-reset-pane__hitdie");

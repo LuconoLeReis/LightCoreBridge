@@ -1,14 +1,16 @@
-LIGHTCORE BRIDGE 1.73.106
-Browser build: 2.20.238
+LIGHTCORE BRIDGE 1.73.108
+Browser build: 2.20.240
+
+This release repairs slot-funded spell casts made with the LightCore roll icon, including Chromatic Orb. Successful dispatch spends one slot at the selected casting level. Cancel/failure does not spend. Native Cast/Use payment, free casts, rituals and separate damage rolls remain separate. Accounting failures warn without recasting. See RELEASE-NOTES.md for verification and known limits. This applies to LightCore spell buttons, including spell-list to-hit dice and Actions-tab spell attack dice; do not also mark the slot pip by hand. Free spells labeled Cast instead of Use and Pact Magic pool selection remain unverified on native sheets.
 
 Connect your D&D Beyond character to local tabletop play, Roll20, Foundry VTT, TaleSpire or optional Discord roll output. A VTT is not required. Existing installation, storage and protocol names are retained for compatibility.
 
 RELEASE NOTES AND DOWNLOADS
-https://github.com/LuconoLeReis/WayBeyond20/releases/tag/v1.73.106
+https://github.com/LuconoLeReis/WayBeyond20/releases/tag/v1.73.108
 The corresponding source includes RELEASE-NOTES.md, tests and reproducible build inputs.
 
 NEW CHROME INSTALLATION
-1. Download LightCore-Bridge-chrome-v1_73_106.zip, not the source archive.
+1. Download LightCore-Bridge-chrome-v1_73_108.zip, not the source archive.
 2. Extract it. Select the inner WayBeyond20 folder containing manifest.json; Windows Extract All can add another outer folder.
 3. Open chrome://extensions and enable Developer mode.
 4. Choose Load unpacked and select that WayBeyond20 folder.
@@ -17,7 +19,7 @@ NEW CHROME INSTALLATION
 UPDATE WITHOUT LOSING SETTINGS
 Finish pending rolls. Back up the folder Chrome currently loads. Replace its contents in place with the new WayBeyond20 folder contents. Let copying/Dropbox sync finish, then reload LightCore Bridge on chrome://extensions and refresh character/VTT tabs. Keep the same loaded path and extension installation. Do not remove/reinstall it. Existing settings, character resources and connections are retained. This is a manual unpacked update, not Chrome Web Store auto-update.
 
-Already running 1.73.106 / 2.20.238? The published gameplay code is identical to that accepted build. Public preparation updates documentation and sanitizes test examples only; it does not require another gameplay test.
+This release changes spell accounting from stable106. It requires a reload after installation; it does not change a running browser until that reload. Do not interrupt a live game to reload.
 
 WHAT CHANGED SINCE 1.73.72
 Reliable attack-icon handoff and pending Roll Damages controls; combined critical/rider totals with component breakdown; named D&D Beyond Game Log results without the old attack-only/standalone-cast holds; shared Unarmed Strike calculation repairs; clearer Protected Keep Roll choice; healing-only cast and owned Life Domain feature handling; native Lay On Hands pool details; initiative display/correction and manual turn repair; theme and settings refinements.
@@ -29,11 +31,11 @@ SUMMONED CREATURES
 Live descriptions supply supported cast-level statistics. For Animate Dead, open the desired Skeleton/Zombie reference in Extras once to cache the native definition. Track an existing summon registers without recasting. Each attack click rolls one attack; multiattack count is a reminder. Control hours are manually advanced game time. Renewal retains identity and HP. Aura/condition adjudication and native companion HP synchronization can require manual handling.
 
 VERIFICATION AND LIMITS
-Automated suites/builds, independent offline reviews and bounded installed checks passed. This does not certify every class, homebrew rule or destination. Broader two-client TaleSpire turn/position and exhaustive Foundry acceptance remain separate. After a timeout, a late native digital-dice result may be ambiguous. Audience-mismatched or incomplete Game Log groups can fall back to safe separate components. Refresh old tabs after an extension reload.
+The stable106 baseline has independent offline reviews and bounded installed checks. Release108 adds passing isolated regression tests, build checks and independent offline review. No new installed gameplay acceptance is claimed. This does not certify every class, homebrew rule or destination. Broader two-client TaleSpire turn/position and exhaustive Foundry acceptance remain separate. After a timeout, a late native digital-dice result may be ambiguous. Audience-mismatched or incomplete Game Log groups can fall back to safe separate components. Refresh old tabs after an extension reload.
 
 The central Discord session service, player authentication and automatic shared-state sync are still in development and are not included in this release. Existing optional Discord roll output remains separate. No experimental private mastery branch is included.
 
 SOURCE AND LICENSES
-Exact source: https://github.com/LuconoLeReis/WayBeyond20/tree/v1.73.106
+Exact source: https://github.com/LuconoLeReis/WayBeyond20/tree/v1.73.108
 Build: npm ci, npm test, npm run build. Optional browser fixtures require Playwright/Chrome; WB20_PLAYWRIGHT can specify its module.
 Required LICENSE, LICENSE.MIT, third-party notices and Beyond20 attribution remain included. LightCore Bridge derives from Beyond20.
