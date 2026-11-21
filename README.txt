@@ -1,16 +1,18 @@
-LIGHTCORE BRIDGE 1.73.108
-Browser build: 2.20.240
+LIGHTCORE BRIDGE 1.73.111
+Browser build: 2.20.243
+
+Jack of All Trades now supports the requested2014-style Initiative treatment through the existing enabled-by-default setting. It adds half proficiency when absent and preserves native proficiency. Ambiguous extra bonuses require confirmation once per unchanged calculation. See RELEASE-NOTES.md for verification and limits. Experimental session-sync code is not included.
 
 This release repairs slot-funded spell casts made with the LightCore roll icon, including Chromatic Orb. Successful dispatch spends one slot at the selected casting level. Cancel/failure does not spend. Native Cast/Use payment, free casts, rituals and separate damage rolls remain separate. Accounting failures warn without recasting. See RELEASE-NOTES.md for verification and known limits. This applies to LightCore spell buttons, including spell-list to-hit dice and Actions-tab spell attack dice; do not also mark the slot pip by hand. Free spells labeled Cast instead of Use and Pact Magic pool selection remain unverified on native sheets.
 
 Connect your D&D Beyond character to local tabletop play, Roll20, Foundry VTT, TaleSpire or optional Discord roll output. A VTT is not required. Existing installation, storage and protocol names are retained for compatibility.
 
 RELEASE NOTES AND DOWNLOADS
-https://github.com/LuconoLeReis/WayBeyond20/releases/tag/v1.73.108
+https://github.com/LuconoLeReis/WayBeyond20/releases/tag/v1.73.111
 The corresponding source includes RELEASE-NOTES.md, tests and reproducible build inputs.
 
 NEW CHROME INSTALLATION
-1. Download LightCore-Bridge-chrome-v1_73_108.zip, not the source archive.
+1. Download LightCore-Bridge-chrome-v1_73_111.zip, not the source archive.
 2. Extract it. Select the inner WayBeyond20 folder containing manifest.json; Windows Extract All can add another outer folder.
 3. Open chrome://extensions and enable Developer mode.
 4. Choose Load unpacked and select that WayBeyond20 folder.
@@ -19,7 +21,7 @@ NEW CHROME INSTALLATION
 UPDATE WITHOUT LOSING SETTINGS
 Finish pending rolls. Back up the folder Chrome currently loads. Replace its contents in place with the new WayBeyond20 folder contents. Let copying/Dropbox sync finish, then reload LightCore Bridge on chrome://extensions and refresh character/VTT tabs. Keep the same loaded path and extension installation. Do not remove/reinstall it. Existing settings, character resources and connections are retained. This is a manual unpacked update, not Chrome Web Store auto-update.
 
-This release changes spell accounting from stable106. It requires a reload after installation; it does not change a running browser until that reload. Do not interrupt a live game to reload.
+This release adds Initiative handling to stable108 and retains its spell-slot accounting. It requires a reload after installation; it does not change a running browser until that reload. Do not interrupt a live game to reload.
 
 WHAT CHANGED SINCE 1.73.72
 Reliable attack-icon handoff and pending Roll Damages controls; combined critical/rider totals with component breakdown; named D&D Beyond Game Log results without the old attack-only/standalone-cast holds; shared Unarmed Strike calculation repairs; clearer Protected Keep Roll choice; healing-only cast and owned Life Domain feature handling; native Lay On Hands pool details; initiative display/correction and manual turn repair; theme and settings refinements.

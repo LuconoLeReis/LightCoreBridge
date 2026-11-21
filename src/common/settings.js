@@ -642,7 +642,7 @@ const character_settings = {
     },
     "bard-joat": {
         "title": "Bard: Jack of All Trades",
-        "description": "Add JoaT bonus to raw ability checks",
+        "description": "Apply Jack of All Trades to ability checks, including Initiative (2014-style behavior). Already-included proficiency is preserved.",
         "type": "bool",
         "default": true
     },

@@ -2724,17 +2724,86 @@ function wb20InitiativeRow(target) {
     return mobile && /\binitiative\b/i.test(mobile.textContent + " " + (mobile.getAttribute("aria-label") || "")) ? mobile : null;
 }
 
-async function rollInitiative(row = null) {
-    row = row || [...document.querySelectorAll(".ct-combat__summary-group--initiative,.ct-combat-tablet__extra--initiative,.ct-combat-mobile__extras > section[class*='styles_boxMobile']")]
-        .find(node => node.getClientRects().length && wb20InitiativeRow(node));
-    const modifier = [...(row?.querySelectorAll("[class*='styles_numberDisplay'],.ddbc-signed-number,.ct-signed-number,.integrated-dice__container") || [])]
+function wayBeyond20ReadInitiativeModifier(row) {
+    return [...(row?.querySelectorAll("[class*='styles_numberDisplay'],.ddbc-signed-number,.ct-signed-number,.integrated-dice__container") || [])]
         .map(node => node.textContent.replace(/\s/g, "").replace("−", "-"))
         .find(text => /^[+-]?\d+$/.test(text));
+}
+
+// Initiative is an ability check. Use native proficiency provenance when it is
+// present; an unlabeled total with extra bonuses cannot reveal its components.
+// Remember an explicit answer only while this owner and calculation stay current.
+async function wayBeyond20InitiativeJoatModifier(row, nativeModifier) {
+    const owner = character;
+    const unchanged = {modifier: nativeModifier, applied: false};
+    if (!owner.hasClassFeature("Jack of All Trades", true) || !owner.getSetting("bard-joat", true)) return unchanged;
+    const dexValue = owner.getAbility?.("DEX")?.mod;
+    const dex = Number(dexValue), proficiency = Number(owner._proficiency);
+    if (dexValue === null || dexValue === undefined || dexValue === "" || !Number.isInteger(dex) ||
+        !Number.isInteger(proficiency) || proficiency < 1) {
+        alertify.warning("Jack of All Trades: Dexterity or proficiency could not be verified. The native Initiative modifier was kept.");
+        return unchanged;
+    }
+    const half = Math.floor(proficiency / 2);
+    if (!half) return unchanged;
+    const labels = [...row.querySelectorAll("[data-original-title],[title],[aria-label]")]
+        .map(node => node.getAttribute("data-original-title") || node.getAttribute("title") || node.getAttribute("aria-label") || "")
+        .map(text => text.trim().replace(/[-\u2010-\u2014]/g, " "));
+    const ranks = labels.map(text => /^(?:not proficient|no proficiency|untrained)$/i.test(text) ? 0 :
+        /^(?:half proficien(?:t|cy)|jack of all trades|expert(?:ise)?|proficien(?:t|cy)(?: bonus)?)(?:\s*\(?[+-]?\d+\)?)?$/i.test(text) ? 1 : null)
+        .filter(rank => rank !== null);
+    if (ranks.includes(1) && !ranks.includes(0)) return unchanged;
+    let add = ranks.includes(0) && !ranks.includes(1) || nativeModifier === dex && !ranks.includes(1);
+    if (!add) {
+        const signature = JSON.stringify([nativeModifier, dex, proficiency, labels]);
+        const answers = wayBeyond20InitiativeJoatModifier.answers ||= new WeakMap();
+        let remembered = answers.get(owner);
+        if (remembered?.signature === signature && typeof remembered.add === "boolean") add = remembered.add;
+        else {
+            if (remembered?.signature !== signature) {
+                remembered = {signature};
+                answers.set(owner, remembered);
+                remembered.pending = dndbeyondDiceRoller.queryGeneric("Initiative: Jack of All Trades",
+                `D&D Beyond shows ${wayBeyond20FormatSignedNumber(nativeModifier)}; Dexterity is ${wayBeyond20FormatSignedNumber(dex)} and proficiency is ${wayBeyond20FormatSignedNumber(proficiency)}. Does that Initiative total already include proficiency? This answer is remembered while this sheet and calculation stay unchanged.`,
+                {native: `Already included — keep ${wayBeyond20FormatSignedNumber(nativeModifier)}`,
+                    missing: `Missing — add ${wayBeyond20FormatSignedNumber(half)} Jack of All Trades`},
+                "initiative-joat", ["native", "missing"], "native");
+            }
+            let choice;
+            try { choice = await remembered.pending; }
+            catch (_) {
+                if (answers.get(owner) === remembered) answers.delete(owner);
+                alertify.warning("The Initiative proficiency choice did not finish. No roll was sent.");
+                return null;
+            }
+            if ((choice !== "native" && choice !== "missing") || character !== owner || row.isConnected === false ||
+                Number(owner.getAbility?.("DEX")?.mod) !== dex || Number(owner._proficiency) !== proficiency ||
+                Number(wayBeyond20ReadInitiativeModifier(row)) !== nativeModifier) {
+                if (answers.get(owner) === remembered) answers.delete(owner);
+                return null;
+            }
+            add = choice === "missing";
+            remembered.add = add;
+        }
+    }
+    return add ? {modifier: nativeModifier + half, applied: true} : unchanged;
+}
+
+async function rollInitiative(row = null) {
+    const owner = character;
+    const startingTurn = wayBeyond20AttackActivationTurnKey();
+    const ownerId = owner._id;
+    row = row || [...document.querySelectorAll(".ct-combat__summary-group--initiative,.ct-combat-tablet__extra--initiative,.ct-combat-mobile__extras > section[class*='styles_boxMobile']")]
+        .find(node => node.getClientRects().length && wb20InitiativeRow(node));
+    const modifier = wayBeyond20ReadInitiativeModifier(row);
     if (modifier === undefined) {
         alertify.warning("LightCore Bridge could not read the Initiative modifier on this sheet.");
         return false;
     }
-    let initiative = wayBeyond20FormatSignedNumber(Number(modifier));
+    const adjusted = await wayBeyond20InitiativeJoatModifier(row, Number(modifier));
+    if (!adjusted || character !== owner || owner._id !== ownerId || row.isConnected === false ||
+        startingTurn !== wayBeyond20AttackActivationTurnKey()) return false;
+    let initiative = wayBeyond20FormatSignedNumber(adjusted.modifier);
     let advantage = !!row.querySelector("[class*='styles_advantage']");
 
     if (character.getGlobalSetting("initiative-tiebreaker", false)) {
@@ -2755,9 +2824,6 @@ async function rollInitiative(row = null) {
         if(!isLocked) character.mergeCharacterSettings({"rogue-assassinate-2024": false});
     }
 
-    const owner = character;
-    const startingTurn = wayBeyond20AttackActivationTurnKey();
-    const ownerId = owner._id;
     let initiativeTotal;
     const roll_properties = {
         name: "Initiative",
@@ -2766,6 +2832,7 @@ async function rollInitiative(row = null) {
             initiativeTotal = rolls.find(roll => !roll.isDiscarded())?.total;
         }
     };
+    if (adjusted.applied) addEffect(roll_properties, "Jack of All Trades");
     if (advantage)
         roll_properties["advantage"] = RollType.OVERRIDE_ADVANTAGE;
     const sent = await sendRollWithCharacter("initiative", "1d20" + initiative, roll_properties);
