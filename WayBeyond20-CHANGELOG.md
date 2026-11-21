@@ -193,7 +193,7 @@ No mastery/wondrous conversion, Aura transport or new gameplay feature. Local ca
 
 ## 1.73.39 / 2.20.171 â€” requested column-layout rollback, October 29, 2026
 
-Bill explicitly rejected full-width/spanning feature summaries. Restore feature entries to the established NAME, RANGE, HIT/DC, DAMAGE and NOTES columns. Remove added inline descriptions/reminders and the summary-specific grid/hidden-column CSS; return the previous placeholders, Details and existing use counts to their cells. No new information or redesigned display lines in this candidate.
+the owner explicitly rejected full-width/spanning feature summaries. Restore feature entries to the established NAME, RANGE, HIT/DC, DAMAGE and NOTES columns. Remove added inline descriptions/reminders and the summary-specific grid/hidden-column CSS; return the previous placeholders, Details and existing use counts to their cells. No new information or redesigned display lines in this candidate.
 
 Retain38's yielded refreshes, bounded diagnostics, synchronous rule snapshot and validated-label cache, inner Defenses containment, native spell artwork, duplicate alias correction, functional controls and rule-correct Reactive Spell. Local development rollback only. Installed acceptance and independent review remain pending; not published.
 
@@ -201,7 +201,7 @@ Retain38's yielded refreshes, bounded diagnostics, synchronous rule snapshot and
 
 Yield and coalesce document mutation refreshes instead of running the whole sheet pipeline inside every mutation microtask. Keep one pending task, retain the newest native state, adapt delay to measured scan duration, and leave the observer active. Add per-stage time/write counters and bounded mutation-target summaries; pressure reports go to the existing local debug log, at most six per page with ten seconds between reports. No polling timer, new overlay or gameplay change.
 
-Find matching label text before forcing visibility/layout reads; reuse only connected, visible, identity-matched labels and invalidate replaced nodes. Remove the observed native inner Defenses57px height clamp as well as the outer frame limit, allowing the full text and buff names to fit. Synthetic full-pipeline stress and native-structure layout tests are distinct from installed acceptance. The exact source of Bill's live high CPU is still unconfirmed until the diagnostic build is loaded. Not published.
+Find matching label text before forcing visibility/layout reads; reuse only connected, visible, identity-matched labels and invalidate replaced nodes. Remove the observed native inner Defenses57px height clamp as well as the outer frame limit, allowing the full text and buff names to fit. Synthetic full-pipeline stress and native-structure layout tests are distinct from installed acceptance. The exact source of the owner's live high CPU is still unconfirmed until the diagnostic build is loaded. Not published.
 
 Share one current rule/activation snapshot within each synchronous action-list render, discarding it in finally. The captured native markup replay reduced969 native rule reads across three unchanged renders to3, with no cache across native updates or feature use. The prior build fails the new single-read regression; removed/changed rules are reread next render.
 
@@ -328,7 +328,7 @@ full/hit/damage/versatile flags, mutation churn, row replacement, stale/cancel,
 supersession and expiry are covered. VM flag-normalization tests now mock the UI
 handoff boundary explicitly; actual pane behavior is tested in the browser suite.
 Disconnection also safely cancels a pending request when the observer argument is
-absent. Live verification is deferred at Bill's instruction; no reload requested.
+absent. Live verification is deferred at the owner's instruction; no reload requested.
 
 ## v1.73.21 - Full-attack icon pane handoff, 2026-10-24 (local coding candidate)
 
@@ -507,7 +507,7 @@ live on Foundry 14.369 during integrated testing. No publication.
 
 ## v1.73.7 - Foundry return integration and quiet disconnection, 2026-10-21 (coding update)
 
-Numeric2.20.139; PATCH only per Bill's release-only MAJOR/MINOR policy. WB20-0072 adapter
+Numeric2.20.139; PATCH only per the owner's release-only MAJOR/MINOR policy. WB20-0072 adapter
 by Mira with shared receiver integration by Ian. Unshipped1.74.0 label corrected before Dev.
 Foundry combat hooks (no polling) feed the existing waybeyond20-turn-update envelope tagged
 source Foundry; token binding on initiative; Draining-style damage return; quiet effects-update
@@ -555,7 +555,7 @@ No rest completion, gameplay/resource change or publication.
 
 ## v1.73.4 - compact desktop character header, 2026-10-21 (coding update)
 
-Numeric2.20.136; patch-only coding revision per Bill's version rule. One visual
+Numeric2.20.136; patch-only coding revision per the owner's version rule. One visual
 Manage/WB20/Share panel; Rest menu forwards only to native Short/Long Rest pane
 openers. Stacked campaign/Maps VTT/Game Log panel matches its height; dedicated
 TaleSpire status column. Native React nodes stay in their parents; redraws
@@ -565,7 +565,7 @@ No class, VTT, battle or resource behavior added; no publication.
 
 ## v1.73.3 - unpublished coding update; numbering correction, 2026-10-21
 
-Numeric2.20.135. Bill clarified that MAJOR/MINOR change only for publication;
+Numeric2.20.135. the owner clarified that MAJOR/MINOR change only for publication;
 between releases all coding updates increment PATCH. Last published1.73.2;
 premature unpublished1.74.x/1.75.x/1.76.x labels are superseded, not releases.
 Their entries below describe historical work under the labels used at the
@@ -746,7 +746,7 @@ Browser fixture and geometry/receiver tests pass. Live gate pending reload.
 
 ## v1.70.2 - Shared compass front curve, 2026-10-20 (not published)
 
-Extension version 2.20.118. Bill's annotated visual replaces the individual
+Extension version 2.20.118. the owner's annotated visual replaces the individual
 ovals with one wide front curve. Current name 18px, receding side names,
 filled curved arrows. Removed center ellipse/ticks. No extra header height.
 Responsive layout, browsing/reset and scroll-preservation fixture passed.
@@ -754,7 +754,7 @@ Responsive layout, browsing/reset and scroll-preservation fixture passed.
 ## v1.70.1 - Reverse compass tilt, 2026-10-20 (not published)
 
 Extension version 2.20.117. Reversed side-name rotateY and rotateZ directions
-at Bill's request. No center, layout-height, behavior or resource changes.
+at the owner's request. No center, layout-height, behavior or resource changes.
 Live 1.70.0 shows correct neighbors and one-row toolbar; browsing verification
 was interrupted by this visual correction. Do not claim live browse acceptance.
 
@@ -799,7 +799,7 @@ Custom typed brace groups preserve each type's complete formula and the global
 fallback; shared renderer shows type subtotals and one total without rerolling.
 My Target uses the existing Roll20 token list plus initiative, with persistent
 per-target AC observations (attack total, Hit/Miss, Undo), and manual gross
-damage entries by type. AC follows Bill's narrowing sequence without a qualifier.
+damage entries by type. AC follows the owner's narrowing sequence without a qualifier.
 No native HP writes or economy spending from target controls. Responsive panel.
 All core/regression and representative browser-fixture tests pass; Chrome and
 Firefox builds syntax checked. Live acceptance pending reload, not published.
@@ -814,7 +814,7 @@ Manage's Automatic label is now Use detected category with the detected result.
 Custom grammar adds kh/kl/dh/dl, once-only ro<=N rerolls, minN group totals,
 decimal constants and standard damage-type labels. Limits: 100 base dice and
 240 characters; no scripts, variables, exploding dice or general arithmetic.
-Formula note uses Bill's final wording: Your dice formula will be shown with
+Formula note uses the owner's final wording: Your dice formula will be shown with
 the result. No special disclosure or forced public roll; privacy is unchanged.
 Roll20 custom requests bypass prose substitution to preserve full notation.
 Roll20 handles each reroll term; Foundry translates combined group minimums.
@@ -913,7 +913,7 @@ passing browser regression. Live acceptance must still be checked.
 
 ## v1.66.13 - Gray Free/Special borders, 2026-10-20 (not published)
 
-Extension version 2.20.102. Bill requested gray instead of black to improve
+Extension version 2.20.102. the owner requested gray instead of black to improve
 distinction from green Actions. Shared Free/Special color is now #808080 for
 icons, hover/focus treatments and legend. No gameplay changes.
 Blood and Bone's chooser uses Target / Hit Die on two deliberate lines.
@@ -981,7 +981,7 @@ label's computed family/size/weight/line-height/letter-spacing, without copying
 spell-specific italics or changing handlers/resource accounting. Guard writes
 so repeated mutation refreshes remain inert; fixture checks equality and churn.
 More Options code is unchanged. Original transition passes the isolated fixture
-and Bill confirms it loads in an unconnected duplicate tab. The blank connected
+and the owner confirms it loads in an unconnected duplicate tab. The blank connected
 tab is not a demonstrated defect in that transition; speculative change removed.
 
 ## v1.66.6 - Classify before on-hit routing, 2026-10-19 (not published)
@@ -997,7 +997,7 @@ claimed fully explained or live-fixed. Includes1.66.5 shared-row merge.
 
 ## v1.66.5 - Merge Agile Strikes with its attack, 2026-10-19 (not published)
 
-Extension version2.20.94. Bill confirmed Bardic Damage is the Agile Strikes
+Extension version2.20.94. the owner confirmed Bardic Damage is the Agile Strikes
 attack. When both native entries exist, link the original rules from that
 attack's Notes and omit the empty feature shortcut. Preserve native label,
 range, to-hit, damage, black border, handlers and sort values. Keep the feature
@@ -1029,7 +1029,7 @@ No roll, resource or sort behavior changes. Live acceptance pending.
 
 ## v1.66.2 - Combined action rows, 2026-10-19 (not published)
 
-Plain version label per Bill's naming clarification. Previously labeled
+Plain version label per the owner's naming clarification. Previously labeled
 1.66.1-dev.4 locally; label/documentation-only change, no executable change.
 
 Extension version 2.20.91. One visually combined list, default Action / Bonus
