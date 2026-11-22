@@ -1,6 +1,8 @@
-# LightCore Bridge 1.73.115
+# LightCore Bridge 1.73.116
 
-Browser build **2.20.247**. Candidate: familiar picker, saved profiles and companion cards. Independent review and installed acceptance are pending.
+Browser build **2.20.248**. Candidate: familiar picker, saved profiles and companion cards. Independent review and installed acceptance are pending.
+
+Familiar touch-delivery identity is preserved through both character attack workflows, so the confirmation and familiar Reaction cost also apply to copied spell requests.
 
 Settings search is restored when a saved familiar library is present. Uncertain familiar payment, benefits or delivery show Proceed/Cancel advisories. Reusing an existing familiar name with a different form asks before updating the saved profile.
 

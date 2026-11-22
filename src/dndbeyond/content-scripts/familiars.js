@@ -229,6 +229,14 @@ async function wb20WithFamiliarDelivery(type,args,dispatch) {
     } finally { armed.busy = false; }
 }
 
+// The opt-in attack adapter copies requests. Carry only local identities; none
+// of this metadata is added to a VTT, game-log or Discord packet.
+function wb20FamiliarCarryRequestState(from,to) {
+    if(wb20FamiliarCastPackets.has(from))wb20FamiliarCastPackets.add(to);
+    if(wb20HelpfulSkills.has(from))wb20HelpfulSkills.add(to);
+    const privacy=wb20FamiliarPrivacy.get(from);if(privacy)wb20FamiliarPrivacy.set(to,privacy);
+}
+
 async function wb20ManageFamiliar(command = null) {
     const owner = character, familiar = wb20Companions(owner)[0];
     if (!familiar) { alertify.warning('No familiar is active. Cast Find Familiar to choose and summon one, or open Saved familiars to view your cards.'); return false; }

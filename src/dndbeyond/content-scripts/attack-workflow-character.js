@@ -21,6 +21,7 @@ function wb20CreateCharacterAttackWorkflow(rollType, fallback, args, caller) {
             return run;
         },
         async prepare(attack) {
+            if(typeof wb20FamiliarCarryRequestState==='function')wb20FamiliarCarryRequestState(args,attack.args);
             if (entryTurnKey !== wayBeyond20AttackActivationTurnKey()) return false;
             if (typeof wb20PrepareItemRules === "function" && !await wb20PrepareItemRules(attack.args)) return false;
             if (typeof wb20RulePrepareAttack === "function" && !await wb20RulePrepareAttack(attack.args)) return false;
@@ -54,6 +55,7 @@ function wb20CreateCharacterAttackWorkflow(rollType, fallback, args, caller) {
         async dispatch(attack, properties, type = rollType, rollFallback = fallback) {
             if (!adapter.isCurrent()) return {accepted: false, request: null, attacks: [], damages: []};
             const args = {...properties};
+            if(typeof wb20FamiliarCarryRequestState==='function')wb20FamiliarCarryRequestState(properties,args);
             let result = {accepted: false, request: null, attacks: [], damages: []};
             // Capture only the managed base. Capturing ordinary attacks would force
             // local resolution in sendRoll and change the existing VTT dice behavior.

@@ -42,5 +42,14 @@ module.exports=async function(page,root,src,fn){
  assert.deepEqual(await page.evaluate(()=>[freePaid,hpCount,packets.length]),[0,0,0]);cases++;
  await page.evaluate(async()=>{resetFamiliar();advisoryChoice='proceed';document.querySelector('#native-familiar button').disabled=true;await execute('ct-spell-pane');});
  assert.deepEqual(await page.evaluate(()=>[freePaid,wayBeyond20SpellSlotState(1).available,hpCount,packets.length]),[0,4,1,1]);cases++;
+ for(const useSecondary of [false,true]) {
+ await page.evaluate(async useSecondary=>{document.querySelector('.ct-spell-caster__modifiers--healing')?.remove();resetFamiliar();await execute('ct-spell-pane');var f=wb20Companions()[0];
+ document.querySelector('.ct-spell-name').textContent='Cure Wounds';document.querySelector('.ct-spell-detail__description').textContent='A creature you touch regains Hit Points.';
+ document.querySelector('.ct-spell-caster__casting-action button').textContent='Cast';
+ propertyListToDict=()=>({'Range/Area':'Touch','Casting Time':'1 Action','Components':'V/S'});window.handleSpecialHealingSpells=()=>{};
+ var healing=document.createElement('div');healing.className='ct-spell-caster__modifiers--healing';healing.innerHTML='<div class="ct-spell-caster__modifier--hp"><span class="ct-spell-caster__modifier-amount">2d8+5</span></div>';document.querySelector('.ct-spell-pane').append(healing);
+ secondary=useSecondary;wb20FamiliarDelivery.set(owner,{revision:f.revision,busy:false});window.deliveryPrompts=0;dndbeyondDiceRoller.queryGeneric=async()=>{deliveryPrompts++;return 'deliver';};await execute('ct-spell-pane');},useSecondary);
+ assert.deepEqual(await page.evaluate(()=>[deliveryPrompts,wb20Companions()[0].reaction,wayBeyond20SpellSlotState(1).available]),[1,0,3],'standalone cast retains familiar delivery identity and charges one slot and one familiar Reaction; secondary='+useSecondary);cases++;
+ }
  console.log('PASS familiar cast composition: '+cases+' cases; actual execute/rollSpell/resource transaction, free use, slot, ritual, cancel and display.');
 };
