@@ -1,12 +1,12 @@
 {
   "name": "waybeyond20",
-  "version": "2.20.244",
+  "version": "2.20.245",
   "description": "LightCore Bridge: connect your D&D Beyond character to your table",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
-    "test:initiative-joat": "node tests/initiative-joat-browser.js && node tests/initiative-browser.js",
+    "test:initiative-joat": "node tests/initiative-display-browser.js && node tests/initiative-joat-browser.js && node tests/initiative-browser.js",
     "test:spell-slot-browser": "node tests/spell-icon-slot-browser.js && node tests/healing-cast-browser.js && node tests/smite-native-replay-browser.js",
     "test:local-play": "node tests/local-play-regressions.js && node tests/local-combat-browser.js && node tests/local-attack-summary-browser.js && node tests/local-roll-lifetime-browser.js && node tests/quiet-results-browser.js",
     "test:unarmed": "node tests/unarmed-options.js && node tests/feature-attack-composition.js && node tests/unarmed-options-browser.js",

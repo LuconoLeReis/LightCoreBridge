@@ -642,7 +642,7 @@ const character_settings = {
     },
     "bard-joat": {
         "title": "Bard: Jack of All Trades",
-        "description": "Apply Jack of All Trades to ability checks, including Initiative (2014-style behavior). Already-included proficiency is preserved.",
+        "description": "Include Jack of All Trades in Initiative when proficiency is not already included. Preserve any proficiency bonus already applied.",
         "type": "bool",
         "default": true
     },

@@ -839,6 +839,7 @@ class Character extends CharacterBase {
                 this.updateFeatures();
                 this.updateConditions();
                 this.syncCoreRoll20Data();
+                if (typeof wayBeyond20RefreshInitiativeDisplay === "function") wayBeyond20RefreshInitiativeDisplay();
             }, "character-" + this._id, character_settings);
         }
     }

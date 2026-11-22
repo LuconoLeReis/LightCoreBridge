@@ -21,8 +21,8 @@ function fn(name,optional=false){const a=src.search(new RegExp('^(?:async )?func
  function wayBeyond20GetTrackedSpellEffects(){return [];}
  async function sendRollWithCharacter(type,formula,data){rolls.push({type,formula,name:data.name,initiative:data.initiative,modifier:data.modifier,effects:data.effects,advantage:data.advantage});if(fail)return false;data['waybeyond20-capture-result']?.(data,[{total:12+Number(data.initiative),isDiscarded:()=>false}]);return true;}
  `});
- for(const name of ['wayBeyond20ReadInitiativeModifier','wayBeyond20InitiativeJoatModifier','wayBeyond20FinalizeInitiativeProficiency','wb20InitiativeRow','rollInitiative','wayBeyond20FormatSignedNumber','handleInitiativeIntegratedDie']){
-  const text=fn(name,name.startsWith('wayBeyond20Read')||name==='wayBeyond20InitiativeJoatModifier'||name==='wayBeyond20FinalizeInitiativeProficiency');if(text)await page.addScriptTag({content:text});
+ for(const name of ['wayBeyond20ReadInitiativeModifier','wayBeyond20InitiativeProficiencyLabels','wayBeyond20RefreshInitiativeDisplay','wayBeyond20InitiativeJoatModifier','wayBeyond20FinalizeInitiativeProficiency','wb20InitiativeRow','rollInitiative','wayBeyond20FormatSignedNumber','handleInitiativeIntegratedDie']){
+  const text=fn(name,name.startsWith('wayBeyond20Read')||name==='wayBeyond20InitiativeProficiencyLabels','wayBeyond20RefreshInitiativeDisplay','wayBeyond20InitiativeJoatModifier'||name==='wayBeyond20FinalizeInitiativeProficiency');if(text)await page.addScriptTag({content:text});
  }
  // Use the actual final gate; the111 control follows its actual modifier helper.
  await page.evaluate(()=>window.finalGate=async(properties,tie=0)=>{

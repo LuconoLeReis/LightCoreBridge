@@ -1,5 +1,5 @@
-LIGHTCORE BRIDGE 1.73.112
-Browser build: 2.20.244
+LIGHTCORE BRIDGE 1.73.113
+Browser build: 2.20.245
 
 Initiative receives the requested Jack-of-All-Trades half proficiency through a final check that preserves existing proficiency and prevents repeated processing from adding twice. Native independent bonuses and tiebreakers are retained. Other ability checks are unchanged. See RELEASE-NOTES.md for verification and limits. Experimental session-sync code is not included.
 

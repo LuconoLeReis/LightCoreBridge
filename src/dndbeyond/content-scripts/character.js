@@ -2726,8 +2726,81 @@ function wb20InitiativeRow(target) {
 
 function wayBeyond20ReadInitiativeModifier(row) {
     return [...(row?.querySelectorAll("[class*='styles_numberDisplay'],.ddbc-signed-number,.ct-signed-number,.integrated-dice__container") || [])]
+        .filter(node => !node.closest("[data-wb20-initiative-display]"))
         .map(node => node.textContent.replace(/\s/g, "").replace("−", "-"))
         .find(text => /^[+-]?\d+$/.test(text));
+}
+
+function wayBeyond20InitiativeProficiencyLabels(row) {
+    return [...row.querySelectorAll("[data-original-title],[title],[aria-label]")]
+        .filter(node => !node.closest("[data-wb20-initiative-display]"))
+        .map(node => node.getAttribute("data-original-title") || node.getAttribute("title") || node.getAttribute("aria-label") || "")
+        .map(text => text.trim().replace(/[-\u2010-\u2014]/g, " "));
+}
+
+// Keep the native value intact for the final roll guard and React updates.
+// The replacement is presentation only: no DDB character value is written.
+function wayBeyond20RefreshInitiativeDisplay() {
+    const records = wayBeyond20RefreshInitiativeDisplay.records ||= new Map();
+    const seen = new Set();
+    const restore = (node, record) => {
+        record.overlay.remove();
+        if (record.display) node.style.setProperty("display", record.display, record.priority);
+        else node.style.removeProperty("display");
+        records.delete(node);
+    };
+    const rows = document.querySelectorAll(".ct-combat__summary-group--initiative,.ct-combat-tablet__extra--initiative,.ct-combat-mobile__extras > section[class*='styles_boxMobile']");
+    for (const row of rows) {
+        if (!wb20InitiativeRow(row)) continue;
+        const node = [...row.querySelectorAll("[class*='styles_numberDisplay'],.ddbc-signed-number,.ct-signed-number")]
+            .find(candidate => !candidate.closest("[data-wb20-initiative-display]"));
+        if (!node) continue;
+        seen.add(node);
+        const native = Number(wayBeyond20ReadInitiativeModifier(row));
+        const dexValue = character?.getAbility?.("DEX")?.mod;
+        const dex = Number(dexValue), proficiency = Number(character?._proficiency);
+        let corrected = native;
+        if (Number.isInteger(native) && dexValue !== null && dexValue !== undefined && dexValue !== "" &&
+            Number.isInteger(dex) && Number.isInteger(proficiency) && proficiency > 0 &&
+            character.hasClassFeature("Jack of All Trades", true) && character.getSetting("bard-joat", true)) {
+            const labels = wayBeyond20InitiativeProficiencyLabels(row);
+            const missing = labels.some(text => /^(?:not proficient|no proficiency|untrained)$/i.test(text));
+            const included = labels.some(text => /^(?:half proficien(?:t|cy)|jack of all trades|expert(?:ise)?|proficien(?:t|cy)(?: bonus)?)(?:\s*\(?[+-]?\d+\)?)?$/i.test(text));
+            const remembered = wayBeyond20InitiativeJoatModifier.answers?.get(character);
+            const signature = JSON.stringify([native, native, dex, proficiency, labels]);
+            if (!included && (missing || native === dex || remembered?.signature === signature && remembered.add === true))
+                corrected += Math.floor(proficiency / 2);
+        }
+        let record = records.get(node);
+        if (!Number.isInteger(corrected) || corrected === native) {
+            if (record) restore(node, record);
+            continue;
+        }
+        if (!record || record.owner !== character || !record.overlay.isConnected) {
+            if (record) restore(node, record);
+            const overlay = node.cloneNode(true);
+            overlay.removeAttribute("id");
+            overlay.querySelectorAll("[id]").forEach(child => child.removeAttribute("id"));
+            overlay.setAttribute("data-wb20-initiative-display", "");
+            record = {owner: character, overlay, display: node.style.getPropertyValue("display"), priority: node.style.getPropertyPriority("display")};
+            records.set(node, record);
+            node.after(overlay);
+            node.style.setProperty("display", "none", "important");
+        }
+        const formatted = wayBeyond20FormatSignedNumber(corrected);
+        if (record.overlay.textContent.replace(/\s/g, "").replace("−", "-") !== formatted) {
+            const sign = record.overlay.querySelector("[aria-label='plus'],[aria-label='minus']");
+            const digits = sign?.nextElementSibling;
+            if (sign && digits && /^\d+$/.test(digits.textContent.trim())) {
+                sign.textContent = corrected < 0 ? "−" : "+";
+                sign.setAttribute("aria-label", corrected < 0 ? "minus" : "plus");
+                digits.textContent = String(Math.abs(corrected));
+            } else record.overlay.textContent = formatted;
+        }
+    }
+    for (const [node, record] of records) {
+        if (!seen.has(node) || !node.isConnected) restore(node, record);
+    }
 }
 
 // Initiative is an ability check. Use native proficiency provenance when it is
@@ -2746,9 +2819,7 @@ async function wayBeyond20InitiativeJoatModifier(row, nativeModifier, nativeSnap
     }
     const half = Math.floor(proficiency / 2);
     if (!half) return unchanged;
-    const labels = [...row.querySelectorAll("[data-original-title],[title],[aria-label]")]
-        .map(node => node.getAttribute("data-original-title") || node.getAttribute("title") || node.getAttribute("aria-label") || "")
-        .map(text => text.trim().replace(/[-\u2010-\u2014]/g, " "));
+    const labels = wayBeyond20InitiativeProficiencyLabels(row);
     const ranks = labels.map(text => /^(?:not proficient|no proficiency|untrained)$/i.test(text) ? 0 :
         /^(?:half proficien(?:t|cy)|jack of all trades|expert(?:ise)?|proficien(?:t|cy)(?: bonus)?)(?:\s*\(?[+-]?\d+\)?)?$/i.test(text) ? 1 : null)
         .filter(rank => rank !== null);
@@ -2787,6 +2858,7 @@ async function wayBeyond20InitiativeJoatModifier(row, nativeModifier, nativeSnap
             }
             add = choice === "missing";
             remembered.add = add;
+            wayBeyond20RefreshInitiativeDisplay();
         }
     }
     return add ? {modifier: nativeModifier + half, applied: true} : unchanged;
@@ -2811,8 +2883,7 @@ async function wayBeyond20FinalizeInitiativeProficiency(row, properties, tiebrea
     }
     const ownerId = owner._id, turn = wayBeyond20AttackActivationTurnKey();
     const dex = owner.getAbility?.("DEX")?.mod, proficiency = owner._proficiency;
-    const labels = () => JSON.stringify([...row.querySelectorAll("[data-original-title],[title],[aria-label]")]
-        .map(node => [node.getAttribute("data-original-title"), node.getAttribute("title"), node.getAttribute("aria-label")]));
+    const labels = () => JSON.stringify(wayBeyond20InitiativeProficiencyLabels(row));
     const nativeLabels = labels(), effects = JSON.stringify(properties.effects || []), requestProficiency = properties.proficiency;
     const current = () => character === owner && owner._id === ownerId && row.isConnected !== false &&
         turn === wayBeyond20AttackActivationTurnKey() && owner.getAbility?.("DEX")?.mod === dex &&
@@ -11140,6 +11211,7 @@ function documentModified(mutations, observer) {
     }
 
     step('character',()=>character.updateInfo());
+    step('initiative display',()=>wayBeyond20RefreshInitiativeDisplay());
     step('spell-attack controls',()=>injectRollToSpellAttack());
     step('snippet dice',()=>injectRollToSnippets());
     step('settings',()=>injectSettingsButton());
@@ -11496,6 +11568,7 @@ function handleMessage(request, sender, sendResponse) {
             updateSettings(request.settings);
         } else if (request.type == "character" && request.id == character._id) {
             character.updateSettings(request.settings, request.origin);
+            wayBeyond20RefreshInitiativeDisplay();
             wayBeyond20ScheduleActiveEffectBadgeRefresh();
         } else {
             console.log("Ignoring character settings, for ID: ", request.id);

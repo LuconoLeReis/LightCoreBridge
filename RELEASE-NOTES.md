@@ -1,3 +1,11 @@
+# LightCore Bridge 1.73.113
+
+Browser build **2.20.245**. The Initiative box now displays the missing Jack of All Trades half-proficiency bonus. Native values stay intact for the existing final roll guard, so the display and roll agree without adding twice. Character setting changes, refreshed native values and responsive layouts update the display. Other skill, ability-check and saving-throw behavior is unchanged. The setting description states the behavior directly.
+
+Automated validation and independent review are recorded separately; no live roll or character value was changed.
+
+---
+
 # LightCore Bridge 1.73.112
 
 Browser build **2.20.244**. This release adds the requested Jack of All Trades handling to Initiative, with a final check that prevents adding proficiency twice. It builds on stable1.73.108;111 was an unpublished candidate.
@@ -13,7 +21,7 @@ Browser build **2.20.244**. This release adds the requested Jack of All Trades h
 - The check runs after Initiative, advantage and tiebreaker preparation, immediately before sending the roll. Existing request or native proficiency is preserved. Repeated or concurrent checks of the same request reuse the first result, so the bonus and its label are not added twice.
 - Independent bonuses are kept. If an unlabelled total has unclear components, LightCore asks whether proficiency is already included and defaults to keeping the current number. The answer is remembered for that character and unchanged calculation while the page remains open. Cancel or a changed character, native value, request or turn sends no roll.
 - Initiative names, privacy and the optional tiebreaker are retained. A canceled final check does not consume the unlocked Initiative-advantage setting.
-- This is the requested2014-style Initiative treatment in the existing **Bard: Jack of All Trades** setting, which defaults to enabled. Other ability-check, skill and saving-throw handling is unchanged.
+- This is the Initiative proficiency check in the existing **Bard: Jack of All Trades** setting, which defaults to enabled. Other ability-check, skill and saving-throw handling is unchanged.
 
 ## Verification and limits
 
