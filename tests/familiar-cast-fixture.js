@@ -12,6 +12,7 @@ module.exports=async function(page,root,src,fn){
  const wayBeyond20NativeCastReplays=new WeakSet();
  function wayBeyond20RollAlreadyHasAdvantage(){return false;}
  async function wb20PickFamiliarForm(){return selectCanceled?null:{base:{name:'Owl',hp:1,formula:'1d4-1'},type:'Fey',familiarName:'Sparrow',appearance:'songbird'};}
+ dndbeyondDiceRoller.queryGeneric=async()=>advisoryChoice;var advisoryChoice='cancel';
  dndbeyondDiceRoller._roller={roll:f=>({formula:f,total:nextHP}),resolveRolls:async()=>{hpCount++;}};
  function resetFamiliar(){character=owner;secondary=false;managed=false;autoDamage=true;resetSlots();failCast=false;throwCast=false;selectCanceled=false;ritualMode='normal';freePaid=0;hpCount=0;familiarStore={};events=[];packets=[];key_modifiers={};
  document.querySelector('.ct-sidebar__header-parent').textContent='Familiar Friend (Charisma)';document.querySelector('.ct-spell-name').textContent='Find Familiar';
@@ -39,5 +40,7 @@ module.exports=async function(page,root,src,fn){
  assert.deepEqual(await page.evaluate(()=>[freePaid,wayBeyond20SpellSlotState(1).available,hpCount]),[0,4,0]);cases++;
  await page.evaluate(async()=>{resetFamiliar();document.querySelector('#native-familiar button').disabled=true;await execute('ct-spell-pane');});
  assert.deepEqual(await page.evaluate(()=>[freePaid,hpCount,packets.length]),[0,0,0]);cases++;
+ await page.evaluate(async()=>{resetFamiliar();advisoryChoice='proceed';document.querySelector('#native-familiar button').disabled=true;await execute('ct-spell-pane');});
+ assert.deepEqual(await page.evaluate(()=>[freePaid,wayBeyond20SpellSlotState(1).available,hpCount,packets.length]),[0,4,1,1]);cases++;
  console.log('PASS familiar cast composition: '+cases+' cases; actual execute/rollSpell/resource transaction, free use, slot, ritual, cancel and display.');
 };

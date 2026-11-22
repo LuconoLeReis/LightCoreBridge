@@ -3,7 +3,7 @@ const {chromium} = require(process.env.WB20_PLAYWRIGHT || 'playwright');
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const root = path.resolve(__dirname,'..');
 const boot = `<script>
-window.saved={settings:{'migrated-sync-settings':true,'vtt-tab':{id:0,title:'Fixture World',vtt:'fvtt'},'talespire-url':'retained-link',
+window.saved={settings:{'waybeyond20-familiar-profiles':[{name:'Fixture familiar',formName:'Owl'}],'migrated-sync-settings':true,'vtt-tab':{id:0,title:'Fixture World',vtt:'fvtt'},'talespire-url':'retained-link',
  'discord-channels':[{name:'Fixture channel',secret:'retained-secret',active:true}],'whisper-type':1,'debug-log':false,'future-setting':'retained-unknown'},
  'character-123':{'waybeyond20-portent':{dice:[{value:17,used:false}]},focus:2}};
 window.writes=0;window.messages=[];
@@ -113,6 +113,7 @@ window.chrome={runtime:{id:'fixture',getURL:p=>location.origin+'/'+p,getManifest
             assert.equal(await page.evaluate(()=>saved.settings['talespire-url']),'retained-link');
             assert.equal(await page.evaluate(()=>saved.settings['discord-channels'][0].secret),'retained-secret');
             assert.equal(await page.evaluate(()=>saved.settings['future-setting']),'retained-unknown');
+            assert.equal(await page.evaluate(()=>saved.settings['waybeyond20-familiar-profiles'][0].name),'Fixture familiar','hidden familiar profiles survive settings initialization and saving');
             assert.equal(await page.evaluate(()=>saved['character-123'].focus),2);
             assert.equal(await page.evaluate(()=>saved['character-123']['waybeyond20-portent'].dice[0].value),17);
             assert.equal(await page.evaluate(()=>String(saved.settings['whisper-type'])),'1','privacy setting preserved');

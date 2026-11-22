@@ -43,7 +43,9 @@ const options_list = {
         "title": "Saved familiar profiles",
         "type": "special",
         "default": [],
-        "hidden": true
+        "hidden": true,
+        // This value has no settings-page control; the saved library owns its UI.
+        "set": function () {}
     },
     "waybeyond20-familiar-name": {
         "title": "Familiar Name",

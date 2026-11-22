@@ -9890,8 +9890,13 @@ async function rollSpell(force_display = false, force_to_hit_only = false, force
     if (waybeyond20_ritual_mode === null) return;
     if (waybeyond20_ritual_mode === "display") force_display = true;
     if (familiarPaymentUnavailable && waybeyond20_ritual_mode === "normal" && !key_modifiers.display_attack && typeof wb20FamiliarFreeControl === 'function' && wb20FamiliarFreeControl(spell_name)) {
-        alertify.warning('Find Familiar: its free-use control is unavailable or ambiguous. No cast was sent.');
-        return false;
+        const owner=character;
+        const choice=await dndbeyondDiceRoller.queryGeneric('Find Familiar payment unconfirmed',
+            'The free-use control is unavailable or ambiguous. Proceed without automatic payment and check the counter yourself, or cancel.',
+            {proceed:'Proceed and check counter',cancel:'Cancel'},'waybeyond20-familiar-payment',['proceed','cancel'],'cancel');
+        if(choice!=='proceed' || owner!==character)return false;
+        nativeCast=false;
+        alertify.warning('Find Familiar: check the counter after this cast; no automatic payment will be made.');
     }
 
     if (waybeyond20_ritual_mode === "normal" && typeof wb20FamiliarFreeControl === 'function' && wb20FamiliarFreeControl(spell_name))

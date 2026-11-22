@@ -58,6 +58,9 @@ assert.deepEqual(await page.evaluate(()=>[globals['waybeyond20-familiar-name'],w
 assert.deepEqual(await page.evaluate(()=>wb20FamiliarProfiles().map(p=>p.name)),['Sparrow']);cases++;
 await ready();await page.locator(scope+' .ajs-cancel').click();await start();await page.locator('[name="saved-familiar"]').selectOption('0');assert.equal(await page.locator('[name="familiar-name"]').inputValue(),'Sparrow');cases++;await page.locator('[name="familiar-name"]').fill('discard me');await ready();await page.locator(scope+' .ajs-cancel').click();assert.equal(await page.evaluate(()=>preparing),false);
 assert.deepEqual(await page.evaluate(()=>[hpRolls,globals['waybeyond20-familiar-name']]),[2,'']);cases++;
+await page.evaluate(()=>{window.profileQuestions=[];dndbeyondDiceRoller.queryGeneric=async(title,message)=>{profileQuestions.push(message);return 'cancel';};});
+await start();await page.locator('[name="familiar-form"]').selectOption({label:'Hawk — Monster Manual'});await page.locator('[name="familiar-name"]').fill('Sparrow');await ready();await page.locator(scope+' .ajs-ok').click();assert.equal(await page.evaluate(()=>preparing),false);
+assert.deepEqual(await page.evaluate(()=>[profileQuestions.length,wb20FamiliarProfiles()[0].formName,hpRolls]),[1,'Owl',2]);cases++;
 await start();await page.evaluate(()=>rules.push({name:'New feature',text:'Changed while choosing.'}));await ready();await page.locator(scope+' .ajs-ok').click();assert.equal(await page.evaluate(()=>preparing),false);cases++;
 assert.deepEqual(await page.locator('.wb20-familiar-card th,.wb20-familiar-card td').evaluateAll(els=>Array.from(new Set(els.map(el=>getComputedStyle(el).color)))),[],'closed dialogs do not leak a card into the page');
 assert.deepEqual(errors,[]);console.log('PASS familiar browser: '+cases+' cases; real picker/dialog, live-shaped catalog/stat block, name memory, cards, action links, cancel and stale features.');

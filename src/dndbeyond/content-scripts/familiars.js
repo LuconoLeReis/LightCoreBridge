@@ -144,12 +144,18 @@ async function wb20PrepareFamiliarCast(args, {name, description, display, damage
     const rules = wb20FamiliarSpellRules(description);
     if (!rules) return true;
     const friend=wb20FamiliarFriend(owner);
+    let omitFamiliarBonus=false;
     if(owner.hasFeat?.('Familiar Friend',true) && (!friend || friend.bonus===null)) {
-        alertify.warning('Find Familiar: its Familiar Friend benefits could not be read. Open Features & Traits once, then try again. No cast was sent.');return false;
+        const choice=await dndbeyondDiceRoller.queryGeneric('Familiar Friend benefits unavailable',
+            'The Familiar Friend benefits could not be read. Proceed without the familiar HP bonus, or cancel and open Features & Traits before trying again.',
+            {proceed:'Proceed without the bonus',cancel:'Cancel'},'waybeyond20-familiar-benefits',['proceed','cancel'],'cancel');
+        if(choice!=='proceed' || owner!==character)return false;
+        omitFamiliarBonus=true;
+        alertify.warning('Proceeding without the Familiar Friend HP bonus. Check the companion HP afterward.');
     }
     const selected=await wb20PickFamiliarForm(owner,description);
     if(!selected || owner!==character)return false;
-    const existing = wb20Companions(owner)[0], base = selected.base, bonus = wb20FamiliarFriend(owner)?.bonus || 0;
+    const existing = wb20Companions(owner)[0], base = selected.base, bonus = omitFamiliarBonus?0:(wb20FamiliarFriend(owner)?.bonus || 0);
     const level = Number(owner._level), castId = uuidv4();
     const privacy={whisper:null};wb20FamiliarPrivacy.set(args,privacy);
     let completion = null;
@@ -194,7 +200,12 @@ async function wb20WithFamiliarDelivery(type,args,dispatch) {
     const owner = character, armed = wb20FamiliarDelivery.get(owner), familiar = wb20Companions(owner)[0];
     if (!isCast || !['spell-card','spell-attack'].includes(type) || !/^touch$/i.test(String(args.range || '').trim()) || !armed) return dispatch();
     if (armed.busy || !familiar || familiar.revision !== armed.revision || familiar.status !== 'present' || familiar.reaction !== 1) {
-        alertify.warning('Familiar delivery is unavailable. Check Companions; no spell was sent.'); return false;
+        const choice=await dndbeyondDiceRoller.queryGeneric('Familiar delivery unavailable',
+            'The familiar or its Reaction could not be confirmed. Proceed with a normal cast without familiar delivery, or cancel.',
+            {proceed:'Proceed with normal cast',cancel:'Cancel'},'waybeyond20-familiar-unavailable',['proceed','cancel'],'cancel');
+        if(choice!=='proceed' || owner!==character)return false;
+        if(wb20FamiliarDelivery.get(owner)===armed)wb20FamiliarDelivery.delete(owner);
+        return dispatch();
     }
     armed.busy = true;
     try {
@@ -220,7 +231,7 @@ async function wb20WithFamiliarDelivery(type,args,dispatch) {
 
 async function wb20ManageFamiliar(command = null) {
     const owner = character, familiar = wb20Companions(owner)[0];
-    if (!familiar) { alertify.warning('Open your familiar in Extras and choose Track familiar. No companion has been linked yet.'); return false; }
+    if (!familiar) { alertify.warning('No familiar is active. Cast Find Familiar to choose and summon one, or open Saved familiars to view your cards.'); return false; }
     const choices = {hp:'Set companion HP',initiative:'Set companion Initiative',turn:'Start familiar’s next turn — refresh its Reaction'};
     if (familiar.status === 'present' && familiar.rules?.senses) choices.senses='Share its senses — my Bonus Action';
     if (familiar.status === 'present' && familiar.rules?.dismiss) choices.dismiss='Dismiss to pocket — my Magic action';

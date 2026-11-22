@@ -1,6 +1,8 @@
-# LightCore Bridge 1.73.114
+# LightCore Bridge 1.73.115
 
-Browser build **2.20.246**. Candidate: familiar picker, saved profiles and companion cards. Independent review and installed acceptance are pending.
+Browser build **2.20.247**. Candidate: familiar picker, saved profiles and companion cards. Independent review and installed acceptance are pending.
+
+Settings search is restored when a saved familiar library is present. Uncertain familiar payment, benefits or delivery show Proceed/Cancel advisories. Reusing an existing familiar name with a different form asks before updating the saved profile.
 
 Find Familiar now opens a form picker using DDB's creature catalog and stat blocks, including eligible CR0 Beasts and explicit additional forms in owned descriptions. Source versions remain distinct. A named summon saves a reusable profile; an unnamed summon stays generic and does not add a saved entry. Clearing the optional name keeps that remembered field blank. Appearance is cosmetic and leaves the selected form's mechanics intact. Saved definitions are separate from the single active familiar, and can be imported without summoning or spending resources.
 

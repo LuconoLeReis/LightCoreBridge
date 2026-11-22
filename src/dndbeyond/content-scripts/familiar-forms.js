@@ -148,7 +148,20 @@ async function wb20PickFamiliarForm(owner,description) {
     if(!selected || !types.includes(type))return null;
     let base;try {base=wb20FamiliarStatBlock(await wb20FamiliarDocument(selected.url),selected);}catch(_){base=null;}
     if(!base || character!==owner || signature!==currentSignature()){alertify.warning('That familiar’s DDB stat block or current feature eligibility could not be verified. No cast or use was spent.');return null;}
-    const familiarName=String(form.find('[name="familiar-name"]').val() || '').trim().slice(0,100);
+    let familiarName=String(form.find('[name="familiar-name"]').val() || '').trim().slice(0,100);
+    while(familiarName && profiles.some(p=>p.name.toLowerCase()===familiarName.toLowerCase() && p.url!==selected.url)) {
+        const choice=await dndbeyondDiceRoller.queryGeneric('Update saved familiar?',
+            familiarName+' is saved with a different form. Update that profile to '+selected.name+', save this summon under another name, or cancel the cast.',
+            {update:'Update '+familiarName+' to '+selected.name,rename:'Save under another name',cancel:'Cancel'},
+            'waybeyond20-familiar-profile-change',['update','rename','cancel'],'cancel');
+        if(owner!==character || signature!==currentSignature() || !choice || choice==='cancel')return null;
+        if(choice==='update')break;
+        if(choice!=='rename')return null;
+        const renamed=await wb20FeatureForm('Name this familiar',
+            '<label>Familiar Name (optional)<input name="new-familiar-name" maxlength="100" placeholder="Leave blank for a generic summon"></label>','Continue');
+        if(!renamed || owner!==character || signature!==currentSignature())return null;
+        familiarName=String(renamed.find('[name="new-familiar-name"]').val() || '').trim().slice(0,100);
+    }
     return {base,type,familiarName,sourceNote:selected.sourceNote || '',eligibilityOverride:!!selected.eligibilityOverride,
         appearance:String(form.find('[name="familiar-appearance"]').val() || '').trim().slice(0,200)};
 }
