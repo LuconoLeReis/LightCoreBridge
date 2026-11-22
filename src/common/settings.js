@@ -39,6 +39,18 @@ class CriticalRules {
 //                        get: function;
 
 const options_list = {
+    "waybeyond20-familiar-profiles": {
+        "title": "Saved familiar profiles",
+        "type": "special",
+        "default": [],
+        "hidden": true
+    },
+    "waybeyond20-familiar-name": {
+        "title": "Familiar Name",
+        "type": "string",
+        "default": "",
+        "hidden": true
+    },
     "waybeyond20-secondary-attacks": {
         "title": "Test secondary attacks",
         "description": "Use the shared secondary workflow for character-sheet and stat-block attacks. Leave off to keep the existing workflows. Stat blocks retain their own actor, privacy and destination hit handling. Unclaimed native dice keep their current route.",

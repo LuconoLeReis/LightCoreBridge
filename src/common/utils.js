@@ -448,6 +448,8 @@ function initializeAlertify() {
                     this.elements.content.innerHTML = this.get('content');
                     if (typeof wb20ThemeResourcePrompt === "function")
                         wb20ThemeResourcePrompt(this.elements.dialog);
+                    const familiarPicker=this.elements.content.querySelector('[data-familiar-plan]');
+                    if(familiarPicker && typeof wb20WireFamiliarPicker==='function')wb20WireFamiliarPicker(familiarPicker);
                     this.__internal.buttons[0].element.innerHTML = this.get('ok_label');
                     this.__internal.buttons[1].element.innerHTML = this.get('cancel_label');
                     // The dialog instance is reused. Clear a Proceed lock left by an earlier

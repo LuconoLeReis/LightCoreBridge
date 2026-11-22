@@ -120,5 +120,6 @@ function fn(source,name,optional=false){const a=source.search(new RegExp('^(?:as
  assert.deepEqual(rejectedPayment,{warnings:1,remaining:4},'payment error is visible and never retries a cast or a slot');cases++;
  const utility=await page.evaluate(async()=>{resetSlots();document.querySelector('.ct-spell-caster__casting-level-current').textContent='1st Level';document.querySelector('.ct-spell-caster__modifiers--damages').remove();const props=propertyListToDict;propertyListToDict=()=>({...props(),'To Hit':'--'});await execute('ct-spell-pane');return {type:packets.at(-1).type,remaining:wayBeyond20SpellSlotState(1).available};});
  assert.deepEqual(utility,{type:'spell-card',remaining:3},'description-only spell branch shares the same successful-cast payment');cases++;
+ if(process.env.WB20_FAMILIAR_CAST_TEST)await require('./familiar-cast-fixture.js')(page,root,src,fn);
  assert.deepEqual(errors,[]);console.log('PASS spell icon slot accounting: '+cases+' cases; real icon, dispatcher, lock, exact native slot updater, both workflows.');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

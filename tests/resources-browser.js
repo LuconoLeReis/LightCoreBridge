@@ -111,5 +111,6 @@ const pool=(name,total,used)=>`<div class="ct-feature-snippet"><h3 class="ct-fea
    // which emit transition events and can interfere with an active dialog.
    await page.locator('.wb20-resource-dialog').screenshot({path:process.env.WB20_CORRECTION_SCREENSHOT});
   }
+  if(process.env.WB20_FAMILIAR_RESOURCE_TEST)await require('./familiar-resource-fixture.js')(page,root);
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

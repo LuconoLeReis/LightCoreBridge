@@ -1,6 +1,6 @@
 {
   "name": "waybeyond20",
-  "version": "2.20.245",
+  "version": "2.20.246",
   "description": "LightCore Bridge: connect your D&D Beyond character to your table",
   "directories": {
     "doc": "docs"
@@ -25,7 +25,7 @@
     "test:header-browser": "node tests/header-browser.js",
     "test:monk": "node tests/monk.js && node tests/monk-browser.js",
     "test:resources": "node tests/monk.js && node tests/resources-browser.js && node tests/action-economy.js",
-    "test": "node tests/v1.63-regressions.js && node tests/v1.64-smite.js && node tests/v1.65-wizard.js && node tests/v1.65-helper-settings.js && node tests/v1.65-draining-attack.js && node tests/v1.65-elemental-strike.js && node tests/v1.65-paladin-smite-spend.js && node tests/v1.65-named-resource.js && node tests/v1.65-spell-slot-spend.js && node tests/v1.65-sheet-route.js && node tests/v1.65-dispatch-failure.js && node tests/v1.65-settings-concurrency.js && node tests/v1.65-smite-tab-restore.js && node tests/v1.65-group-reports.js && node tests/v1.65-lay-on-hands.js && node tests/attack-followups.js && node tests/attack-workflow.js && node tests/concentration-and-utility.js && node tests/portent.js && node tests/core-roll20-sync.js && node tests/talespire.js && node tests/fvtt-lifecycle.js && node tests/board-isolation.js && node tests/combat-actions.js && node tests/recovery-mode.js && node tests/background-wake.js && node tests/recovery-permissions.js && node tests/feature-rules.js && node tests/feature-attack-composition.js && node tests/opportunity-attacks.js && node tests/compact-action-reminders.js && node tests/automatic-delivery.js && node tests/delivery-receivers.js && node tests/branding-compatibility.js && node tests/unarmed-options.js && node tests/local-play-regressions.js && node tests/healing-cast.js && node tests/healing-actions.js && node tests/cleric-features.js && node tests/cleric-workflow.js && node tests/talespire-combat-window.js",
+    "test": "node tests/familiars.js && node tests/familiar-profiles.js && node tests/v1.63-regressions.js && node tests/v1.64-smite.js && node tests/v1.65-wizard.js && node tests/v1.65-helper-settings.js && node tests/v1.65-draining-attack.js && node tests/v1.65-elemental-strike.js && node tests/v1.65-paladin-smite-spend.js && node tests/v1.65-named-resource.js && node tests/v1.65-spell-slot-spend.js && node tests/v1.65-sheet-route.js && node tests/v1.65-dispatch-failure.js && node tests/v1.65-settings-concurrency.js && node tests/v1.65-smite-tab-restore.js && node tests/v1.65-group-reports.js && node tests/v1.65-lay-on-hands.js && node tests/attack-followups.js && node tests/attack-workflow.js && node tests/concentration-and-utility.js && node tests/portent.js && node tests/core-roll20-sync.js && node tests/talespire.js && node tests/fvtt-lifecycle.js && node tests/board-isolation.js && node tests/combat-actions.js && node tests/recovery-mode.js && node tests/background-wake.js && node tests/recovery-permissions.js && node tests/feature-rules.js && node tests/feature-attack-composition.js && node tests/opportunity-attacks.js && node tests/compact-action-reminders.js && node tests/automatic-delivery.js && node tests/delivery-receivers.js && node tests/branding-compatibility.js && node tests/unarmed-options.js && node tests/local-play-regressions.js && node tests/healing-cast.js && node tests/healing-actions.js && node tests/cleric-features.js && node tests/cleric-workflow.js && node tests/talespire-combat-window.js",
     "test:talespire": "node tests/talespire.js && node tests/talespire-return.js && node tests/talespire-combat-window.js",
     "test:talespire-browser": "node tests/talespire-browser.js && node tests/talespire-return-browser.js",
     "test:portent-browser": "node tests/portent-browser.js",
@@ -67,7 +67,8 @@
     "test:action-cells": "node tests/action-cell-details-browser.js",
     "test:action-notes": "node tests/action-notes-browser.js && node tests/compact-notes-browser.js",
     "test:summons-browser": "node tests/summoned-companion-browser.js",
-    "test:healing-cast": "node tests/healing-cast.js && node tests/healing-cast-browser.js"
+    "test:healing-cast": "node tests/healing-cast.js && node tests/healing-cast-browser.js",
+    "test:familiar": "node tests/familiars.js && node tests/familiar-profiles.js && node tests/familiar-browser.js && node tests/familiar-cast-browser.js && node tests/familiar-resource-browser.js"
   },
   "repository": {
     "type": "git",

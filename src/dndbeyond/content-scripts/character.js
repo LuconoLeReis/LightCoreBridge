@@ -55,6 +55,10 @@ async function sendRollWithCharacter(rollType, fallback, args) {
 async function wayBeyond20DispatchRollWithCharacter(rollType, fallback, args, intents) {
     if (!intents.luckHandled && typeof wb20WithArmedLuck === 'function')
         return wb20WithArmedLuck(rollType,args,()=>wayBeyond20DispatchRollWithCharacter(rollType,fallback,args,{...intents,luckHandled:true}));
+    if (!intents.helpfulHandled && typeof wb20WithHelpfulFriend === 'function')
+        return wb20WithHelpfulFriend(rollType,args,()=>wayBeyond20DispatchRollWithCharacter(rollType,fallback,args,{...intents,helpfulHandled:true}));
+    if (!intents.familiarDeliveryHandled && typeof wb20WithFamiliarDelivery === 'function')
+        return wb20WithFamiliarDelivery(rollType,args,()=>wayBeyond20DispatchRollWithCharacter(rollType,fallback,args,{...intents,familiarDeliveryHandled:true}));
     const activation = args && args["waybeyond20-attack-activation"];
     if (activation) {
         // Consume only the internal reference, never serialize character ownership
@@ -1493,7 +1497,8 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
                 linkedFeatures.add(link);
                 continue;
             }
-            const metadata = typeof wayBeyond20LayOnHandsActionMetadata === 'function' ? wayBeyond20LayOnHandsActionMetadata(name) : null;
+            const metadata = (typeof wayBeyond20LayOnHandsActionMetadata === 'function' ? wayBeyond20LayOnHandsActionMetadata(name) : null) ||
+                (typeof wb20FamiliarActionMetadata === 'function' ? wb20FamiliarActionMetadata(name) : null);
             const meta = wayBeyond20ActionListMetadata(name, metadata?.activation || headingText);
             let row = previous.find(el => el._wb20FeatureSource === snippet && el._wb20FeatureOwner === character);
             if (!row) {
@@ -1883,6 +1888,7 @@ function wayBeyond20RefreshCombinedActions() {
             if (typeof wayBeyond20OpportunityRow === "function")
                 rows.push(wayBeyond20OpportunityRow(root));
             if (typeof wb20SummonRows === "function") rows.push(...wb20SummonRows(root));
+            if (typeof wb20FamiliarRows === "function") rows.push(...wb20FamiliarRows(root));
             if (typeof wb20QuickRows === "function") {
                 rows.push(...wb20QuickRows(root));
                 root._wb20QuickEntries = rows;
@@ -2419,6 +2425,7 @@ async function rollSkillCheck(paneClass, combatAction = null) {
         roll_properties["waybeyond20-turn-resource"] = combatAction.request;
         roll_properties.description = `${combatAction.request.actionType} action${combatAction.details ? ": " + combatAction.details : ""}`;
     }
+    if (typeof wb20HelpfulSkills !== 'undefined' && ['Proficiency','Expertise'].includes(proficiency)) wb20HelpfulSkills.add(roll_properties);
     return sendRollWithCharacter("skill", "1d20" + modifier, roll_properties);
 }
 
@@ -6204,6 +6211,7 @@ function wayBeyond20RefreshActiveEffectBadges() {
     step('wayBeyond20InjectTurnResourceTracker',()=>wayBeyond20InjectTurnResourceTracker(effects));
     step('wayBeyond20InjectHitDiceTracker',()=>wayBeyond20InjectHitDiceTracker());
     if (typeof wb20SummonExistingControl === 'function') wb20SummonExistingControl();
+    if (typeof wb20FamiliarControls === 'function') wb20FamiliarControls();
     } finally {
         if(measured&&!previousProbe){wb20SheetMonitor.probe?.disconnect();wb20SheetMonitor.probe=null;
             wb20SheetReport(performance.now()-started>50);}
@@ -7571,6 +7579,14 @@ function wayBeyond20InstallNativeSpellCasting() {
         const button = event.target && event.target.closest && event.target.closest("button");
         if (!button || button.disabled || wayBeyond20NativeCastReplays.has(button)) return;
         if (!event.isTrusted && button.hasAttribute("data-waybeyond20-resource-replay")) return;
+        const familiarPaneButton=button.closest(".ct-spell-pane .ct-spell-caster__casting-action,.ct-spell-pane .ddbc-spell-caster__casting-action");
+        const paneSpell=document.querySelector(".ct-sidebar__heading .ct-spell-name,.ct-sidebar__heading .ddbc-spell-name,.ct-sidebar__heading span[class*='styles_spellName']");
+        if(familiarPaneButton && /^Find Familiar$/i.test(paneSpell?.textContent.trim() || "") && typeof wb20PickFamiliarForm==='function') {
+            event.preventDefault();event.stopImmediatePropagation();
+            if(wayBeyond20NativeCastPending)return;
+            wayBeyond20NativeCastPending=true;
+            execute("ct-spell-pane").catch(console.warn).finally(()=>{wayBeyond20NativeCastPending=false;});return;
+        }
         const row = button.closest(".ct-spells-spell,.ddbc-spells-spell");
         if (!row || !button.closest(".ct-spells-spell__action,.ddbc-spells-spell__action")) return;
         const action = button.textContent.trim().toLowerCase();
@@ -9686,13 +9702,13 @@ function wayBeyond20SpellCastLevel(level, castas) {
     return levelMatch ? parseInt(levelMatch[1]) : 0;
 }
 
-async function wayBeyond20ChooseRitualMode({ ritual, forceDisplay }) {
+async function wayBeyond20ChooseRitualMode({ ritual, forceDisplay, preparedFamiliar = false }) {
     const canRitualCast = !!(character && (
         character.hasClassFeature("Ritual Adept", true) ||
         character.hasClassFeature("Ritual Casting", true) ||
-        character.hasFeat("Ritual Caster", true)
+        character.hasFeat("Ritual Caster", true) || preparedFamiliar
     ));
-    if (forceDisplay || !ritual || !canRitualCast ||
+    if (forceDisplay || !(ritual || preparedFamiliar) || !canRitualCast ||
         !wayBeyond20CharacterHelperEnabled("waybeyond20-ritual-casting-helper")) return "normal";
     return dndbeyondDiceRoller.queryGeneric(
         "Ritual Casting",
@@ -9826,6 +9842,10 @@ function wayBeyond20ApplyRitualMode(rollProperties, ritualMode) {
 // before any chooser can redraw the pane; native Cast/Use callers keep their own
 // payment callback. A Use control is feature/item fuel, never evidence of a slot.
 function wayBeyond20SpellIconCastCommit(level, castas, name) {
+    if (typeof wb20FamiliarFreeCommit === 'function') {
+        const free = wb20FamiliarFreeCommit(name);
+        if (free !== null) return free;
+    }
     const slotLevel = wayBeyond20SpellCastLevel(level, castas);
     if (slotLevel < 1) return null;
     const controls = Array.from(document.querySelectorAll(
@@ -9859,13 +9879,23 @@ async function rollSpell(force_display = false, force_to_hit_only = false, force
     const castas = $(".ct-spell-caster__casting-level-current").text();
     const level = $(".ct-spell-pane .ct-spell-detail__level-school-item").toArray().map((i) => i.textContent).join(" ");
     const waybeyond20_intervention = typeof wb20InterventionProperties === 'function' && wb20InterventionProperties(character,spell_source,properties,level);
-    if (nativeCast === null && !force_display && !force_damages_only && !waybeyond20_intervention)
+    let familiarPaymentUnavailable = false;
+    if (nativeCast === null && !force_display && !force_damages_only && !waybeyond20_intervention) {
         nativeCast = wayBeyond20SpellIconCastCommit(level, castas, spell_name);
+        familiarPaymentUnavailable = nativeCast === false;
+    }
     if (attack_context && !await wayBeyond20ConfirmReactiveSpell(attack_context, properties, spell_name, description)) return false;
     const ritual = $(".ct-spell-pane .ct-spell-name__icon--ritual,.ct-spell-pane .ddbc-spell-name__icon--ritual, .ct-spell-pane .ct-sidebar__header-primary ddbc-ritual-icon").length > 0;
-    const waybeyond20_ritual_mode = attack_context ? "normal" : await wayBeyond20ChooseRitualMode({ ritual, forceDisplay: force_display });
+    const waybeyond20_ritual_mode = attack_context ? "normal" : await wayBeyond20ChooseRitualMode({ ritual, forceDisplay: force_display, preparedFamiliar: typeof wb20FamiliarPrepared === 'function' && wb20FamiliarPrepared(spell_name) });
     if (waybeyond20_ritual_mode === null) return;
     if (waybeyond20_ritual_mode === "display") force_display = true;
+    if (familiarPaymentUnavailable && waybeyond20_ritual_mode === "normal" && !key_modifiers.display_attack && typeof wb20FamiliarFreeControl === 'function' && wb20FamiliarFreeControl(spell_name)) {
+        alertify.warning('Find Familiar: its free-use control is unavailable or ambiguous. No cast was sent.');
+        return false;
+    }
+
+    if (waybeyond20_ritual_mode === "normal" && typeof wb20FamiliarFreeControl === 'function' && wb20FamiliarFreeControl(spell_name))
+        wb20FamiliarWaiveMaterial(properties);
     let concentration = $(".ct-spell-pane .ct-spell-name__icon--concentration,.ct-spell-pane .ddbc-spell-name__icon--concentration, .ct-spell-pane .ct-sidebar__header-primary ddbc-concentration-icon").length > 0;
     let duration = properties["Duration"] || "";
     if (duration.includes("Concentration")) {
@@ -10079,6 +10109,8 @@ async function rollSpell(force_display = false, force_to_hit_only = false, force
         }
         if (attack_context && !await wayBeyond20ConfirmAttackContext(attack_context, roll_properties)) return false;
         if (waybeyond20_intervention) wb20InterventionPacket(roll_properties);
+        if (typeof wb20PrepareFamiliarCast === 'function' && !await wb20PrepareFamiliarCast(roll_properties,
+            {name:spell_name,description,display:force_display,damageOnly:force_damages_only})) return false;
         return typeof wb20SendHealingSpellCast === 'function'
             ? wb20SendHealingSpellCast("spell-attack", damages[0] || "", roll_properties,
                 {forceDisplay: force_display, forceDamagesOnly: force_damages_only, ritualMode: waybeyond20_ritual_mode, level, castas})
@@ -10137,6 +10169,8 @@ async function rollSpell(force_display = false, force_to_hit_only = false, force
             wayBeyond20CommitAfterDispatch(roll_properties, nativeCast);
         if (attack_context && !await wayBeyond20ConfirmAttackContext(attack_context, roll_properties)) return false;
         if (waybeyond20_intervention) wb20InterventionPacket(roll_properties);
+        if (typeof wb20PrepareFamiliarCast === 'function' && !await wb20PrepareFamiliarCast(roll_properties,
+            {name:spell_name,description,display:force_display,damageOnly:force_damages_only})) return false;
         return typeof wb20SendHealingSpellCast === 'function'
             ? wb20SendHealingSpellCast("spell-card", 0, roll_properties,
                 {forceDisplay: force_display, forceDamagesOnly: force_damages_only, ritualMode: waybeyond20_ritual_mode, level, castas})
@@ -10636,6 +10670,7 @@ function injectRollButton(paneClass) {
         creature = new MonsterExtras("Creature", base, settings, {creatureType, character});
         creature.parseStatBlock();
         creature.updateInfo();
+        if (typeof wb20FamiliarControls === 'function') wb20FamiliarControls();
     } else if (paneClass == "ct-vehicle-pane") {
         if (isRollButtonAdded() || isCustomRollIconsAdded())
             return;

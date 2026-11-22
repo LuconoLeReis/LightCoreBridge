@@ -673,6 +673,7 @@ async function sendRoll(character, rollType, fallback, args, isCurrent = null) {
     // Queries may outlive their actor/destination/turn. This local callback is
     // never serialized; both secondary adapters use the same transport boundary.
     if (isCurrent && !isCurrent()) return false;
+    if (typeof wb20FamiliarCapturePrivacy === 'function') wb20FamiliarCapturePrivacy(args,req);
     // Carry the resolved privacy choice to later parts of this same cast without
     // asking again or accidentally making a whispered follow-up public.
     if (args["waybeyond20-elemental-after-cast"]) args["waybeyond20-resolved-whisper"] = req.whisper;

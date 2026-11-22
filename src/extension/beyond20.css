@@ -2102,6 +2102,18 @@ html:has(.ct-character-sheet,.ct-saving-throws-box,.ddbc-saving-throws-box):is([
 
 [data-wb20-duplicate-weapon] { display: none !important; }
 
+.wb20-resource-dialog .wb20-familiar-card table,
+.wb20-resource-dialog .wb20-familiar-card th,
+.wb20-resource-dialog .wb20-familiar-card td,
+.wb20-resource-dialog .wb20-familiar-card dt,
+.wb20-resource-dialog .wb20-familiar-card dd {
+    color: inherit;
+    background: transparent;
+}
+.wb20-familiar-card th, .wb20-familiar-card td { padding: .2em .45em; text-align: left; }
+.wb20-familiar-card dt { font-weight: bold; }
+.wb20-familiar-card dd { margin: 0 0 .4em; }
+
 /* Keep the approved brand casing in native desktop/tablet/mobile controls. */
 .ct-beyond20-settings-button,
 .ct-beyond20-settings-button [class*="__button-label"] {

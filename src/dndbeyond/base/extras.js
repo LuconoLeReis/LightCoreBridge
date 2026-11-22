@@ -547,9 +547,11 @@ class MonsterExtras extends CharacterBase {
                     : descriptionToString(action);
                 description = description.replace(/−/g, "-");
                 const roll_properties = this.buildAttackRoll(action_name, description);
+                if (roll_properties?.['to-hit'] && typeof wb20FamiliarAttackBlocked === 'function' && wb20FamiliarAttackBlocked(this)) return;
                 if (roll_properties) {
                     const id = addRollButton(this, () => {
                         // Need to recreate roll properties, in case settings (whisper, custom dmg, etc..) have changed since button was added
+                        if (typeof wb20FamiliarAttackBlocked === 'function' && wb20FamiliarAttackBlocked(this)) return false;
                         const roll_properties = this.buildAttackRoll(action_name, description);
                         if (this.type() == "Creature" && this._creatureType?.startsWith("Wild Shape") && this._parent_character &&
                             roll_properties["damages"] && roll_properties["damages"].length > 0) {

@@ -172,6 +172,10 @@ const SRC_FILES = {
         "src/dndbeyond/content-scripts/healing-cast.js",
         "src/dndbeyond/content-scripts/healing-actions.js",
         "src/dndbeyond/content-scripts/cleric-features.js",
+        "src/dndbeyond/content-scripts/familiars.js",
+        "src/dndbeyond/content-scripts/familiar-forms.js",
+        "src/dndbeyond/content-scripts/familiar-profiles.js",
+        "src/dndbeyond/content-scripts/familiar-card.js",
         "src/dndbeyond/content-scripts/character.js",
     ],
     dndbeyond_source: [
