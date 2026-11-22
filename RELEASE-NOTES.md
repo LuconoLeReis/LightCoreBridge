@@ -1,38 +1,24 @@
 # LightCore Bridge 1.73.113
 
-Browser build **2.20.245**. The Initiative box now displays the missing Jack of All Trades half-proficiency bonus. Native values stay intact for the existing final roll guard, so the display and roll agree without adding twice. Character setting changes, refreshed native values and responsive layouts update the display. Other skill, ability-check and saving-throw behavior is unchanged. The setting description states the behavior directly.
+Browser build **2.20.245**. This update makes the Initiative box include missing Jack of All Trades half proficiency while retaining the final protection against adding proficiency twice.
 
-Automated validation and independent review are recorded separately; no live roll or character value was changed.
+## Downloads
 
----
+- [Chrome extension ZIP](https://github.com/LuconoLeReis/WayBeyond20/releases/download/v1.73.113/LightCore-Bridge-chrome-v1_73_113.zip).
+- [Corresponding source ZIP](https://github.com/LuconoLeReis/WayBeyond20/releases/download/v1.73.113/LightCore-Bridge-source-v1_73_113.zip).
 
-# LightCore Bridge 1.73.112
+## Initiative display
 
-Browser build **2.20.244**. This release adds the requested Jack of All Trades handling to Initiative, with a final check that prevents adding proficiency twice. It builds on stable1.73.108;111 was an unpublished candidate.
+With Jack of All Trades enabled, a native Dexterity-only Initiative modifier of +3 and proficiency bonus +2 now display +4. The native number is preserved separately for the existing final roll check, so showing the correction does not add it again. Existing proficiency and independent bonuses are preserved. Unknown component totals retain the native value unless the existing roll-time confirmation establishes that proficiency is missing; no confirmation appears just from rendering the sheet.
 
-## Download
+The display responds to character-setting changes, refreshed native values and desktop/tablet/mobile layouts. Turning the setting off restores the native display. The setting text describes its behavior directly. Other ability-check, skill and saving-throw calculations are unchanged.
 
-- [Chrome extension ZIP](https://github.com/LuconoLeReis/WayBeyond20/releases/download/v1.73.112/LightCore-Bridge-chrome-v1_73_112.zip) — install this package.
-- [Corresponding source ZIP](https://github.com/LuconoLeReis/WayBeyond20/releases/download/v1.73.112/LightCore-Bridge-source-v1_73_112.zip).
+## Validation
 
-## Initiative-only final check
+24 new display cases, all 42 existing JOAT cases, the existing Initiative browser suite and full automated suite pass. The new display test fails on 112 for the reported +3/+4 mismatch. Mira independently reran these targeted cases and confirmed the red result on 112. Both browser builds and all 84 compiled JavaScript syntax checks pass. No live roll or character value was changed for this repair.
 
-- When the character owns Jack of All Trades and its LightCore setting is enabled, Initiative receives half the proficiency bonus, rounded down, when that bonus is absent. For example, Dexterity+3 and proficiency+2 produce Initiative+4 when the native modifier is only Dexterity.
-- The check runs after Initiative, advantage and tiebreaker preparation, immediately before sending the roll. Existing request or native proficiency is preserved. Repeated or concurrent checks of the same request reuse the first result, so the bonus and its label are not added twice.
-- Independent bonuses are kept. If an unlabelled total has unclear components, LightCore asks whether proficiency is already included and defaults to keeping the current number. The answer is remembered for that character and unchanged calculation while the page remains open. Cancel or a changed character, native value, request or turn sends no roll.
-- Initiative names, privacy and the optional tiebreaker are retained. A canceled final check does not consume the unlocked Initiative-advantage setting.
-- This is the Initiative proficiency check in the existing **Bard: Jack of All Trades** setting, which defaults to enabled. Other ability-check, skill and saving-throw handling is unchanged.
+## Update
 
-## Verification and limits
+Update the same unpacked extension folder, reload LightCore Bridge on chrome://extensions, then refresh D&D Beyond. Keep the same path and extension installation to retain settings. The Dropbox Dev folder is updated separately after public-package verification; an open page continues using its loaded version until refreshed.
 
-All42 focused cases and the existing Initiative browser suite pass, including native clicks, rounding, existing half/full proficiency, earlier request additions, independent bonuses, repeated/concurrent checks, cancellation, stale state and tiebreakers. The full automated suite,31 spell-slot cases, healing/native Smite checks, Chrome/Firefox builds and84 compiled JavaScript syntax checks pass. Independent offline review reran the42 cases, Initiative suite and31 slot cases. These checks use disposable fixtures; no new installed gameplay acceptance is claimed.
-
-Numeric totals cannot reveal every bonus component. Localization or changed native proficiency labels may require confirmation. Spell-slot limits retained from108: free native spells labelled Cast rather than Use and Pact Magic pool selection are unverified on real sheets. Central Discord authentication and automatic shared-state sync remain separate development and are not included.
-
-## Spell-slot reminder
-
-Every LightCore spell roll button, including spell-list to-hit dice and Actions-tab spell attack dice, shares the108 slot accounting. **Do not also mark the slot pip by hand.** Successful slot-funded casts spend once at the selected level; canceled/failed dispatches and separate damage rolls do not acquire another charge.
-
-## Update in place
-
-Finish pending rolls and update between games. Extract the Chrome ZIP and use the inner **WayBeyond20** folder containing manifest.json. Back up the folder Chrome currently loads, replace its contents in place, wait for copying/Dropbox sync, reload LightCore Bridge on chrome://extensions, then refresh character/VTT tabs. Keep the same loaded path and extension installation to retain settings. This is a manual unpacked update, not a Chrome Web Store automatic update.
+The spell-slot accounting from108 remains: every LightCore spell roll button, including spell-list and Actions-tab attack dice, pays once after a successful slot-funded cast. Do not also mark the slot by hand. Free spells labelled Cast rather than Use and Pact Magic remain unverified. Familiar automation and experimental central session-sync work are not included in this display repair.

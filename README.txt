@@ -8,11 +8,11 @@ This release repairs slot-funded spell casts made with the LightCore roll icon, 
 Connect your D&D Beyond character to local tabletop play, Roll20, Foundry VTT, TaleSpire or optional Discord roll output. A VTT is not required. Existing installation, storage and protocol names are retained for compatibility.
 
 RELEASE NOTES AND DOWNLOADS
-https://github.com/LuconoLeReis/WayBeyond20/releases/tag/v1.73.112
+https://github.com/LuconoLeReis/WayBeyond20/releases/tag/v1.73.113
 The corresponding source includes RELEASE-NOTES.md, tests and reproducible build inputs.
 
 NEW CHROME INSTALLATION
-1. Download LightCore-Bridge-chrome-v1_73_112.zip, not the source archive.
+1. Download LightCore-Bridge-chrome-v1_73_113.zip, not the source archive.
 2. Extract it. Select the inner WayBeyond20 folder containing manifest.json; Windows Extract All can add another outer folder.
 3. Open chrome://extensions and enable Developer mode.
 4. Choose Load unpacked and select that WayBeyond20 folder.
