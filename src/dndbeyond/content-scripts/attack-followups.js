@@ -277,7 +277,7 @@ async function wayBeyond20ResolveSavageAttacker(request, damages, intent) {
             replacements.push([entry[0], kept, entry[2]]);
         });
     });
-    const result = { ...request, name: "Savage Attacker — replacement weapon damage", rollAttack: false,
+    const result = { ...request, name: "Savage Attacker: replacement weapon damage", rollAttack: false,
         rollDamage: true, "waybeyond20-savage-attacker": { ...intent, mode: "resolved" } };
     delete result["waybeyond20-temp-hp-on-hit"];
     await dndbeyondDiceRoller.postDescription(result, result.name, null, {},

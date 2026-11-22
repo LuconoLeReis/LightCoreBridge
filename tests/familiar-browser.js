@@ -40,7 +40,7 @@ assert.deepEqual(await page.evaluate(async()=> (await wb20FamiliarBaseCatalog())
 const start=()=>page.evaluate(()=>{window.args={};window.preparing=wb20PrepareFamiliarCast(args,{name:'Find Familiar',description:spell});});
 const scope='.alertify:not(.ajs-hidden)';
 const ready=()=>page.waitForFunction(()=>!document.querySelector('.alertify:not(.ajs-hidden)')?.classList.contains('ajs-in')); 
-await start();await page.locator('[name="familiar-form"]').selectOption({label:'Owl — Monster Manual'});
+await start();await page.locator('[name="familiar-form"]').selectOption({label:'Owl: Monster Manual'});
 await page.locator('[name="familiar-name"]').fill('Sparrow');await page.locator('[name="familiar-appearance"]').fill('songbird');
 await ready();await page.locator(scope+' .ajs-ok').click();assert.equal(await page.evaluate(()=>preparing),true);cases++;
 await page.evaluate(async()=>{wb20FamiliarCapturePrivacy(args,{whisper:1});await Promise.all([args.commits[0](),args.commits[0]()]);});
@@ -49,17 +49,24 @@ await page.locator('[name="companion-control"]').waitFor();
 assert.match(await page.locator(scope+' .ajs-content').innerText(),/Flyby/);assert.match(await page.locator(scope+' .ajs-content').innerText(),/cannot attack/);cases+=2;
 assert.equal(await page.evaluate(()=>wb20FamiliarRows(document.querySelector('#actions')).length),5);cases++;
 assert.equal(await page.locator('.wb20-familiar-row').count(),5);await page.evaluate(()=>wb20FamiliarRows(document.querySelector('#actions')));assert.equal(await page.locator('.wb20-familiar-row').count(),5);cases++;
+// Actual producer: only a present familiar with HP above 0 is tagged as an Actions pet.
+assert.deepEqual(await page.evaluate(()=>{const rows=document.querySelector('#actions'),original=character.getSetting(WB20_COMPANIONS_KEY,[]);
+    const tags=change=>{character.mergeCharacterSettings({[WB20_COMPANIONS_KEY]:original.map(c=>c.kind==='familiar'?{...c,...change}:c)});
+        return [...new Set(wb20FamiliarRows(rows).map(r=>r.pet?r.pet.name:'none'))];};
+    const out={present:tags({}),gone:tags({status:'gone'}),pocket:tags({status:'pocket'}),hp0:tags({hp:0})};
+    character.mergeCharacterSettings({[WB20_COMPANIONS_KEY]:original});wb20FamiliarRows(rows);return out;}),
+    {present:['Sparrow'],gone:['none'],pocket:['none'],hp0:['none']});cases++;
 if(process.env.WB20_PRESENTATION_EVIDENCE)await page.screenshot({path:path.join(process.env.WB20_PRESENTATION_EVIDENCE,'familiar-card-dark.png')});
 await ready();await page.locator(scope+' .ajs-cancel').click();await start();
 assert.equal(await page.locator('[name="familiar-name"]').inputValue(),'Sparrow');cases++;
-await page.locator('[name="familiar-form"]').selectOption({label:'Hawk — Monster Manual'});await page.locator('[name="familiar-name"]').fill('');await ready();await page.locator(scope+' .ajs-ok').click();assert.equal(await page.evaluate(()=>preparing),true);
+await page.locator('[name="familiar-form"]').selectOption({label:'Hawk: Monster Manual'});await page.locator('[name="familiar-name"]').fill('');await ready();await page.locator(scope+' .ajs-ok').click();assert.equal(await page.evaluate(()=>preparing),true);
 await page.evaluate(()=>args.commits[0]());await page.locator('[name="companion-control"]').waitFor();
 assert.deepEqual(await page.evaluate(()=>[globals['waybeyond20-familiar-name'],wb20Companions().length,wb20Companions()[0].name,hpRolls]),['',1,'Hawk',2]);cases++;
 assert.deepEqual(await page.evaluate(()=>wb20FamiliarProfiles().map(p=>p.name)),['Sparrow']);cases++;
 await ready();await page.locator(scope+' .ajs-cancel').click();await start();await page.locator('[name="saved-familiar"]').selectOption('0');assert.equal(await page.locator('[name="familiar-name"]').inputValue(),'Sparrow');cases++;await page.locator('[name="familiar-name"]').fill('discard me');await ready();await page.locator(scope+' .ajs-cancel').click();assert.equal(await page.evaluate(()=>preparing),false);
 assert.deepEqual(await page.evaluate(()=>[hpRolls,globals['waybeyond20-familiar-name']]),[2,'']);cases++;
 await page.evaluate(()=>{window.profileQuestions=[];dndbeyondDiceRoller.queryGeneric=async(title,message)=>{profileQuestions.push(message);return 'cancel';};});
-await start();await page.locator('[name="familiar-form"]').selectOption({label:'Hawk — Monster Manual'});await page.locator('[name="familiar-name"]').fill('Sparrow');await ready();await page.locator(scope+' .ajs-ok').click();assert.equal(await page.evaluate(()=>preparing),false);
+await start();await page.locator('[name="familiar-form"]').selectOption({label:'Hawk: Monster Manual'});await page.locator('[name="familiar-name"]').fill('Sparrow');await ready();await page.locator(scope+' .ajs-ok').click();assert.equal(await page.evaluate(()=>preparing),false);
 assert.deepEqual(await page.evaluate(()=>[profileQuestions.length,wb20FamiliarProfiles()[0].formName,hpRolls]),[1,'Owl',2]);cases++;
 await start();await page.evaluate(()=>rules.push({name:'New feature',text:'Changed while choosing.'}));await ready();await page.locator(scope+' .ajs-ok').click();assert.equal(await page.evaluate(()=>preparing),false);cases++;
 assert.deepEqual(await page.locator('.wb20-familiar-card th,.wb20-familiar-card td').evaluateAll(els=>Array.from(new Set(els.map(el=>getComputedStyle(el).color)))),[],'closed dialogs do not leak a card into the page');

@@ -261,7 +261,7 @@ async function exerciseHelpers(character, globalSettings) {
     vm.runInContext("let wayBeyond20LayOnHandsInFlight = false;", ctx);
     for (const name of [
         "wayBeyond20RollLayOnHands",
-        "wayBeyond20RefreshNaturalAttackIcons", "wayBeyond20RefreshCombinedActions",
+        "wayBeyond20RefreshNaturalAttackIcons", "wayBeyond20RefreshCombinedActions","wayBeyond20ActionListPets","wayBeyond20ActionListPetSelection","wayBeyond20ActionListPetToggles",
         "wayBeyond20CharacterHelperEnabled",
         "wayBeyond20ShowMusicianRestReminder",
         "wayBeyond20InjectWizardHelpers",
@@ -416,8 +416,8 @@ async function exerciseHelpers(character, globalSettings) {
         // Settings report lists each helper per character with its stored value.
         vm.runInContext(between(optionsSource, "function wayBeyond20FormatCurrentSettingValue", "function wayBeyond20DisplayCurrentSettings"), ctx);
         const report = ctx.wayBeyond20BuildCurrentSettingsReport(clone(storage));
-        const sectionA = between(report, "Character-specific settings — ID 111", "Character-specific settings — ID 222");
-        const sectionB = report.slice(report.indexOf("Character-specific settings — ID 222"));
+        const sectionA = between(report, "Character-specific settings: ID 111", "Character-specific settings: ID 222");
+        const sectionB = report.slice(report.indexOf("Character-specific settings: ID 222"));
         for (const key of HELPERS) {
             const expectedA = ["wizard-occultist-intrusion-helper", "waybeyond20-mage-armor-helper"].includes(key) ? "Off" : "On";
             assert.match(sectionA, new RegExp(`Key: ${key}\\n  Value: ${expectedA}`), `report A ${key}`);

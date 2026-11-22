@@ -31,7 +31,7 @@ function attack(name='Unarmed Strike',hit=2,damage='0') {
 }
 (async()=>{
  let tests=0;
- for(const name of ['Unarmed Strike','Fangs/Claws (Strength)','Bite','Renamed Strike','Dancing Technique','Agile Strikes — Unarmed Strike']) {
+ for(const name of ['Unarmed Strike','Fangs/Claws (Strength)','Bite','Renamed Strike','Dancing Technique','Agile Strikes: Unarmed Strike']) {
   const c=fixture(),a=attack(name);await c.wb20PrepareItemRules(a);
   assert.equal(a['to-hit'],'7',name);assert.equal(a.damages[0],'1d8+4',name);
   assert.deepEqual(Array.from(a.damages.slice(1)),['2d6']);

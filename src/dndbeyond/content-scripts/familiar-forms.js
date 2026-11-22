@@ -134,11 +134,11 @@ async function wb20PickFamiliarForm(owner,description) {
     const escape=wb20FeatureEscape,previous=wb20Companions(owner)[0];
     const remembered=String(owner.getGlobalSetting('waybeyond20-familiar-name','') || '').slice(0,100);
     const token=uuidv4();if(typeof wb20FamiliarPickerPlans!=='undefined')wb20FamiliarPickerPlans.set(token,{forms,profiles});
-    let form;try {form=await wb20FeatureForm('Find Familiar — choose a form',
+    let form;try {form=await wb20FeatureForm('Find Familiar: choose a form',
         '<section data-familiar-plan="'+token+'"><p>HP is rolled for this cast, with a minimum base of 1 before your familiar bonuses. Naming a summon saves it; a blank name leaves it generic.</p>'+ 
-        (profiles.length?'<label>Saved familiar<select name="saved-familiar"><option value="">New or generic familiar</option>'+profiles.map((p,i)=>'<option value="'+i+'"'+(!forms.some(f=>f.url===p.url)?' disabled':'')+'>'+escape(p.name)+' — '+escape(p.formName)+'</option>').join('')+'</select></label>':'')+
+        (profiles.length?'<label>Saved familiar<select name="saved-familiar"><option value="">New or generic familiar</option>'+profiles.map((p,i)=>'<option value="'+i+'"'+(!forms.some(f=>f.url===p.url)?' disabled':'')+'>'+escape(p.name)+': '+escape(p.formName)+'</option>').join('')+'</select></label>':'')+
         '<label>Form<select name="familiar-form">'+
-        forms.map((f,i)=>`<option value="${i}"${f.url===previous?.base?.url?' selected':''}>${escape(f.name)} — ${escape(f.source)}${f.legacy?' (Legacy)':''}${f.eligibilityOverride?' (saved custom form)':''}</option>`).join('')+
+        forms.map((f,i)=>`<option value="${i}"${f.url===previous?.base?.url?' selected':''}>${escape(f.name)}: ${escape(f.source)}${f.legacy?' (Legacy)':''}${f.eligibilityOverride?' (saved custom form)':''}</option>`).join('')+
         '</select></label><label>Creature type<select name="familiar-type">'+types.map(t=>`<option>${escape(t)}</option>`).join('')+'</select></label>'+ 
         '<label>Familiar Name (optional)<input name="familiar-name" type="text" maxlength="100" value="'+escape(remembered)+'" placeholder="Use the creature’s name"></label>'+ 
         '<label>Appearance (optional; stats stay those of the chosen form)<input name="familiar-appearance" type="text" maxlength="200" value="'+escape(previous?.appearance || '')+'"></label></section>','Cast');

@@ -1085,7 +1085,7 @@ const character_settings = {
         "default": true,
     },
     "savage-attacker-prompt": {
-        "title": "Feat: Savage Attacker — ask after damage",
+        "title": "Feat: Savage Attacker (ask after damage)",
         "description": "Offer Savage Attacker after weapon damage, once per tracked turn. Outside tracked combat each attack can offer it. When off, the existing next-roll toggle is used.",
         "type": "bool",
         "default": true

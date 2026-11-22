@@ -61,7 +61,7 @@ async function wb20CompleteHealingCast(plan) {
         return;
     }
     const choices = {
-        other: plan.requiresSlot ? 'Yes — a spell slot was used and someone else regained HP' : 'Yes — someone else regained HP',
+        other: plan.requiresSlot ? 'Yes, a spell slot was used and someone else regained HP' : 'Yes, someone else regained HP',
         skip: 'No / already applied / skip'
     };
     const choice = await dndbeyondDiceRoller.queryGeneric(plan.rule,

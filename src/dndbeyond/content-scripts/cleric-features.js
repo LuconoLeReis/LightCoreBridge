@@ -72,7 +72,7 @@ async function wb20ClericAfterHit(args, resolved, dispatch, critical) {
         choices.push({name:'Inner Radiance',formula:String(wb20InnerRadianceBonus(owner)),types:['Radiant'],dice:false});
     for (const option of choices) {
         if (!option.formula || owner !== character || turn !== wayBeyond20AttackActivationTurnKey()) return rows;
-        const options = {skip:'Skip',...Object.fromEntries(option.types.map(t=>[t,t+' — '+option.formula]))};
+        const options = {skip:'Skip',...Object.fromEntries(option.types.map(t=>[t,t+': '+option.formula]))};
         const type = await dndbeyondDiceRoller.queryGeneric(option.name,
             option.name === 'Inner Radiance' ? 'Did this attack actually deal damage? Apply the once-on-your-turn bonus to one damaged target?' : 'Apply Divine Strike to this weapon hit on your turn?',
             options, 'waybeyond20-cleric-rider', ['skip',...option.types], 'skip');
@@ -105,13 +105,13 @@ async function wb20ActivateClericControl(rule) {
         return false;
     }
     const active=owner.getSetting('waybeyond20-inner-radiance-active',false);
-    const choice=await dndbeyondDiceRoller.queryGeneric('Celestial Revelation — Inner Radiance',
+    const choice=await dndbeyondDiceRoller.queryGeneric('Celestial Revelation: Inner Radiance',
         'The transformation lasts 1 minute. Its native selection is not evidence that you activated it. End it here when it expires or you end it early.',
         active?{end:'End transformation',skip:'Keep active'}:{activate:'Activate: 1 Bonus Action + 1 use',track:'Track an activation I already paid for',skip:'Cancel'},
         'waybeyond20-inner-radiance',['activate','track','end','skip'],'skip');
     if(owner!==character || !['activate','track','end'].includes(choice))return false;
     if(choice==='activate') {
-        const args={name:'Celestial Revelation — Inner Radiance',description:rule.text,'waybeyond20-resource-costs':[{name:'Celestial Revelation',amount:1}]};
+        const args={name:'Celestial Revelation: Inner Radiance',description:rule.text,'waybeyond20-resource-costs':[{name:'Celestial Revelation',amount:1}]};
         wayBeyond20AttachTurnResource(args,'bonusAction');
         if(await sendRollWithCharacter('trait',0,args)!==true || owner!==character)return false;
     }

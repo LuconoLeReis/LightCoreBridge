@@ -41,7 +41,7 @@ function group(heading, names) {
             function wayBeyond20BardicInspirationRemainingUses(){return remaining;}
             function wayBeyond20GetBardicInspirationDie(){return '1d6';}
             async function wayBeyond20ActivateBardicInspiration(){activations++;}
-            ${['wayBeyond20FindBardicInspirationActionRow','wayBeyond20InjectBardicInspirationButton','wayBeyond20ActionListMetadata','wayBeyond20ActionSortValue','wayBeyond20FillHitDieChoices','wayBeyond20CollectFeatureOptions','wb20SetActionRange','wb20DecorateActionValues','wb20MarkDuplicateWeapons','wayBeyond20MatchActionTypography','wayBeyond20RefreshNaturalAttackIcons','wayBeyond20RefreshCombinedActions'].map(fn).join('\n')}
+            ${['wayBeyond20FindBardicInspirationActionRow','wayBeyond20InjectBardicInspirationButton','wayBeyond20ActionListMetadata','wayBeyond20ActionSortValue','wayBeyond20FillHitDieChoices','wayBeyond20CollectFeatureOptions','wb20SetActionRange','wb20DecorateActionValues','wb20MarkDuplicateWeapons','wayBeyond20MatchActionTypography','wayBeyond20RefreshNaturalAttackIcons','wayBeyond20RefreshCombinedActions','wayBeyond20ActionListPets','wayBeyond20ActionListPetSelection','wayBeyond20ActionListPetToggles'].map(fn).join('\n')}
             var originals=Array.from(document.querySelectorAll('.ddbc-combat-attack')).map(row=>[row,row.parentElement]);
             originals[0][0].querySelector('.wb20-full-attack').addEventListener('click',()=>nativeClicks++);
             wayBeyond20InjectBardicInspirationButton();wayBeyond20RefreshCombinedActions();
@@ -71,18 +71,19 @@ function group(heading, names) {
             const box=document.querySelector('.wb20-action-list-sort').getBoundingClientRect();
             const legend=document.querySelector('.wb20-action-list-legend').getBoundingClientRect();
             const sort=document.querySelector('.wb20-action-sort-control').getBoundingClientRect();
-            return {right:box.right,sortRight:sort.right,legendTop:legend.top,legendBottom:legend.bottom,sortTop:sort.top,sortBottom:sort.bottom,
+            const controls=document.querySelector('.wb20-action-list-controls').getBoundingClientRect();
+            return {mid:box.left+box.width/2,legendMid:legend.left+legend.width/2,controlsMid:controls.left+controls.width/2,right:box.right,sortRight:sort.right,legendTop:legend.top,legendBottom:legend.bottom,sortTop:sort.top,sortBottom:sort.bottom,
                 overflow:document.querySelector('.wb20-action-list-sort').scrollWidth>box.width+1};
         });
         await page.setViewportSize({width:1200,height:700});
         await page.evaluate(()=>document.getElementById('actions').style.width='1000px');
         let bounds=await geometry();
-        assert.ok(bounds.sortTop<bounds.legendBottom && bounds.legendTop<bounds.sortBottom,'Wide panel uses one line');
-        assert.ok(Math.abs(bounds.right-bounds.sortRight)<1,'Sort flush right');
+        assert.ok(bounds.sortTop>=bounds.legendBottom-1,'Legend row sits above the centered toolbar');
+        assert.ok(Math.abs(bounds.mid-bounds.controlsMid)<2,'Toolbar centered');
         await page.evaluate(()=>document.getElementById('actions').style.width='600px');
         bounds=await geometry();
-        assert.ok(bounds.sortBottom>bounds.legendTop,'View and Sort sit beside or below the legend at 600px');
-        assert.ok(Math.abs(bounds.right-bounds.sortRight)<1,'Wrapped Sort still flush right');
+        assert.ok(bounds.sortBottom>bounds.legendTop,'View and Sort sit below the legend at 600px');
+        assert.ok(Math.abs(bounds.mid-bounds.legendMid)<2,'Legend centered');
         assert.equal(bounds.overflow,false);
         await page.evaluate(()=>{document.querySelector('.styles_actionsList__test').firstElementChild.textContent='ACTIONS • Attacks per Action: 2';wayBeyond20RefreshCombinedActions();});
         assert.equal(await page.locator('.wb20-attacks-per-action').innerText(),'Attacks per Action: 2','Native count updates');
@@ -337,7 +338,7 @@ function group(heading, names) {
         assert.equal(await page.locator('.wb20-inspire-icon').isVisible(),true);
         bounds=await geometry();
         assert.equal(bounds.overflow,false,'Legend wraps safely on phone-width panel');
-        assert.ok(Math.abs(bounds.right-bounds.sortRight)<1);
+        assert.ok(Math.abs(bounds.mid-bounds.controlsMid)<2,'Phone toolbar centered');
         assert.equal(await page.locator('.wb20-attacks-per-action').isVisible(),false,'Missing native count is not invented');
         await page.evaluate(()=>{
             const root=document.getElementById('actions');

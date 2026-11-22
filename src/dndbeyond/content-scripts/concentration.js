@@ -85,7 +85,7 @@ function wayBeyond20WireConcentrationForm(form, okButton) {
         okButton.setAttribute("aria-disabled", String(okButton.disabled));
         okButton.classList.toggle("waybeyond20-query-proceed-disabled", okButton.disabled);
         form.querySelector("[data-concentration-total]").textContent = !result ? "Enter whole, non-negative damage amounts." :
-            result.total === 0 ? "Total: 0 HP — no concentration save needed." : `Total: ${result.total} HP · Constitution save DC ${result.dc}`;
+            result.total === 0 ? "Total: 0 HP, no concentration save needed." : `Total: ${result.total} HP · Constitution save DC ${result.dc}`;
         elements.forEach((row, index) => {
             const value = result && result.effective[index];
             row.querySelector("[data-effective-damage]").textContent = value ? `${value.amount} HP${value.note ? ` (${value.note})` : ""}` : "";

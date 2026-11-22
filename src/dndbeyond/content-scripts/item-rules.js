@@ -157,8 +157,10 @@ function wb20NaturalUnarmedDamage(args) {
 }
 async function wb20SetItemFlames(item, active, owner=character) {
     await new Promise(resolve=>owner.mergeCharacterSettings({'waybeyond20-rule-flames':{...(owner.getSetting('waybeyond20-rule-flames',{}) || {}),[wb20ResourceId(item.name)]:active}},resolve));
-    const name=item.name+' — Flames';
-    const effects=wayBeyond20GetTrackedSpellEffects().filter(e=>e.name === name);
+    // Display copy uses a colon; effects saved by earlier builds keep the
+    // legacy separator and are still recognized for removal.
+    const name=item.name+': Flames',legacy=item.name+' \u2014 Flames';
+    const effects=wayBeyond20GetTrackedSpellEffects().filter(e=>e.name === name || e.name === legacy);
     if (!active) effects.forEach(e=>wayBeyond20RemoveTrackedEffect(wayBeyond20EffectKey(e)));
     else if (!effects.length) wayBeyond20TrackSelfFeatureEffect(name,'Until extinguished or removed',[{name:'Light',value:'Bright 40 ft.; Dim +40 ft.'}],['feature']);
 }
@@ -191,7 +193,7 @@ async function wb20PrepareItemRules(args) {
     const flame=wb20ParseItemProperties(item).find(p=>p.kind==='flames');
     let active=wb20ItemFlames(item);
     if (active === undefined) {
-        const form=await wb20FeatureForm(item.name+' — Flames',`<p>Are your fists already ablaze? This records their current state; it does not activate the gauntlets or spend a Bonus Action.</p><label><input type="checkbox" name="active"> Flames are already active</label>`,"Continue attack");
+        const form=await wb20FeatureForm(item.name+': Flames',`<p>Are your fists already ablaze? This records their current state; it does not activate the gauntlets or spend a Bonus Action.</p><label><input type="checkbox" name="active"> Flames are already active</label>`,"Continue attack");
         if (!form || !wb20RuleCurrent(owner,turn)) return false;
         active=!!form.find('[name="active"]').prop('checked');await wb20SetItemFlames(item,active,owner);
     }
@@ -215,7 +217,7 @@ async function wb20PrepareItemRules(args) {
 }
 async function wb20ActivateItemProperty(item, property) {
     if (wb20ItemRuleBusy || !item.equipped) return false;
-    const owner=character,turn=wayBeyond20AttackActivationTurnKey(),name=item.name+' — '+property.name;
+    const owner=character,turn=wayBeyond20AttackActivationTurnKey(),name=item.name+': '+property.name;
     wb20ItemRuleBusy=true;
     try {
         const current=wb20ReadItemRule();

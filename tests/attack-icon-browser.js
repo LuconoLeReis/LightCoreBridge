@@ -152,7 +152,7 @@ function fn(name,code=source){
         await page.addScriptTag({content:`
             var settings={},DigitalDiceManager={updateNotifications:()=>null};
             function isExtensionDisconnected(){return false;}
-            ${['injectRollToSpellAttack','injectRollToSnippets','injectSettingsButton','wayBeyond20InjectCombatMenuAction','wayBeyond20ScheduleActiveEffectBadgeRefresh','injectCustomRollButton','wayBeyond20InjectBloodAndBoneAction','wayBeyond20InjectBardicInspirationButton','wayBeyond20InjectLayOnHandsControls','activateQuickRolls','wayBeyond20RefreshCombinedActions','injectRollButton'].map(n=>`function ${n}(){}`).join('\n')}
+            ${['injectRollToSpellAttack','injectRollToSnippets','injectSettingsButton','wayBeyond20InjectCombatMenuAction','wayBeyond20ScheduleActiveEffectBadgeRefresh','injectCustomRollButton','wayBeyond20InjectBloodAndBoneAction','wayBeyond20InjectBardicInspirationButton','wayBeyond20InjectLayOnHandsControls','activateQuickRolls','wayBeyond20RefreshCombinedActions','wayBeyond20ActionListPets','wayBeyond20ActionListPetSelection','wayBeyond20ActionListPetToggles','injectRollButton'].map(n=>`function ${n}(){}`).join('\n')}
             ${fn('documentModified')}
         `});
         const beforeChurn=await page.evaluate(()=>calls.length);

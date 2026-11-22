@@ -25,7 +25,7 @@ const descriptions={
   window.scrolled=0;Element.prototype.scrollIntoView=function(){scrolled++;};
  },descriptions);
  await page.addScriptTag({path:path.join(root,'src/dndbeyond/content-scripts/feature-rules.js')});
- await page.addScriptTag({content:['wayBeyond20ActionListMetadata','wayBeyond20ActionSortValue','wayBeyond20FillHitDieChoices','wayBeyond20CollectFeatureOptions','wb20SetActionRange','wb20DecorateActionValues','wb20MarkDuplicateWeapons','wayBeyond20MatchActionTypography','wayBeyond20RefreshNaturalAttackIcons','wayBeyond20RefreshCombinedActions'].map(n=>fn(n)).join('\n')});
+ await page.addScriptTag({content:['wayBeyond20ActionListMetadata','wayBeyond20ActionSortValue','wayBeyond20FillHitDieChoices','wayBeyond20CollectFeatureOptions','wb20SetActionRange','wb20DecorateActionValues','wb20MarkDuplicateWeapons','wayBeyond20MatchActionTypography','wayBeyond20RefreshNaturalAttackIcons','wayBeyond20RefreshCombinedActions','wayBeyond20ActionListPets','wayBeyond20ActionListPetSelection','wayBeyond20ActionListPetToggles'].map(n=>fn(n)).join('\n')});
  await page.evaluate(()=>wayBeyond20RefreshCombinedActions());
  const active=page.locator('.wb20-feature-option').filter({has:page.getByRole('button',{name:'Abjure Foes',exact:true})});
  assert.equal(await page.locator('.wb20-feature-description,.wb20-feature-summary-row').count(),0,'no inline prose or spanning rows');

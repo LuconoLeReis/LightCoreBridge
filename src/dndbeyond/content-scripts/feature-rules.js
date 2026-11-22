@@ -61,7 +61,7 @@ function wb20RuleReductionRoll(type,args) {
     // target. Preserve its already-attached Reaction/slot/commit intents.
     if (type !== 'spell-attack' || args?.rollAttack || !args?.damages?.length ||
         !/damage is reduced by\s+\d+d\d+/i.test(wb20RuleText(args.description))) return null;
-    return {type:'custom',fallback:args.damages[0],args:{...args,name:args.name+' — Damage reduction',modifier:args.damages[0],rollAttack:false,rollDamage:false,'waybeyond20-damage-reduction':true}};
+    return {type:'custom',fallback:args.damages[0],args:{...args,name:args.name+': Damage reduction',modifier:args.damages[0],rollAttack:false,rollDamage:false,'waybeyond20-damage-reduction':true}};
 }
 function wb20RuleOperators(rule) {
     const text=wb20RuleText(rule.text), result={};
@@ -301,7 +301,7 @@ async function wb20ActivateRule(name) {
             if (hp.current !== 0) {await wb20FeatureForm(rule.name,`<p>${esc(rule.text)}</p><p>Reroll is offered after an eligible d20 result, before that result is delivered. Stabilize becomes available here when you are at 0 HP and were not killed outright.</p>`,"Done");return false;}
             const form=await wb20FeatureForm(rule.name,`<p>Spend ${o.stabilize.amount} ${esc(o.stabilize.pool)} to drop to ${o.stabilize.hp} HP instead.</p><label><input type="checkbox" name="eligible"> Reduced to 0 HP and not killed outright</label>`,"Use Stabilize");
             if (!form || !form.find('[name="eligible"]').prop('checked') || !wb20RuleCurrent(owner,turn) || wayBeyond20CurrentHitPoints().current !== 0) return false;
-            const args={name:rule.name+' — Stabilize',description:rule.text,'waybeyond20-resource-costs':[{name:o.stabilize.pool,amount:o.stabilize.amount}]};
+            const args={name:rule.name+': Stabilize',description:rule.text,'waybeyond20-resource-costs':[{name:o.stabilize.pool,amount:o.stabilize.amount}]};
             const result=await sendRollWithCharacter('trait',0,args);
             if (result === true && wb20RuleCurrent(owner,turn) && wayBeyond20CurrentHitPoints().current === 0) {
                 const applied=await wayBeyond20ApplyHealingToSelf(o.stabilize.hp,{source:rule.name,notify:false});
@@ -418,9 +418,9 @@ function wb20RuleRows(root, existing = []) {
         const pool=rule.operator.pool ? wb20Resource(rule.operator.pool) : rule.operator.stabilize ? wb20Resource(rule.operator.stabilize.pool) : null;
         const info=wb20FeaturePresentation(rule.name,rule.text,{family:wb20DeclaredActionFamily(rule.name),category:rule.operator.pool,pool});
         const subtitle=row.querySelector('.wb20-talent-category');const category=info.category || 'Feature';if(subtitle.textContent!==category)subtitle.textContent=category;
-        const values={name:info.label,range:info.range || '—',action:info.save || '—',damage:'—'};
+        const values={name:info.label,range:info.range || '--',action:info.save || '--',damage:'--'};
         for(const [field,value] of Object.entries(values)){const el=row.querySelector(field==='name'?'.wb20-rule-label':'.ddbc-combat-attack__'+field);if(el.textContent!==value)el.textContent=value;}
-        wb20SetActionNote(row.querySelector('.ddbc-combat-attack__notes'),info.notes,()=>{if(row._wb20RuleOwner===character)return wb20OpenFeatureDetails(rule.name,rule.text);},'Read '+rule.name+' — full details');
+        wb20SetActionNote(row.querySelector('.ddbc-combat-attack__notes'),info.notes,()=>{if(row._wb20RuleOwner===character)return wb20OpenFeatureDetails(rule.name,rule.text);},'Read '+rule.name+': full details');
         const button=row.querySelector('button');if(button.title!==rule.text){button.title=rule.text;button.setAttribute('aria-label','Use '+rule.name);}
         const cost=rule.operator.activation || 'special';entries.push({row,name:rule.name,cost,group:cost==='special'?'action':cost});
     }
@@ -428,12 +428,7 @@ function wb20RuleRows(root, existing = []) {
     return entries;
 }
 
+// The owner replaced the Feature rules button with pet toggles on Actions.
 function wb20RuleToolbar(toolbar) {
-    if (toolbar.querySelector('.wb20-feature-rules') || !wb20CurrentFeatureRules().length || character.getSetting('waybeyond20-feature-controls',true)===false) {toolbar.querySelector('.wb20-rule-library')?.remove();return;}
-    const controls=toolbar.querySelector('.wb20-action-list-controls');if(!controls || controls.querySelector('.wb20-rule-library'))return;
-    const button=document.createElement('button');button.type='button';button.className='wb20-rule-library';button.textContent='Feature rules';
-    button.addEventListener('click',()=>{
-        const body=wb20CurrentFeatureRules().map(rule=>`<p><strong>${wb20RuleEscape(rule.name)}</strong><br>${wb20RuleEscape(rule.text)}</p>`).join('');
-        wb20FeatureForm('Feature rules',body,'Done').catch(console.warn);
-    });controls.append(button);
+    toolbar.querySelector('.wb20-rule-library')?.remove();
 }

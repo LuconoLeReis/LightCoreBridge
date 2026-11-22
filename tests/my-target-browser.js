@@ -322,7 +322,7 @@ assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(wayBeyond20ReadTurnO
         bounds=await geometry();assert.equal(bounds.overflow,false);
         assert.deepEqual(await page.evaluate(()=>[state.action,state.bonusAction,state.reaction]),[1,1,1]);
         await page.evaluate(()=>{state.knownTargets=[{tokenId:'three',name:'Ogre Zombie'}];wayBeyond20InjectTurnResourceTracker();});
-        assert.equal(await page.locator('.wb20-compass-next .wb20-compass-name').textContent(),'—');
+        assert.equal(await page.locator('.wb20-compass-next .wb20-compass-name').textContent(),'--');
         await page.evaluate(()=>{state.currentRoll20Turn=null;wayBeyond20InjectTurnResourceTracker();});
         assert.equal(await page.locator('.wb20-compass-current .wb20-compass-name').textContent(),'Goblin');
         assert.equal(await page.getByRole('button',{name:'Select Target',exact:true}).isDisabled(),true);

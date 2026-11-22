@@ -1,5 +1,25 @@
 // TaleSpire owns board observations. WB20 owns rules, counters and target notes.
 var wb20TSFeed=null, wb20TSContext='', wb20TSBusy=false, wb20TSConnected=false;
+// Displayed status changes to "not connected" only after a confirmed loss:
+// at least two failed checks spanning a few seconds. One missed poll keeps the
+// status and buttons steady. Turn continuity is separate and breaks on any
+// miss, so the first observation after a gap can never reset or spend.
+var wb20TSLive=false, wb20TSMisses=0, wb20TSFirstMissAt=0, wb20TSStatusOwner=null;
+var WB20_TS_LOSS_CHECKS=2, WB20_TS_LOSS_MS=3000;
+function wb20TSNoteGood() {
+    wb20TSMisses=0; wb20TSFirstMissAt=0; wb20TSConnected=true; wb20TSLive=true;
+}
+function wb20TSNoteMiss(now = Date.now()) {
+    wb20TSLive=false;
+    if (!wb20TSMisses) wb20TSFirstMissAt=now;
+    wb20TSMisses++;
+    if (wb20TSConnected && wb20TSMisses >= WB20_TS_LOSS_CHECKS && now-wb20TSFirstMissAt >= WB20_TS_LOSS_MS) wb20TSConnected=false;
+}
+// A different character or destination starts from unknown: offline until a
+// good reply, with no continuity carried over.
+function wb20TSResetConnection(owner = null) {
+    wb20TSStatusOwner=owner; wb20TSConnected=false; wb20TSLive=false; wb20TSMisses=0; wb20TSFirstMissAt=0;
+}
 // A sheet choice supersedes the last board pick. Repeated observations (including
 // a stale settings reload) cannot replay that pick over the user's newer choice.
 var wb20TSSheetTarget=null;
@@ -101,8 +121,8 @@ function wb20TSRenderStatus() {
             $('<button type="button">').text('Pick target in TaleSpire').on('click',()=>{
                 if (!wb20TSConnected) return;
                 try {chrome.runtime.sendMessage({action:'wb20-talespire-pick'},response=>{
-                    if (chrome.runtime.lastError || !response?.ok) {wb20TSConnected=false;wb20TSRenderStatus();}
-                });} catch (_) {wb20TSConnected=false;wb20TSRenderStatus();}
+                    if (chrome.runtime.lastError || !response?.ok) {wb20TSNoteMiss();wb20TSRenderStatus();}
+                });} catch (_) {wb20TSNoteMiss();wb20TSRenderStatus();}
             }));
     }
     const binding=character.getSetting('waybeyond20-talespire-mini',null);
@@ -114,18 +134,23 @@ function wb20TSRenderStatus() {
     else if (fallback.length && bar.parent()[0] !== fallback[0]) fallback.append(bar);
 }
 async function wb20TSRefresh() {
-    if (wb20TSBusy || typeof character === 'undefined' || !character || !wb20TSSelected()) return;
+    if (wb20TSBusy) return;
+    if (typeof character === 'undefined' || !character || !wb20TSSelected()) {if (wb20TSStatusOwner) wb20TSResetConnection(); return;}
+    if (wb20TSStatusOwner !== character) wb20TSResetConnection(character);
     wb20TSBusy=true;
     try {
         const owner=character;
         const result=await wayBeyond20SendRuntimeMessage({action:'wb20-talespire-state'});
         const reply=result.ok ? result.response : null;
-        if (character !== owner || !wb20TSSelected()) return;
-        const continuous=wb20TSConnected;
-        wb20TSConnected=!!reply?.connected;
-        if (reply?.connected) wb20TSApplySnapshot(reply.snapshot,continuous);
+        if (character !== owner || !wb20TSSelected() || wb20TSStatusOwner !== owner) return;
+        if (reply?.connected) {
+            // Continuous only when the previous check was also good.
+            const continuous=wb20TSLive;
+            wb20TSNoteGood();
+            wb20TSApplySnapshot(reply.snapshot,continuous);
+        } else wb20TSNoteMiss();
         wb20TSRenderStatus();
-    } catch (_) {wb20TSConnected=false;wb20TSRenderStatus();}
+    } catch (_) {wb20TSNoteMiss();wb20TSRenderStatus();}
     finally {wb20TSBusy=false;}
 }
 setInterval(()=>wb20TSRefresh().catch(()=>{wb20TSBusy=false;}),1500);

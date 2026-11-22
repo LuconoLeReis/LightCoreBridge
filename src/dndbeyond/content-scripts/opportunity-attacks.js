@@ -451,12 +451,12 @@ function wayBeyond20OpportunityRow(root) {
     if(select.dataset.options!==signature){select.replaceChildren(...labels.map((label,index)=>new Option(label+(choices[index]===selected && !saved?' (suggested)':''),String(index))));select.dataset.options=signature;}
     const selection=selected?String(choices.indexOf(selected)):'';if(select.value!==selection)select.value=selection;
     if(select.disabled!==!choices.length)select.disabled=!choices.length;
-    setText(".ddbc-combat-attack__range", selected?.range || "—");
-    setText(".ddbc-combat-attack__action", selected?.hit || "—");
+    setText(".ddbc-combat-attack__range", selected?.range || "--");
+    setText(".ddbc-combat-attack__action", selected?.hit || "--");
     const damage = row.querySelector(".ddbc-combat-attack__damage");
     let value = damage.querySelector(".ddbc-damage__value");
     if (!value) { value = document.createElement("span"); value.className = "ddbc-damage__value"; damage.replaceChildren(value); }
-    if (value.textContent !== (selected?.damage || "—")) value.textContent = selected?.damage || "—";
+    if (value.textContent !== (selected?.damage || "--")) value.textContent = selected?.damage || "--";
     const icon = row.querySelector(".wb20-feature-option-icon");
     const title = selected ? `Opportunity Attack: ${selected.name}. Uses one Reaction. Right-click for roll mode.` : "Opportunity Attack: choose a melee attack";
     if (icon.getAttribute("aria-label") !== title) { icon.setAttribute("aria-label", title); icon.title = title; }

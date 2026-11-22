@@ -415,12 +415,12 @@ function wb20FeatureRows(root) {
             : {label:name,category,range:fallbackRange,save,notes:costNote || "View rules"};
         set(".wb20-feature-option-name", info.label);
         set(".wb20-talent-category", info.category);
-        set(".ddbc-combat-attack__range", info.range || "—");
-        set(".ddbc-combat-attack__action", info.save || "—");
+        set(".ddbc-combat-attack__range", info.range || "--");
+        set(".ddbc-combat-attack__action", info.save || "--");
         set(".ddbc-combat-attack__damage", healing ? `${name.includes("Ultimate") ? "4d10" : `1d${p.die}`}+${p.wis}` : name === "Slow Fall" ? `${5 * p.level} reduction` : name === "Deflect Attacks" ? `1d10+${p.dex + p.level}` : name.includes("Flurry") ? `${p.flurry} strikes` : "Use");
-        if(typeof wb20SetActionNote==='function')wb20SetActionNote(row.querySelector('.ddbc-combat-attack__notes'),info.notes,()=>{if(row._wb20Owner===character)return wb20OpenFeatureDetails(name,live);},'Read '+name+' — full details');
+        if(typeof wb20SetActionNote==='function')wb20SetActionNote(row.querySelector('.ddbc-combat-attack__notes'),info.notes,()=>{if(row._wb20Owner===character)return wb20OpenFeatureDetails(name,live);},'Read '+name+': full details');
         else set('.ddbc-combat-attack__notes',costNote);
-        const title = live || `${name} — open activation choices`;
+        const title = live || `${name}: open activation choices`;
         if (row.querySelector("button").title !== title) row.querySelector("button").title = title;
         entries.push({row, name, cost, group: cost === "special" ? "action" : cost});
     }
@@ -442,8 +442,6 @@ function wb20FeatureToolbar(toolbar) {
     if (button.textContent !== text) button.textContent = text;
     const title = "Shared Focus resource; native DDB count when available. Open Correction to reconcile an error.";
     if (button.title !== title) button.title = title;
-    let rules = toolbar.querySelector(".wb20-feature-rules");
-    if (!rules) { rules = document.createElement("button"); rules.type = "button"; rules.className = "wb20-feature-rules"; rules.textContent = "Feature rules";
-        rules.addEventListener("click", () => wb20FeatureActivate("Feature rules").catch(console.warn));
-        toolbar.querySelector(".wb20-action-list-controls").append(rules); }
+    // The owner replaced the Feature rules button with pet toggles.
+    toolbar.querySelector(".wb20-feature-rules")?.remove();
 }

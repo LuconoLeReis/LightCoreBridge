@@ -269,6 +269,18 @@ const char='src/dndbeyond/content-scripts/character.js',util='src/dndbeyond/base
  // Expired control is excluded from renewal and cannot attack.
  await page.evaluate(()=>{const e=wb20SummonEffects()[0];e.summon.control.hoursLeft=0;renewIds=[e.id];});assert.equal(await prepareAnimation(),null);
  assert.equal(await page.evaluate(()=>{const e=wb20SummonEffects()[0];return wb20RunSummonAction(character,e.id,'Shortsword');}),false);
+ // Actual producer: expired control or 0 HP is not a pet with independent actions, so no Actions pet toggle.
+ const petTags=await page.evaluate(()=>{const host=document.querySelector('#root'),effects=wb20SummonEffects(),second=effects[1],hp=second?.summon.currentHP;
+   if(second)second.summon.currentHP=0;
+   const entries=wb20SummonRows(host).filter(x=>String(x.key).startsWith('summon:'));
+   const tag=e=>[...new Set(entries.filter(x=>x.key.startsWith('summon:'+e.id+':')).map(x=>x.pet?x.pet.id:'none'))];
+   const out=effects.map(e=>({expired:!(e.summon.control?.hoursLeft>0)&&!!e.summon.control,hp0:e.summon.currentHP===0,tags:tag(e),id:e.id}));
+   if(second)second.summon.currentHP=hp;
+   const live=wb20SummonRows(host).filter(x=>x.key?.startsWith('summon:'+second?.id+':')).map(x=>x.pet?.id);
+   return {out,restored:second?[...new Set(live)]:null,secondId:second?.id};});
+ assert.deepEqual(petTags.out[0].tags,['none'],'expired control: rows kept, no pet toggle');
+ assert.ok(petTags.out[1],'fixture has a second summon');{assert.deepEqual(petTags.out[1].tags,['none'],'0 HP: rows kept, no pet toggle');
+   assert.deepEqual(petTags.restored,['summon:'+petTags.secondId],'a live summon with HP and control is a pet');}
  // Repeated cast creates new identities. Renewal never does, and never refills HP.
  await setSpell(animationHTML,'Animate Dead','3rd Level Necromancy','3rd');
  await page.evaluate(()=>{animationMode='create';animationCounts=[1,0];});await prepareAnimation();await page.evaluate(()=>wb20CommitSummonEffect(character,effect));assert.equal(await page.evaluate(()=>wb20SummonEffects().length),4);

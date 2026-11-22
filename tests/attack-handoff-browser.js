@@ -39,7 +39,7 @@ const portal=(name='Fangs',data=properties)=>`<div class="ct-sidebar__portal"><d
    ${['injectRollToSpellAttack','injectRollToSnippets','injectSettingsButton','wayBeyond20InjectCombatMenuAction',
    'wayBeyond20ScheduleActiveEffectBadgeRefresh','injectCustomRollButton','wayBeyond20InjectBloodAndBoneAction',
    'wayBeyond20InjectBardicInspirationButton','wayBeyond20InjectLayOnHandsControls','activateQuickRolls',
-   'wayBeyond20RefreshCombinedActions','injectRollButton'].map(n=>`function ${n}(){}`).join('\n')}
+   'wayBeyond20RefreshCombinedActions','wayBeyond20ActionListPets','wayBeyond20ActionListPetSelection','wayBeyond20ActionListPetToggles','injectRollButton'].map(n=>`function ${n}(){}`).join('\n')}
    ${fn('propertyListToDict',read('src/dndbeyond/base/utils.js'))}
    ${process.env.WB20_HANDOFF_SOURCE ? fs.readFileSync(process.env.WB20_HANDOFF_SOURCE,'utf8') : read('src/dndbeyond/content-scripts/attack-handoff.js')}
    ${fn('wayBeyond20DDBRollInputAvailable')}

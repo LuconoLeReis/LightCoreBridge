@@ -45,7 +45,7 @@ card('Channel Divinity','You have 2 uses per Long Rest.','<div class="ct-feature
   });
   assert.equal(await page.getByRole('button',{name:'Use Control Undead',exact:true}).count(),1);assert.equal(await page.getByRole('button',{name:'Use Protected',exact:true}).count(),0,'triggered Luck has no stand-alone activation row');assert.equal(await page.evaluate(()=>wb20CurrentFeatureRules().some(r=>r.name==='Protected')),true,'the owned Luck rule remains available to its normal triggers');
   assert.equal(await page.getByRole('button',{name:'Shield Bash',exact:true}).count(),1);assert.equal(await page.getByRole('button',{name:'Spike Salvo',exact:true}).count(),1);
-  assert.equal(await page.getByRole('button',{name:'Feature rules',exact:true}).count(),1,'non-Monk character has a rules reference');
+  assert.equal(await page.getByRole('button',{name:'Feature rules',exact:true}).count(),0,'Feature rules button replaced by pet toggles (owner request)');
   await page.waitForTimeout(120);
   assert.ok(await page.evaluate(()=>domCallbacks)<=3,'stable refreshes do not cause an observer loop');assert.equal(await page.evaluate(()=>writes),1,'unchanged item observation is saved once');
   const ink=await page.getByRole('button',{name:'Shield Bash',exact:true}).evaluate(n=>getComputedStyle(n).color);assert.equal(ink,'rgb(238, 238, 238)');

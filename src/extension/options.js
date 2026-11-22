@@ -127,7 +127,7 @@ function wayBeyond20BuildCurrentSettingsReport(storage) {
             const id = key.substring("character-".length);
             wayBeyond20AppendCurrentSettingsSection(
                 lines,
-                `Character-specific settings — ID ${id}`,
+                `Character-specific settings: ID ${id}`,
                 storage[key] || {},
                 character_settings
             );
@@ -200,7 +200,7 @@ function wayBeyond20FormatDebugLog(entries) {
         const context = [];
         if (entry && entry.page) context.push(entry.page);
         if (entry && entry.tabId !== undefined) context.push(`tab ${entry.tabId}`);
-        lines.push(`[${timestamp}] [${scope}] ${event}${context.length ? ` — ${context.join(" · ")}` : ""}`);
+        lines.push(`[${timestamp}] [${scope}] ${event}${context.length ? `: ${context.join(" · ")}` : ""}`);
         if (entry && entry.details !== null && entry.details !== undefined) {
             lines.push(wayBeyond20FormatCurrentSettingValue(entry.details));
         }

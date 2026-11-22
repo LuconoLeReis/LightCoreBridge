@@ -77,7 +77,7 @@ function wb20QuickReadSpells() {
             name: identity.name, source: identity.source, level: identity.level,
             key: JSON.stringify([identity.name, identity.source, identity.level]),
             ...wb20QuickTiming(timing?.getAttribute("data-original-title") || text(row, "activation")),
-            range: text(row, "range") || "—", hit: hit || "—",
+            range: text(row, "range") || "--", hit: hit || "--",
             effect: damageNode?.textContent.trim() || effect || "Effect",
             damage: !healing && damageNode ? damageNode.textContent.trim() : "",
             attack: /^[+−-]?\s*\d/.test(hit), notes: text(row, "notes"),
@@ -550,16 +550,16 @@ function wb20QuickRows(root) {
         if (icon.disabled !== disabled) icon.disabled = disabled;
         const title = definition.custom ? `Roll ${definition.name}` : selected ? `Cast ${selected.name} (${definition.time})` : "Select a spell first";
         if (icon.title !== title) { icon.title = title; icon.setAttribute("aria-label", title); }
-        set(".ddbc-combat-attack__range", definition.custom ? definition.range || "—" : selected?.range || "—");
-        set(".ddbc-combat-attack__action", definition.custom ? "—" : selected?.hit || "—");
+        set(".ddbc-combat-attack__range", definition.custom ? definition.range || "--" : selected?.range || "--");
+        set(".ddbc-combat-attack__action", definition.custom ? "--" : selected?.hit || "--");
         set(".ddbc-combat-attack__damage", definition.custom ? definition.formula +
-            (wb20QuickDamageTypes.includes(definition.damageType) ? ` ${definition.damageType}` : "") : selected?.effect || "—");
+            (wb20QuickDamageTypes.includes(definition.damageType) ? ` ${definition.damageType}` : "") : selected?.effect || "--");
         const sortFormula = definition.custom ? definition.formula : selected?.damage || "";
         if (row.dataset.wb20SortFormula !== sortFormula) row.dataset.wb20SortFormula = sortFormula;
         const displayNotes=definition.custom?{text:definition.notes || "",title:""}:wb20QuickSpellNotes(selected,settings);
         const notesCell=row.querySelector('.ddbc-combat-attack__notes');
         if(!definition.custom && selected && typeof wb20SetActionNote==='function'){
-            wb20SetActionNote(notesCell,displayNotes.text || 'Read spell',()=>{if(row._wb20Owner===character)return wb20QuickOpenDetails(row._wb20Selected);},'Read '+selected.name+' — full details');
+            wb20SetActionNote(notesCell,displayNotes.text || 'Read spell',()=>{if(row._wb20Owner===character)return wb20QuickOpenDetails(row._wb20Selected);},'Read '+selected.name+': full details');
         } else set(".ddbc-combat-attack__notes", displayNotes.text);
         if(notesCell.title!==displayNotes.title)notesCell.title=displayNotes.title;
         retained.add(row);

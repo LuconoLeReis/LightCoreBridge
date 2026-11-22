@@ -14,7 +14,7 @@ function fn(name){const start=source.search(new RegExp(`^(?:async )?function ${n
   window.savedHp='';window.character={updateInfo(){savedHp=document.querySelector('#native-hp').textContent;}};
   window.isExtensionDisconnected=()=>false;window.injectRollToSpellAttack=()=>{};
   window.injectRollToSnippets=()=>{document.querySelector('#writer').textContent='same value';};
-  for(const name of ['injectSettingsButton','wayBeyond20InjectCombatMenuAction','wayBeyond20ScheduleActiveEffectBadgeRefresh','injectCustomRollButton','wayBeyond20InjectBloodAndBoneAction','wayBeyond20InjectBardicInspirationButton','wayBeyond20InjectLayOnHandsControls','activateQuickRolls','wayBeyond20RefreshCombinedActions'])window[name]=()=>{};
+  for(const name of ['injectSettingsButton','wayBeyond20InjectCombatMenuAction','wayBeyond20ScheduleActiveEffectBadgeRefresh','injectCustomRollButton','wayBeyond20InjectBloodAndBoneAction','wayBeyond20InjectBardicInspirationButton','wayBeyond20InjectLayOnHandsControls','activateQuickRolls','wayBeyond20RefreshCombinedActions','wayBeyond20ActionListPets','wayBeyond20ActionListPetSelection','wayBeyond20ActionListPetToggles'])window[name]=()=>{};
   window.DigitalDiceManager={updateNotifications:()=>null};window.settings={};
   window.wayBeyond20DebugLog=(scope,event,details)=>{window.lastReport={scope,event,details};};
  });

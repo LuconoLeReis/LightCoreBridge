@@ -63,7 +63,7 @@ async function wb20TaleSpireReceive(packet) {
     wb20TaleSpireRemember(packet.id);
     const who = wb20TaleSpireSafeText(packet.who, 100);
     const title = wb20TaleSpireSafeText(packet.title, 140);
-    const summary = `${who} — ${title}`;
+    const summary = `${who}, ${title}`;
     if (packet.rows.length && packet.audience === 'board') {
         const groups = packet.rows.map(row => ({
             name: `${summary}: ${wb20TaleSpireSafeText(row.name, 140)}${row.critical ? ' [Critical]' : ''}${row.failure ? ' [Critical failure]' : ''} (${wb20TaleSpireSafeText(row.formula, 500)})`,
@@ -79,7 +79,7 @@ async function wb20TaleSpireReceive(packet) {
         for (const chunk of chunks) await wb20TaleSpireCall(TS.chat.send(chunk, packet.audience));
     }
     const item = document.createElement('li');
-    item.textContent = `${summary}: ${packet.rows.length ? packet.rows.map(row => row.total).join(', ') : 'card'}${packet.audience === 'gms' ? ' — GMs only' : ''}`;
+    item.textContent = `${summary}: ${packet.rows.length ? packet.rows.map(row => row.total).join(', ') : 'card'}${packet.audience === 'gms' ? ' (GMs only)' : ''}`;
     const history = document.getElementById('history');
     history.prepend(item);
     while (history.children.length > 12) history.lastElementChild.remove();

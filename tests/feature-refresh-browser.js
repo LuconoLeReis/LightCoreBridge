@@ -15,7 +15,7 @@ function fn(name){const start=source.search(new RegExp(`^(?:async )?function ${n
   window.wb20ResourceId=v=>String(v).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();window.wb20Resource=()=>null;
  });
  await page.addScriptTag({path:path.join(root,'src/dndbeyond/content-scripts/feature-rules.js')});
- await page.addScriptTag({content:['wayBeyond20ActionListMetadata','wayBeyond20ActionSortValue','wayBeyond20FillHitDieChoices','wayBeyond20CollectFeatureOptions','wb20SetActionRange','wb20DecorateActionValues','wb20MarkDuplicateWeapons','wayBeyond20MatchActionTypography','wayBeyond20RefreshNaturalAttackIcons','wayBeyond20RefreshCombinedActions'].map(fn).join('\n')});
+ await page.addScriptTag({content:['wayBeyond20ActionListMetadata','wayBeyond20ActionSortValue','wayBeyond20FillHitDieChoices','wayBeyond20CollectFeatureOptions','wb20SetActionRange','wb20DecorateActionValues','wb20MarkDuplicateWeapons','wayBeyond20MatchActionTypography','wayBeyond20RefreshNaturalAttackIcons','wayBeyond20RefreshCombinedActions','wayBeyond20ActionListPets','wayBeyond20ActionListPetSelection','wayBeyond20ActionListPetToggles'].map(fn).join('\n')});
  const reads=await page.evaluate(()=>{
   const original=wb20ReadNativeFeatureRules;window.nativeRuleReads=0;
   wb20ReadNativeFeatureRules=()=>{nativeRuleReads++;return original();};

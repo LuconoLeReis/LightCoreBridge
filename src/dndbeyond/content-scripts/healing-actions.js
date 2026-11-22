@@ -43,7 +43,7 @@ async function wb20PrepareHealingAction(owner, name, description, native, contex
         }
         let choice = context.damageOnly ? (/^(Healing|Necrotic|Radiant)$/i.test(native['Damage Type'] || '') ? native['Damage Type'].toLowerCase() : null) : null;
         if (!choice) choice = await dndbeyondDiceRoller.queryGeneric(name, 'Choose Divine Spark’s effect on another creature within range.',
-            {healing: 'Restore Hit Points', radiant: 'Radiant damage — Constitution save, half on success', necrotic: 'Necrotic damage — Constitution save, half on success'},
+            {healing: 'Restore Hit Points', radiant: 'Radiant damage (Constitution save, half on success)', necrotic: 'Necrotic damage (Constitution save, half on success)'},
             'waybeyond20-divine-spark', ['healing', 'radiant', 'necrotic'], 'healing');
         if (!['healing', 'radiant', 'necrotic'].includes(choice)) return {canceled: true};
         // Preserve a native formula that already includes its modifier.
@@ -62,7 +62,7 @@ async function wb20PrepareHealingAction(owner, name, description, native, contex
             if (!damage) { alertify.warning('Sear Undead: resolve its damage manually from the current feature. No additional Action or Channel Divinity is spent.'); return plan; }
             const answer = await dndbeyondDiceRoller.queryGeneric(name,
                 'Roll follow-up damage only for Undead that failed the saving throw against your completed Turn Undead.',
-                {yes: 'Roll Sear damage — no additional Action or Channel Divinity', cancel: 'Cancel'},
+                {yes: 'Roll Sear damage (no additional Action or Channel Divinity)', cancel: 'Cancel'},
                 'waybeyond20-sear-undead', ['yes', 'cancel'], 'cancel');
             if (answer !== 'yes') return {canceled: true};
         }

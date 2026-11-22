@@ -1,7 +1,11 @@
-LIGHTCORE BRIDGE 1.73.116
-Browser build: 2.20.248
+LIGHTCORE BRIDGE 1.73.120
+Browser build: 2.20.252
 
-Find Familiar now provides a form picker, named saved familiar profiles, companion cards and Actions links. Appearance is separate from mechanics. Each completed cast rolls HP once, and only one familiar is active. See RELEASE-NOTES.md for validation, resource behavior and limits.
+TaleSpire status changes to not connected only after a confirmed loss; one missed check no longer flickers the status or buttons.
+
+Actions menu: centered toolbar and legend; one toggle per active pet (a present familiar or summon with HP above 0) replaces Feature rules. Press pets to show only their actions and hide your own talents and detail text; release all to restore the combined list. See RELEASE-NOTES.md.
+
+Find Familiar now provides a form picker, named saved familiar profiles, companion cards and Actions links. Appearance is separate from mechanics. Each completed cast rolls HP once, and only one familiar is active. See RELEASE-NOTES.md for review status, resource behavior and limits.
 
 Initiative receives the requested Jack-of-All-Trades half proficiency through a final check that preserves existing proficiency and prevents repeated processing from adding twice. Native independent bonuses and tiebreakers are retained. Other ability checks are unchanged. See RELEASE-NOTES.md for verification and limits. Experimental session-sync code is not included.
 
@@ -10,11 +14,11 @@ This release repairs slot-funded spell casts made with the LightCore roll icon, 
 Connect your D&D Beyond character to local tabletop play, Roll20, Foundry VTT, TaleSpire or optional Discord roll output. A VTT is not required. Existing installation, storage and protocol names are retained for compatibility.
 
 RELEASE NOTES AND DOWNLOADS
-https://github.com/LuconoLeReis/WayBeyond20/releases/tag/v1.73.116
+https://github.com/LuconoLeReis/WayBeyond20/releases/tag/v1.73.120
 The corresponding source includes RELEASE-NOTES.md, tests and reproducible build inputs.
 
 NEW CHROME INSTALLATION
-1. Download LightCore-Bridge-chrome-v1_73_116.zip, not the source archive.
+1. Download LightCore-Bridge-chrome-v1_73_120.zip, not the source archive.
 2. Extract it. Select the inner WayBeyond20 folder containing manifest.json; Windows Extract All can add another outer folder.
 3. Open chrome://extensions and enable Developer mode.
 4. Choose Load unpacked and select that WayBeyond20 folder.

@@ -1,6 +1,12 @@
-# LightCore Bridge 1.73.116
+# LightCore Bridge 1.73.120
 
-Browser build **2.20.248**. Familiar picker, saved profiles and companion cards. Independently reviewed; representative casting, cancellation, saved-profile and touch-delivery checks passed on a disposable character.
+Browser build **2.20.252**. Candidate: extension text without em dashes, steady TaleSpire connection status and Actions menu pet toggles on top of the familiar picker, saved profiles and companion cards. Independent review and installed acceptance are pending.
+
+Extension text no longer uses em dashes. Labels, menus, tooltips, dialog titles and messages use colons, commas or parentheses instead (for example "Find Familiar: choose a form"), and empty table cells show "--". Text read from D&D Beyond, and names you enter, are shown as written. Saved settings and tracked effects keep their identity; an item Flames effect saved by an earlier build is still recognized.
+
+TaleSpire status no longer flickers. One missed check keeps the status and buttons steady; the sheet shows "not connected" and disables the buttons only after a confirmed loss (repeated failed checks over about 3 seconds), and recovers on the next valid reply. A recovered feed after any missed check is never treated as continuous, so it cannot reset or spend turn resources.
+
+Actions menu: the Manage, View and Sort toolbar and the cost legend row above it are centered. The Feature rules button is replaced by one toggle per active pet (a live summon or the active familiar), labeled with the pet's name. With none pressed, the player's actions come first and pet actions follow at the bottom, in the current sort. Pressing one or more pets shows only those pets' actions; releasing them all restores the combined list. Saved, unsummoned familiars do not get a toggle; the Companions library stays available. Familiar rows that spend the caster's resources keep their labels and are grouped under the familiar. Only a familiar that is present with HP above 0, or a summon with HP above 0 and active control, counts as a pet; pocketed, gone or 0 HP companions keep their rows in the player list without a toggle. While any pet is pressed, the player's feature detail text below the rows is hidden too.
 
 Familiar touch-delivery identity is preserved through both character attack workflows, so the confirmation and familiar Reaction cost also apply to copied spell requests.
 

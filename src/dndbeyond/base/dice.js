@@ -73,7 +73,7 @@ async function wb20ShowLocalAttackTotal(args,attacks,damages,whisper) {
     const request={name:args.name,character:{name:character._name || 'Character'},sendMessage:true,
         whisper:whisper ?? args.whisper ?? 0,rollAttack:false,rollDamage:true,
         'waybeyond20-local-result-group':group,'waybeyond20-local-summary':true};
-    return dndbeyondDiceRoller.postDescription(request,(args.name || 'Attack')+' — Total',null,{},'',attacks,[],damages);
+    return dndbeyondDiceRoller.postDescription(request,(args.name || 'Attack')+': Total',null,{},'',attacks,[],damages);
 }
 
 function wb20SendAttackDamageToGameLog(request, damageRolls, totals) {

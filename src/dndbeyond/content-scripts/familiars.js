@@ -215,7 +215,7 @@ async function wb20WithFamiliarDelivery(type,args,dispatch) {
             'waybeyond20-familiar-touch',['deliver','self','cancel'],'cancel');
         if (owner !== character || choice == null || choice === 'cancel') return false;
         if (choice !== 'deliver') return dispatch();
-        if (typeof addEffect === 'function') addEffect(args,'Touch delivered by '+familiar.name+' — familiar Reaction');
+        if (typeof addEffect === 'function') addEffect(args,'Touch delivered by '+familiar.name+' (familiar Reaction)');
         const result = await dispatch();
         if (result === true && owner === character) {
             await wb20ResourceLocked(async () => {
@@ -240,15 +240,15 @@ function wb20FamiliarCarryRequestState(from,to) {
 async function wb20ManageFamiliar(command = null) {
     const owner = character, familiar = wb20Companions(owner)[0];
     if (!familiar) { alertify.warning('No familiar is active. Cast Find Familiar to choose and summon one, or open Saved familiars to view your cards.'); return false; }
-    const choices = {hp:'Set companion HP',initiative:'Set companion Initiative',turn:'Start familiar’s next turn — refresh its Reaction'};
-    if (familiar.status === 'present' && familiar.rules?.senses) choices.senses='Share its senses — my Bonus Action';
-    if (familiar.status === 'present' && familiar.rules?.dismiss) choices.dismiss='Dismiss to pocket — my Magic action';
-    if (familiar.status !== 'gone' && /dismiss it forever/i.test(familiar.rules?.text || '')) choices.forever='Dismiss permanently — my Magic action';
-    if (familiar.status === 'pocket' && familiar.rules?.returnRange) choices.return=`Return within ${familiar.rules.returnRange} ft. — my Magic action`;
+    const choices = {hp:'Set companion HP',initiative:'Set companion Initiative',turn:'Start familiar’s next turn: refresh its Reaction'};
+    if (familiar.status === 'present' && familiar.rules?.senses) choices.senses='Share its senses (my Bonus Action)';
+    if (familiar.status === 'present' && familiar.rules?.dismiss) choices.dismiss='Dismiss to pocket (my Magic action)';
+    if (familiar.status !== 'gone' && /dismiss it forever/i.test(familiar.rules?.text || '')) choices.forever='Dismiss permanently (my Magic action)';
+    if (familiar.status === 'pocket' && familiar.rules?.returnRange) choices.return=`Return within ${familiar.rules.returnRange} ft. (my Magic action)`;
     if (familiar.status === 'present' && familiar.rules?.delivery && familiar.reaction === 1) choices.delivery='Deliver my next touch spell';
     if (wb20FamiliarFriend(owner)?.distance) choices.helpful='Helpful Friend';
     choices.close='Close';
-    const choice = command || await dndbeyondDiceRoller.queryGeneric('Companions — '+familiar.name,
+    const choice = command || await dndbeyondDiceRoller.queryGeneric('Companions: '+familiar.name,
         `HP ${familiar.hp ?? '?'}/${familiar.maxHP ?? '?'} · ${familiar.formula || 'choose a form in Extras'} · ${familiar.status} · Reaction ${familiar.reaction ?? '?'} · Initiative ${familiar.initiative ?? 'not rolled'}`,
         choices,'waybeyond20-companions',Object.keys(choices),'close');
     if (owner !== character || !choice || choice === 'close' || !Object.hasOwn(choices,choice)) return false;
@@ -296,7 +296,7 @@ function wb20FamiliarControls() {
         let button=list.querySelector('button');
         if (!button) {button=anchor.cloneNode(false);button.removeAttribute('id');list.append(button);button.onclick=()=>wb20FamiliarCard().catch(console.warn);}
         const familiar=wb20Companions()[0];
-        const label=familiar ? `${familiar.name} · LCB HP ${familiar.hp ?? '?'}/${familiar.maxHP ?? '?'} · ${familiar.status}${familiar.senses ? ' · Sharing senses' : ''}` : 'No familiar tracked — open it in Extras';
+        const label=familiar ? `${familiar.name} · LCB HP ${familiar.hp ?? '?'}/${familiar.maxHP ?? '?'} · ${familiar.status}${familiar.senses ? ' · Sharing senses' : ''}` : 'No familiar tracked; open it in Extras';
         if (button.textContent !== label) button.textContent=label;
     }
 

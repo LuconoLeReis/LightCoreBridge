@@ -66,7 +66,7 @@ async function wb20ManageSavedFamiliars() {
     const owner=character,profiles=wb20FamiliarProfiles(owner),e=wb20FeatureEscape;
     const form=await wb20FeatureForm('Saved familiars',
         '<p>Named summons are saved here. Only one familiar is active at a time. HP is rolled again when you summon one.</p>'+ 
-        (profiles.length?'<label>View a saved familiar<select name="profile-view"><option value="">Choose a familiar</option>'+profiles.map((p,i)=>'<option value="'+i+'">'+e(p.name)+' — '+e(p.formName)+'</option>').join('')+'</select></label>':'<p>No named familiars have been saved.</p>')+
+        (profiles.length?'<label>View a saved familiar<select name="profile-view"><option value="">Choose a familiar</option>'+profiles.map((p,i)=>'<option value="'+i+'">'+e(p.name)+': '+e(p.formName)+'</option>').join('')+'</select></label>':'<p>No named familiars have been saved.</p>')+
         '<label>Import saved familiars (optional)<input type="file" name="profile-import" accept="application/json,.json"></label>','View or import','Close');
     if(!form || owner!==character)return false;
     const file=form.find('[name="profile-import"]')[0]?.files?.[0];
@@ -81,7 +81,7 @@ async function wb20ManageSavedFamiliars() {
     const profile=profiles[Number(raw)];if(!profile)return false;
     const bonus=wb20FamiliarFriend(owner)?.bonus || 0;
     if(!profile.base){alertify.warning('This saved form’s card will be built from DDB when it is summoned.');return false;}
-    return wb20FeatureForm('Saved familiar — '+profile.name,wb20FamiliarCardHTML({name:profile.name,appearance:profile.appearance,
-        creatureType:profile.creatureType,base:profile.base,bonus,castLevel:Number(owner._level),status:'saved — not summoned',savedPreview:true,sourceNote:profile.sourceNote,
+    return wb20FeatureForm('Saved familiar: '+profile.name,wb20FamiliarCardHTML({name:profile.name,appearance:profile.appearance,
+        creatureType:profile.creatureType,base:profile.base,bonus,castLevel:Number(owner._level),status:'saved, not summoned',savedPreview:true,sourceNote:profile.sourceNote,
         hp:null,maxHP:null,features:[]}), 'Close','Close');
 }

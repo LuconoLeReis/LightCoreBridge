@@ -7,7 +7,7 @@ function wb20AttackEscape(value) {
 
 async function wb20ConfirmAttackOutcome(name, rolls) {
     const active = rolls.filter(roll => !roll.isDiscarded());
-    const label = roll => `${wb20AttackEscape(roll.total)}${roll.isCriticalHit?.() ? " — Critical Hit" : ""}`;
+    const label = roll => `${wb20AttackEscape(roll.total)}${roll.isCriticalHit?.() ? " (Critical Hit)" : ""}`;
     const choices = active.map((roll, index) => `<option value="${index}">${label(roll)}</option>`).join("");
     const html = `<form class="wb20-feature-prompt wb20-attack-outcome"><p>${wb20AttackEscape(name)}</p>` +
         (active.length > 1 ? `<label>Attack result <select name="attack-index" aria-label="Attack result">${choices}</select></label>` :

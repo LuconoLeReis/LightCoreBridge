@@ -233,7 +233,7 @@ function wb20BuildTurnCompass(state, animate = false) {
     const face = (position, label, name) => $(position === "current" ? "<div>" : "<button type='button'>")
         .addClass(`wb20-compass-face wb20-compass-${position}`)
         .append($("<span>").addClass("wb20-compass-caption").text(label),
-            $("<span>").addClass("wb20-compass-name").text(name || "—").attr("title", name || ""));
+            $("<span>").addClass("wb20-compass-name").text(name || "--").attr("title", name || ""));
     const arrow = direction => $("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 28' aria-hidden='true' focusable='false'><path d='M3 8 Q19 25 34 11 L29 9 L42 3 L41 17 L37 14 Q20 33 3 8Z' fill='currentColor' stroke='currentColor' stroke-width='.8' stroke-linejoin='round'/></svg>")
         .addClass(`wb20-compass-arrow wb20-compass-arrow-${direction}`);
     const rim = () => $("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 620 50' preserveAspectRatio='none' aria-hidden='true' focusable='false'><path d='M8 1 C8 48 40 49 310 49 C580 49 612 48 612 1' fill='none' stroke='currentColor' stroke-width='1.5'/></svg>")

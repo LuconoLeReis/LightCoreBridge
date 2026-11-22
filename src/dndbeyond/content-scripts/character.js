@@ -844,7 +844,7 @@ async function wayBeyond20RollAgileStrike(activation = wayBeyond20CreateAttackAc
     const rollProperties = await buildAttackRoll(
         character,
         "action",
-        "Agile Strikes — Unarmed Strike",
+        "Agile Strikes: Unarmed Strike",
         "Dazzling Footwork lets you make an Unarmed Strike as part of the same action used to expend Bardic Inspiration.",
         properties,
         damages,
@@ -1275,8 +1275,8 @@ function wayBeyond20InjectBardicInspirationButton() {
             .append($("<strong>").text("Bardic Inspiration"))
             .append($("<span>").addClass("wb20-talent-category").text("Help Ally")));
         card.append($("<div>").addClass("waybeyond20-bardic-feature-range ddbc-combat-attack__range").text("60 ft."));
-        card.append($("<div>").addClass("ddbc-combat-attack__action").text("—"));
-        card.append($("<div>").addClass("ddbc-combat-attack__damage").text("—"));
+        card.append($("<div>").addClass("ddbc-combat-attack__action").text("--"));
+        card.append($("<div>").addClass("ddbc-combat-attack__damage").text("--"));
         card.append($("<div>").addClass("waybeyond20-bardic-feature-notes ddbc-combat-attack__notes")
             .append($("<span>").addClass("waybeyond20-bardic-feature-die"))
             .append($("<span>").addClass("waybeyond20-bardic-feature-uses")));
@@ -1523,7 +1523,7 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
                 for (const field of ["range", "action", "damage", "notes"]) {
                     const cell = document.createElement("div");
                     cell.className = `ddbc-combat-attack__${field}`;
-                    cell.textContent = field === "notes" ? "Details" : "—";
+                    cell.textContent = field === "notes" ? "Details" : "--";
                     row.append(cell);
                 }
                 const openDetails = () => {
@@ -1586,17 +1586,17 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
             // Native rule prose belongs in details, not across the table row.
             const hitDieChoices=wayBeyond20FillHitDieChoices(row,snippet,name);
             if(!hitDieChoices){
-                wb20SetActionRange(row.querySelector('.ddbc-combat-attack__range'),info.range || '—');
-                const action=row.querySelector('.ddbc-combat-attack__action');if(action.textContent!==(info.save || '—'))action.textContent=info.save || '—';
+                wb20SetActionRange(row.querySelector('.ddbc-combat-attack__range'),info.range || '--');
+                const action=row.querySelector('.ddbc-combat-attack__action');if(action.textContent!==(info.save || '--'))action.textContent=info.save || '--';
             }
             const note = info.notes;
             if (!hitDieChoices) {
-                if(typeof wb20SetActionNote==='function')wb20SetActionNote(notes,note,()=>row._wb20OpenDetails?.(),'Read '+displayName+' — full details');
+                if(typeof wb20SetActionNote==='function')wb20SetActionNote(notes,note,()=>row._wb20OpenDetails?.(),'Read '+displayName+': full details');
                 else if(notes.textContent!==note)notes.textContent=note;
             } else if(typeof wb20SetActionNote==='function') {
                 let host=notes.querySelector('.wb20-action-note-host');
                 if(!host){host=document.createElement('div');host.className='wb20-action-note-host';notes.append(host);}
-                wb20SetActionNote(host,'Read rules',()=>row._wb20OpenDetails?.(),'Read '+displayName+' — full details');
+                wb20SetActionNote(host,'Read rules',()=>row._wb20OpenDetails?.(),'Read '+displayName+': full details');
             }
             retained.add(row);
             entries.push({row, name, ...meta});
@@ -1612,7 +1612,7 @@ function wayBeyond20CollectFeatureOptions(root, groups, existingRows) {
 // Each producer supplies its unformatted range, so a refresh cannot strip and
 // recreate these spans in an observer feedback loop.
 function wb20SetActionRange(cell, raw) {
-    raw = String(raw || "—").trim();
+    raw = String(raw || "--").trim();
     if (cell.dataset.wb20Range === raw && cell.querySelector('.wb20-range-main')) return;
     const match = raw.match(/^(\d+(?:\.\d+)?)\s*(ft\.?|feet|foot|miles?|mi\.?|meters?)\s*(.*)$/i);
     const main = document.createElement('span'); main.className = 'wb20-range-main';
@@ -2059,9 +2059,25 @@ function wayBeyond20RefreshCombinedActions() {
                 if (left === null || right === null) return left === right ? 0 : left === null ? 1 : -1;
                 return right - left;
             });
+            // Pets with independent actions sit below the player's talents. Selecting
+            // one or more pets shows only those pets; selecting none restores both.
+            const pets = wayBeyond20ActionListPets(rows);
+            const petSelection = wayBeyond20ActionListPetSelection(pets);
+            rows.sort((a, b) => (a.pet ? 1 : 0) - (b.pet ? 1 : 0));
+            wayBeyond20ActionListPetToggles(toolbar, pets, petSelection);
+            // Pet-only view also hides the player's feature snippets and group
+            // detail text below the rows.
+            const petOnly = petSelection.size > 0;
+            if (root.hasAttribute("data-wb20-pet-only") !== petOnly) root.toggleAttribute("data-wb20-pet-only", petOnly);
             wb20MarkDuplicateWeapons(rows);
             for (const [index, entry] of rows.entries()) {
                 mark(entry.row, "row", index);
+                const petHidden = petSelection.size > 0 && !(entry.pet && petSelection.has(entry.pet.id));
+                if (entry.row.hasAttribute("data-wb20-pet-hidden") !== petHidden)
+                    entry.row.toggleAttribute("data-wb20-pet-hidden", petHidden);
+                const petId = entry.pet ? entry.pet.id : null;
+                if (petId) { if (entry.row.getAttribute("data-wb20-pet") !== petId) entry.row.setAttribute("data-wb20-pet", petId); }
+                else if (entry.row.hasAttribute("data-wb20-pet")) entry.row.removeAttribute("data-wb20-pet");
                 if (typeof wb20QuickRowKey === "function") {
                     const hidden = wb20QuickIsHidden(entry);
                     if (entry.row.hasAttribute("data-wb20-user-hidden") !== hidden)
@@ -2094,6 +2110,9 @@ function wayBeyond20RefreshCombinedActions() {
         element.removeAttribute("data-wb20-list-layout");
         element.removeAttribute("data-wb20-list-view");
         element.removeAttribute("data-wb20-user-hidden");
+        element.removeAttribute("data-wb20-pet-hidden");
+        element.removeAttribute("data-wb20-pet");
+        element.removeAttribute("data-wb20-pet-only");
         element.removeAttribute("data-wb20-duplicate-weapon");
         element.removeAttribute("data-wb20-action-cost");
         element.style.removeProperty("--wb20-list-order");
@@ -2101,6 +2120,59 @@ function wayBeyond20RefreshCombinedActions() {
         if (element.matches('.wb20-action-list-sort,.wb20-feature-option,.wb20-opportunity-attack,.wb20-quick-row,.wb20-action-fallback-header')) element.remove();
     }
     } finally {if(ownRules)wb20RuleRenderState=priorRules;}
+}
+
+// A pet is a live summon or companion whose rows carry their own identity.
+// Saved, unsummoned familiars are library entries, not pets.
+function wayBeyond20ActionListPets(rows) {
+    const pets = new Map();
+    for (const entry of rows) {
+        if (!entry.pet || !entry.pet.id) continue;
+        if (!pets.has(entry.pet.id)) pets.set(entry.pet.id, {id: entry.pet.id, name: String(entry.pet.name || "").trim() || "Companion"});
+    }
+    return Array.from(pets.values());
+}
+
+// Selection is per character and in memory only; ids that are no longer
+// present (dismissed pet, other character) are dropped on every refresh.
+function wayBeyond20ActionListPetSelection(pets) {
+    const store = wayBeyond20ActionListPetSelection.store ||= new WeakMap();
+    if (!character) return new Set();
+    const live = new Set(pets.map(pet => pet.id));
+    const selection = new Set(Array.from(store.get(character) || []).filter(id => live.has(id)));
+    store.set(character, selection);
+    return selection;
+}
+
+function wayBeyond20ActionListPetToggles(toolbar, pets, selection) {
+    const controls = toolbar.querySelector(".wb20-action-list-controls");
+    if (!controls) return;
+    const wanted = new Set(pets.map(pet => pet.id));
+    for (const button of controls.querySelectorAll(":scope > .wb20-pet-toggle"))
+        if (!wanted.has(button.dataset.petId) || button._wb20Owner !== character) button.remove();
+    for (const pet of pets) {
+        let button = Array.from(controls.querySelectorAll(":scope > .wb20-pet-toggle")).find(b => b.dataset.petId === pet.id);
+        if (!button) {
+            button = document.createElement("button");
+            button.type = "button"; button.className = "wb20-pet-toggle"; button.dataset.petId = pet.id;
+            button._wb20Owner = character;
+            button.addEventListener("click", () => {
+                const owner = button._wb20Owner;
+                if (!owner || owner !== character || !button.isConnected) return;
+                const store = wayBeyond20ActionListPetSelection.store;
+                const current = new Set(store?.get(owner) || []);
+                if (current.has(button.dataset.petId)) current.delete(button.dataset.petId); else current.add(button.dataset.petId);
+                store?.set(owner, current);
+                wayBeyond20RefreshCombinedActions();
+            });
+            controls.append(button);
+        }
+        if (button.textContent !== pet.name) button.textContent = pet.name;
+        const title = `Show only ${pet.name} actions. Select none to show all.`;
+        if (button.title !== title) button.title = title;
+        const pressed = String(selection.has(pet.id));
+        if (button.getAttribute("aria-pressed") !== pressed) button.setAttribute("aria-pressed", pressed);
+    }
 }
 
 async function wayBeyond20ChooseHitDie() {
@@ -2405,7 +2477,7 @@ async function rollSkillCheck(paneClass, combatAction = null) {
             const dancing = await wayBeyond20ConfirmChoice(
                 "Dazzling Footwork",
                 "Does this Charisma (Performance) check involve dancing?",
-                "Yes — Dance",
+                "Yes: Dance",
                 "No"
             );
             if (dancing) {
@@ -2846,8 +2918,8 @@ async function wayBeyond20InitiativeJoatModifier(row, nativeModifier, nativeSnap
                 answers.set(owner, remembered);
                 remembered.pending = dndbeyondDiceRoller.queryGeneric("Initiative: Jack of All Trades",
                 `D&D Beyond shows ${wayBeyond20FormatSignedNumber(nativeModifier)}; Dexterity is ${wayBeyond20FormatSignedNumber(dex)} and proficiency is ${wayBeyond20FormatSignedNumber(proficiency)}. Does that Initiative total already include proficiency? This answer is remembered while this sheet and calculation stay unchanged.`,
-                {native: `Already included — keep ${wayBeyond20FormatSignedNumber(nativeModifier)}`,
-                    missing: `Missing — add ${wayBeyond20FormatSignedNumber(half)} Jack of All Trades`},
+                {native: `Already included: keep ${wayBeyond20FormatSignedNumber(nativeModifier)}`,
+                    missing: `Missing: add ${wayBeyond20FormatSignedNumber(half)} Jack of All Trades`},
                 "initiative-joat", ["native", "missing"], "native");
             }
             let choice;
@@ -3841,7 +3913,7 @@ function wayBeyond20FormatEffectTooltip(effect) {
     if (Array.isArray(effect.conditions) && effect.conditions.length > 0) details.push("Conditions: " + effect.conditions.join(", "));
     const source = wayBeyond20CleanEffectText(effect.source, effect.name);
     if (source) details.push(source);
-    return effect.name + (details.length > 0 ? " — " + details.join("; ") : "");
+    return effect.name + (details.length > 0 ? ": " + details.join("; ") : "");
 }
 
 function wayBeyond20GetTrackedSpellEffects() {
@@ -5699,7 +5771,7 @@ function wayBeyond20EffectSummary(effect) {
     const owner = String(effect.owner || "").trim();
     if (owner && !wayBeyond20IsSelfOwner(effect)) details.push("from " + owner);
 
-    return effect.name + (details.length > 0 ? " — " + details.join("; ") : "");
+    return effect.name + (details.length > 0 ? ": " + details.join("; ") : "");
 }
 
 function wayBeyond20CloseEffectsPopout() {
@@ -5859,7 +5931,7 @@ function wayBeyond20InjectBuffsBadge(effects) {
             const key = wayBeyond20EffectKey(effect);
             // Item flames retain their saved name/key for toggling and attack
             // tracking. Only the compact buff label omits the redundant suffix.
-            const label = effect.name.replace(/ — Flames$/, "");
+            const label = effect.name.replace(/(?: \u2014|:) Flames$/, "");
             const button = $("<button type='button'>").addClass("waybeyond20-buff-name").text(label);
             button.on("click.waybeyond20-effects", event => {
                 event.preventDefault();
@@ -6134,7 +6206,7 @@ async function wayBeyond20RunConcentrationCheck(damage = 1, concentration = wayB
     if (!current || wayBeyond20EffectKey(current) !== effectKey) return;
     const total = active[0].total;
     if (total < dc) wayBeyond20RemoveTrackedEffect(effectKey);
-    alertify.message(`${wayBeyond20EscapeHtml(concentration.name)}: ${total} vs DC ${dc} — concentration ${total < dc ? "ended" : "maintained"}.`);
+    alertify.message(`${wayBeyond20EscapeHtml(concentration.name)}: ${total} vs DC ${dc}, concentration ${total < dc ? "ended" : "maintained"}.`);
 }
 
 function wayBeyond20HandleConcentrationBadge(event, badge) {

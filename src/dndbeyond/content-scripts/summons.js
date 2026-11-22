@@ -234,9 +234,9 @@ function wb20SummonRows(root) {
         set('.wb20-feature-option-name',action.name);
         set('.wb20-talent-category',effect.name+' · '+(action.section==='Bonus Actions'?'Creature Bonus Action':'Creature Action'));
         wb20SetActionRange(row.querySelector('.ddbc-combat-attack__range'),roll?.reach || roll?.range?.replace(/^(\d+)\/(\d+)\s*ft\.?$/i,'$1 ft. ($2)') ||
-            (text.match(/within (\d+) feet/i)?.[1] ? text.match(/within (\d+) feet/i)[1]+' ft.' : '—'));
-        set('.ddbc-combat-attack__action',roll?.['to-hit'] || (roll?.['save-dc']?roll['save-ability'].slice(0,3).toUpperCase()+' '+roll['save-dc']:'—'));
-        const damage=roll?.damages?.[0] || '—';set('.ddbc-combat-attack__damage',damage);
+            (text.match(/within (\d+) feet/i)?.[1] ? text.match(/within (\d+) feet/i)[1]+' ft.' : '--'));
+        set('.ddbc-combat-attack__action',roll?.['to-hit'] || (roll?.['save-dc']?roll['save-ability'].slice(0,3).toUpperCase()+' '+roll['save-dc']:'--'));
+        const damage=roll?.damages?.[0] || '--';set('.ddbc-combat-attack__damage',damage);
         row._wb20Definition={damageType:roll?.['damage-types']?.[0] || ''};
         const used=effect.summon.used?.[action.name];
         const stats=wb20SummonStats(effect.summon,owner);
@@ -245,11 +245,11 @@ function wb20SummonRows(root) {
         const note=effect.summon.control?hpNote+' · Control '+effect.summon.control.hoursLeft+'h':attacks?hpNote+' · '+attacks+' attack'+(attacks===1?'':'s')+'/Action':
             (action.recharge?(used?'Used · ':'1/1 Long Rest · '):'')+'Level '+effect.summon.level+' · AC '+stats.ac+' · '+hpNote;
         wb20SetActionNote(row.querySelector('.ddbc-combat-attack__notes'),note,()=>wb20ManageSummon(effect.id),'Summon details');
-        const icon=row.querySelector('.wb20-feature-option-icon'),label='Use '+action.name+' — '+effect.name;
+        const icon=row.querySelector('.wb20-feature-option-icon'),label='Use '+action.name+': '+effect.name;
         const disabled=effect.summon.currentHP===0 || !!(effect.summon.control && !(effect.summon.control.hoursLeft>0));
         if(icon.disabled!==disabled)icon.disabled=disabled;
         if(icon.getAttribute('aria-label')!==label)icon.setAttribute('aria-label',label);
-        retained.add(row);entries.push({row,name:action.name,key,cost:'special',group:action.section==='Bonus Actions'?'bonusAction':'action',defaultVisible:true});
+        retained.add(row);entries.push({row,name:action.name,key,cost:'special',group:action.section==='Bonus Actions'?'bonusAction':'action',defaultVisible:true,...(disabled?{}:{pet:{id:'summon:'+effect.id,name:effect.name}})});
     }
     for(const row of root.querySelectorAll(':scope > .wb20-summon-row'))if(!retained.has(row))row.remove();
     const command=wb20AnimationCommandEntry(root,owner);if(command)entries.push(command);
@@ -429,7 +429,7 @@ function wb20AnimationCommandEntry(root,owner) {
     if(!creatures.length){row?.remove();return null;}
     if(!row){
         row=document.createElement('div');row.className='ddbc-combat-attack wb20-feature-option wb20-companion-command';
-        row.innerHTML='<button type="button" class="wb20-feature-option-icon" aria-label="Command animated creatures">◆</button><div class="ddbc-combat-attack__name"><button type="button" class="wb20-feature-option-name">Command undead</button><div class="wb20-talent-category">Animate Dead</div></div><div class="ddbc-combat-attack__range"></div><div class="ddbc-combat-attack__action">—</div><div class="ddbc-combat-attack__damage">—</div><div class="ddbc-combat-attack__notes"></div>';
+        row.innerHTML='<button type="button" class="wb20-feature-option-icon" aria-label="Command animated creatures">◆</button><div class="ddbc-combat-attack__name"><button type="button" class="wb20-feature-option-name">Command undead</button><div class="wb20-talent-category">Animate Dead</div></div><div class="ddbc-combat-attack__range"></div><div class="ddbc-combat-attack__action">--</div><div class="ddbc-combat-attack__damage">--</div><div class="ddbc-combat-attack__notes"></div>';
         for(const button of row.querySelectorAll('button'))button.addEventListener('click',event=>{
             event.preventDefault();event.stopPropagation();if(row._wb20Owner===character)wb20CommandAnimated(row._wb20Owner).catch(error=>{console.warn('LightCore: command did not complete',error);alertify.warning('The command did not finish. Check the result before retrying.');});
         });root.append(row);

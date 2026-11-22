@@ -50,7 +50,7 @@ function wb20FamiliarCardHTML(c) {
         '<p>AC '+e(b.ac)+' · Speed '+e(b.speed)+' · Initiative '+e(c.initiative ?? 'not rolled')+' · '+e(c.status)+'</p>'+ 
         '<p>Familiar turn '+e(c.turn || 1)+' · Action '+e(c.action ?? 1)+' · Bonus Action '+e(c.bonusAction ?? 1)+' · Reaction '+e(c.reaction ?? 1)+'</p>'+ 
         '<table><tbody>'+b.abilities.map(([abbr,score,mod,save])=>'<tr><th>'+e(abbr)+'</th><td>'+e(score)+'</td><td>Check '+e(mod)+'</td><td>Save '+e(save ?? mod)+'</td></tr>').join('')+'</tbody></table>'+ 
-        '<p>Skills: '+e(b.skills || '—')+'<br>Senses: '+e(b.senses || '—')+'<br>Languages: '+e(b.languages || '—')+'</p>'+ 
+        '<p>Skills: '+e(b.skills || '--')+'<br>Senses: '+e(b.senses || '--')+'<br>Languages: '+e(b.languages || '--')+'</p>'+ 
         '<dl>'+Object.entries(b.attributes || {}).filter(([key])=>!['AC','Armor Class','HP','Hit Points','Initiative','Speed','Skills','Senses','Languages'].includes(key)).map(([key,value])=>'<dt>'+e(key)+'</dt><dd>'+e(value)+'</dd>').join('')+'</dl>'+ 
         list('Traits',b.traits)+list('Actions and other abilities',b.actions)+
         (c.features?.length?'<details><summary>Your familiar features</summary>'+c.features.map(f=>'<p><strong>'+e(f.name)+'</strong> '+e(f.text)+'</p>').join('')+'</details>':'')+
@@ -60,16 +60,16 @@ async function wb20FamiliarCard() {
     const owner=character,c=wb20Companions(owner)[0];
     if(!c)return wb20ManageSavedFamiliars();
     const options={close:'Close',profiles:'Saved familiar profiles',manage:'Manage HP, Initiative and familiar turn',initiative:'Roll familiar Initiative',actions:'Familiar actions',
-        ...(c.status==='present' && c.rules?.senses?{senses:'Share senses — caster Bonus Action'}:{}),
-        ...(c.status==='present' && c.rules?.dismiss?{dismiss:'Dismiss to pocket — caster Magic action'}:{}),
-        ...(c.status==='pocket' && c.rules?.returnRange?{return:'Return from pocket — caster Magic action'}:{}),
-        ...(c.status==='present' && c.rules?.delivery?{delivery:'Deliver next touch spell — familiar Reaction'}:{}),
-        ...(wb20FamiliarFriend(owner)?.distance?{helpful:'Helpful Friend — next proficient skill check'}:{})};
+        ...(c.status==='present' && c.rules?.senses?{senses:'Share senses (caster Bonus Action)'}:{}),
+        ...(c.status==='present' && c.rules?.dismiss?{dismiss:'Dismiss to pocket (caster Magic action)'}:{}),
+        ...(c.status==='pocket' && c.rules?.returnRange?{return:'Return from pocket (caster Magic action)'}:{}),
+        ...(c.status==='present' && c.rules?.delivery?{delivery:'Deliver next touch spell (familiar Reaction)'}:{}),
+        ...(wb20FamiliarFriend(owner)?.distance?{helpful:'Helpful Friend: next proficient skill check'}:{})};
     const actor=c.base?wb20FamiliarActor(c,owner):null;
-    for(const skill of Object.keys(actor?._skills || {}))options['skill:'+skill]='Roll '+skill+' — familiar';
-    for(const [abbr] of c.base?.abilities || []) {options['ability:'+abbr]='Roll '+abbr+' check — familiar';options['saving-throw:'+abbr]='Roll '+abbr+' save — familiar';}
+    for(const skill of Object.keys(actor?._skills || {}))options['skill:'+skill]='Roll '+skill+' (familiar)';
+    for(const [abbr] of c.base?.abilities || []) {options['ability:'+abbr]='Roll '+abbr+' check (familiar)';options['saving-throw:'+abbr]='Roll '+abbr+' save (familiar)';}
     const e=wb20FeatureEscape;
-    const form=await wb20FeatureForm('Companion — '+c.name,wb20FamiliarCardHTML(c)+'<label>Control<select name="companion-control">'+
+    const form=await wb20FeatureForm('Companion: '+c.name,wb20FamiliarCardHTML(c)+'<label>Control<select name="companion-control">'+
         Object.entries(options).map(([key,value])=>'<option value="'+e(key)+'">'+e(value)+'</option>').join('')+'</select></label>','Use selected control','Close');
     if(!form || owner!==character || wb20Companions(owner)[0]?.revision!==c.revision)return false;
     const choice=form.find('[name="companion-control"]').val();if(!Object.hasOwn(options,choice) || choice==='close')return false;
@@ -82,24 +82,29 @@ async function wb20FamiliarCard() {
 }
 async function wb20FamiliarActionMenu() {
     const owner=character,c=wb20Companions(owner)[0];if(!c?.base)return false;
-    const options=Object.fromEntries(Object.keys(WB20_COMBAT_ACTIONS).filter(name=>name!=='Attack' && name!=='Magic').map(name=>[name,name+' — familiar Action']));
+    const options=Object.fromEntries(Object.keys(WB20_COMBAT_ACTIONS).filter(name=>name!=='Attack' && name!=='Magic').map(name=>[name,name+' (familiar Action)']));
     options.cancel='Cancel';
-    const choice=await dndbeyondDiceRoller.queryGeneric(c.name+' — familiar actions','Uses the familiar’s own turn and Action, not your Action.',options,
+    const choice=await dndbeyondDiceRoller.queryGeneric(c.name+': familiar actions','Uses the familiar’s own turn and Action, not your Action.',options,
         'waybeyond20-familiar-actions',Object.keys(options),'cancel');
     if(owner!==character || !Object.hasOwn(options,choice) || choice==='cancel')return false;
     if(choice==='Hide')return wb20FamiliarRoll('skill','Stealth',{resource:'action'});
     if(choice==='Search')return wb20FamiliarRoll('skill','Perception',{resource:'action'});
     return wb20FamiliarRoll('trait',choice,{resource:'action'});
 }
+// Only a present familiar with HP above 0 acts on its own and gets a pet
+// toggle. Pocketed, gone or 0 HP records keep their rows in the player list.
+function wb20FamiliarIsPet(c) {
+    return !!c && c.status === 'present' && Number(c.hp) > 0;
+}
 function wb20FamiliarRows(root) {
     const owner=character,c=wb20Companions(owner)[0],kept=new Set(),rows=[];
-    const definitions=c?[{key:'card',name:c.name+' — Companion',group:'other',run:()=>wb20FamiliarCard(),cost:'Card'},
-        {key:'actions',name:c.name+' — Familiar actions',group:'action',run:()=>wb20FamiliarActionMenu(),cost:'Familiar Action'},
-        ...(c.rules?.senses?[{key:'senses',name:c.name+' — Share senses',group:'bonusAction',run:()=>wb20ManageFamiliar('senses'),cost:'Your Bonus Action'}]:[]),
-        ...(c.status==='pocket'?[{key:'return',name:c.name+' — Return',group:'action',run:()=>wb20ManageFamiliar('return'),cost:'Your Magic action'}]:
-            c.rules?.dismiss?[{key:'dismiss',name:c.name+' — Dismiss',group:'action',run:()=>wb20ManageFamiliar('dismiss'),cost:'Your Magic action'}]:[]),
-        ...(c.rules?.delivery?[{key:'delivery',name:c.name+' — Deliver touch spell',group:'reaction',run:()=>wb20ManageFamiliar('delivery'),cost:'Familiar Reaction'}]:[])]:
-        [{key:'card',name:'Companions — saved familiars',group:'other',run:()=>wb20ManageSavedFamiliars(),cost:'Cards'}];
+    const definitions=c?[{key:'card',name:c.name+': Companion',group:'other',run:()=>wb20FamiliarCard(),cost:'Card'},
+        {key:'actions',name:c.name+': Familiar actions',group:'action',run:()=>wb20FamiliarActionMenu(),cost:'Familiar Action'},
+        ...(c.rules?.senses?[{key:'senses',name:c.name+': Share senses',group:'bonusAction',run:()=>wb20ManageFamiliar('senses'),cost:'Your Bonus Action'}]:[]),
+        ...(c.status==='pocket'?[{key:'return',name:c.name+': Return',group:'action',run:()=>wb20ManageFamiliar('return'),cost:'Your Magic action'}]:
+            c.rules?.dismiss?[{key:'dismiss',name:c.name+': Dismiss',group:'action',run:()=>wb20ManageFamiliar('dismiss'),cost:'Your Magic action'}]:[]),
+        ...(c.rules?.delivery?[{key:'delivery',name:c.name+': Deliver touch spell',group:'reaction',run:()=>wb20ManageFamiliar('delivery'),cost:'Familiar Reaction'}]:[])]:
+        [{key:'card',name:'Companions: saved familiars',group:'other',run:()=>wb20ManageSavedFamiliars(),cost:'Cards'}];
     for(const d of definitions) {
         let row=Array.from(root.querySelectorAll(':scope > .wb20-familiar-row')).find(el=>el._wb20Key===d.key);
         if(!row) {
@@ -111,10 +116,11 @@ function wb20FamiliarRows(root) {
         row._wb20Owner=owner;row._wb20Run=d.run;
         const set=(selector,value)=>{const cell=row.querySelector(selector),el=cell.querySelector('.wb20-action-value > :first-child') || cell;if(el.textContent!==value)el.textContent=value;};
         set('.wb20-feature-option-name',d.name);set('.wb20-talent-category',d.cost);
-        wb20SetActionRange(row.querySelector('.ddbc-combat-attack__range'),'—');
-        set('.ddbc-combat-attack__action','—');set('.ddbc-combat-attack__damage','—');
+        wb20SetActionRange(row.querySelector('.ddbc-combat-attack__range'),'--');
+        set('.ddbc-combat-attack__action','--');set('.ddbc-combat-attack__damage','--');
         wb20SetActionNote(row.querySelector('.ddbc-combat-attack__notes'),c?'HP '+(c.hp ?? '?')+'/'+(c.maxHP ?? '?')+' · '+c.status:'Choose a saved familiar',()=>wb20FamiliarCard(),'Companion card');
-        kept.add(row);rows.push({row,name:d.name,key:'familiar:'+d.key,cost:'special',group:d.group,defaultVisible:true});
+        kept.add(row);rows.push({row,name:d.name,key:'familiar:'+d.key,cost:'special',group:d.group,defaultVisible:true,
+            ...(wb20FamiliarIsPet(c)?{pet:{id:'familiar:'+String(c.castId || c.id || 'familiar'),name:c.familiarName || c.name}}:{})});
     }
     for(const row of root.querySelectorAll(':scope > .wb20-familiar-row'))if(!kept.has(row))row.remove();
     return rows;
