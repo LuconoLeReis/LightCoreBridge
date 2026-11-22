@@ -1,7 +1,7 @@
 LIGHTCORE BRIDGE 1.73.116
 Browser build: 2.20.248
 
-Find Familiar now provides a form picker, named saved familiar profiles, companion cards and Actions links. Appearance is separate from mechanics. Each completed cast rolls HP once, and only one familiar is active. See RELEASE-NOTES.md for review status, resource behavior and limits.
+Find Familiar now provides a form picker, named saved familiar profiles, companion cards and Actions links. Appearance is separate from mechanics. Each completed cast rolls HP once, and only one familiar is active. See RELEASE-NOTES.md for validation, resource behavior and limits.
 
 Initiative receives the requested Jack-of-All-Trades half proficiency through a final check that preserves existing proficiency and prevents repeated processing from adding twice. Native independent bonuses and tiebreakers are retained. Other ability checks are unchanged. See RELEASE-NOTES.md for verification and limits. Experimental session-sync code is not included.
 

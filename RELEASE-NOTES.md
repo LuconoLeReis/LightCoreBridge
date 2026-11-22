@@ -1,6 +1,6 @@
 # LightCore Bridge 1.73.116
 
-Browser build **2.20.248**. Candidate: familiar picker, saved profiles and companion cards. Independent review and installed acceptance are pending.
+Browser build **2.20.248**. Familiar picker, saved profiles and companion cards. Independently reviewed; representative casting, cancellation, saved-profile and touch-delivery checks passed on a disposable character.
 
 Familiar touch-delivery identity is preserved through both character attack workflows, so the confirmation and familiar Reaction cost also apply to copied spell requests.
 
