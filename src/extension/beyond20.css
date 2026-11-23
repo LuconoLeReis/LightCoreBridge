@@ -105,7 +105,8 @@
 .wb20-pet-toggle { font: inherit; border: 1px solid currentColor; border-radius: 4px; background: inherit; color: inherit; padding: 4px 8px; cursor: pointer; }
 .wb20-pet-toggle[aria-pressed="true"] { background: color-mix(in srgb, currentColor 18%, transparent); font-weight: bold; box-shadow: inset 0 0 0 1px currentColor; }
 .wb20-pet-toggle:focus-visible { outline: 2px solid #246bd1; outline-offset: 2px; }
-[data-wb20-pet-hidden] { display: none !important; }
+[data-wb20-pet-hidden],
+[data-wb20-pet-hidden][data-wb20-list-layout="row"] { display: none !important; }
 [data-wb20-pet-only] [data-wb20-list-layout="detail"] { display: none !important; }
 .wb20-action-list-controls > details { margin-left: 0; }
 /* One presentation for native attacks and added talents. Scoped attributes

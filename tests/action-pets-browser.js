@@ -1,7 +1,7 @@
 // Offline rendered-DOM regression for the Actions pet toggles. Live DDB acceptance still requires a reload.
 const {chromium} = require(process.env.WB20_PLAYWRIGHT || 'playwright');
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
-const root = path.resolve(__dirname, '..');
+const root = process.env.WB20_SOURCE_ROOT || path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'src/dndbeyond/content-scripts/character.js'), 'utf8');
 function fn(name) {
     const start = source.search(new RegExp(`^(?:async )?function ${name}\\(`, 'm'));
@@ -23,6 +23,9 @@ const snippet = '<div class="ct-feature-snippet ddbc-feature-snippet"><div class
         const page = await browser.newPage({viewport: {width: 1000, height: 800}}), errors = [];
         page.on('pageerror', e => errors.push(String(e)));
         await page.setContent(`<body style="background:#242424;color:rgb(238, 238, 238)"><div id="actions" style="width:700px">${group('ACTIONS • Attacks per Action: 1', [row('Sword','5 ft.','1d8+3'), row('Longbow','150 (600) ft.','1d8+3')])}${group('BONUS ACTIONS', [row('Bardic Inspiration','60 ft.','1d6')])}${group('REACTIONS', [row('Riposte','5 ft.','1d10+2')], snippet)}<div class="wb20-test-manage">Manage Custom Actions</div></div></body>`);
+        // The real Bardic Inspiration producer adds a class whose later CSS
+        // forces display:flex!important. Pet-only must still hide this row.
+        await page.locator('.ddbc-combat-attack').filter({hasText:'Bardic Inspiration'}).evaluate(e=>e.classList.add('waybeyond20-bardic-feature-row'));
         await page.addStyleTag({path: path.join(root, 'src/extension/beyond20.css')});
         await page.addScriptTag({path: path.join(root, 'libs/jquery-3.4.1.min.js')});
         await page.addScriptTag({content: `
