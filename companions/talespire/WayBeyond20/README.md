@@ -34,10 +34,10 @@ separate local-bridge.cjs / Start-WB20-Return.ps1 helper. Start it with your
 Chrome extension ID; the helper binds only 127.0.0.1:48874 and generates a local
 pairing key. Reopen this companion afterward. On DDB select TaleSpire, click
 Link mini and explicitly choose your own mini. Select Follow this board's turn
-order here only when you want LightCore to follow it. Companion1.1.3 remembers
+order here only when you want LightCore to follow it. Companion1.1.4 remembers
 your explicit follow/pause choice separately for each campaign and board. An
-unfamiliar board starts paused. If local storage is unavailable, the choice
-lasts only until the panel closes. The DDB status shows when following is paused. Picking and linking never
+unfamiliar board starts paused. The choice uses the official Symbiote native storage API. If saving fails, the
+panel says preference not saved; following still works for the current session. The DDB status shows when following is paused. Picking and linking never
 move minis or change initiative/HP. Distance is center-to-center straight-line
 3D geometry, not pathfinding. Different sub-boards are not compared.
 

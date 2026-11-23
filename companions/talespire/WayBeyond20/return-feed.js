@@ -4,18 +4,37 @@ var wb20ReturnTracking=false, wb20ReturnContext='';
 // Remember the player's explicit follow choice for this campaign and board.
 // A new board still starts paused; reopening the panel must not silently pause
 // a board the player already chose to follow. No native game state is written.
-function wb20ReturnFollowPreferences() {
-    try {
-        const entries=JSON.parse(localStorage.getItem('lightcore-talespire-follow') || '[]');
-        return new Map(Array.isArray(entries)?entries.filter(e=>Array.isArray(e) && e.length === 2 &&
-            typeof e[0] === 'string' && e[0].length <= 300 && typeof e[1] === 'boolean').slice(-50):[]);
-    } catch (_) {return new Map();}
+var wb20ReturnFollowChoices=new Map(), wb20ReturnFollowLoaded=null, wb20ReturnFollowBlob=null;
+var wb20ReturnFollowWrite=Promise.resolve(), wb20ReturnFollowSaved=true;
+function wb20ReturnLoadFollow() {
+    if (!wb20ReturnFollowLoaded) wb20ReturnFollowLoaded=(async()=>{
+        try {
+            const raw=await wb20TaleSpireCall(TS.localStorage.global.getBlob());
+            const blob=JSON.parse(raw || '{}');
+            if (!blob || typeof blob !== 'object' || Array.isArray(blob)) throw Error('Invalid saved preferences');
+            wb20ReturnFollowBlob=blob;
+            const entries=blob.lightcoreFollow;
+            wb20ReturnFollowChoices=new Map(Array.isArray(entries)?entries.filter(e=>Array.isArray(e) && e.length === 2 &&
+                typeof e[0] === 'string' && e[0].length <= 300 && typeof e[1] === 'boolean').slice(-50):[]);
+        } catch (_) {wb20ReturnFollowSaved=false;}
+    })();
+    return wb20ReturnFollowLoaded;
 }
 function wb20ReturnSaveFollow() {
     if (!wb20ReturnContext) return;
-    const choices=wb20ReturnFollowPreferences();
+    const choices=wb20ReturnFollowChoices;
     choices.delete(wb20ReturnContext); choices.set(wb20ReturnContext,wb20ReturnTracking);
-    try {localStorage.setItem('lightcore-talespire-follow',JSON.stringify([...choices].slice(-50)));} catch (_) {}
+    wb20ReturnFollowChoices=new Map([...choices].slice(-50));
+    if (!wb20ReturnFollowBlob) {wb20ReturnFollowSaved=false;return;}
+    // Preserve other native Symbiote fields and serialize writes so a slow
+    // earlier choice cannot overwrite a later toggle from this panel.
+    const blob={...wb20ReturnFollowBlob,lightcoreFollow:[...wb20ReturnFollowChoices]};
+    wb20ReturnFollowBlob=blob;
+    wb20ReturnFollowWrite=wb20ReturnFollowWrite.catch(()=>{}).then(async()=>{
+        try {await wb20TaleSpireCall(TS.localStorage.global.setBlob(JSON.stringify(blob)));wb20ReturnFollowSaved=true;}
+        catch (_) {wb20ReturnFollowSaved=false;}
+    });
+    return wb20ReturnFollowWrite;
 }
 var wb20ReturnSession=crypto.randomUUID();
 var wb20ReturnLastStatus='';
@@ -55,7 +74,8 @@ async function wb20ReturnPoll() {
         if (!board?.id || !campaign?.id) throw Error('Load a board to connect');
         const context=campaign.id+'|'+board.id;
         if (wb20ReturnContext !== context) {
-            wb20ReturnContext=context; wb20ReturnTracking=wb20ReturnFollowPreferences().get(context) === true;
+            await wb20ReturnLoadFollow();
+            wb20ReturnContext=context; wb20ReturnTracking=wb20ReturnFollowChoices.get(context) === true;
             wb20ReturnTarget=''; wb20ReturnTargetRevision++;
             document.getElementById('follow-turns').checked=wb20ReturnTracking;
         }
@@ -78,7 +98,7 @@ async function wb20ReturnPoll() {
             connection:document.getElementById('connection').value,
             targetId:wb20ReturnTarget,targetRevision:wb20ReturnTargetRevision,targetSession:wb20ReturnSession});
         for (const command of await wb20ReturnFetch('/commands')) if (command.type === 'pick-target') await wb20ReturnPick();
-        wb20ReturnNotice(`Connected · ${creatures.length} minis · ${wb20ReturnTracking?'following turns':'turn following paused'}`);
+        wb20ReturnNotice(`Connected · ${creatures.length} minis · ${wb20ReturnTracking?'following turns':'turn following paused'}${wb20ReturnFollowSaved?'':' · preference not saved'}`);
     } catch (error) {wb20ReturnNotice(String(error.message || error));}
     finally {wb20ReturnBusy=false;}
 }

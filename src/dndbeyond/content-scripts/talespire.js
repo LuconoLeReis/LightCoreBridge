@@ -37,7 +37,7 @@ function wb20TSRememberSheetTarget(key) {
 function wb20TSSelected() {return typeof settings !== 'undefined' && settings?.['vtt-tab']?.vtt === 'talespire';}
 function wb20TSStateKey() {return 'waybeyond20-talespire-turn-states';}
 function wb20TSGetState() {
-    if (!wb20TSContext && wb20TSPendingState?.owner === character) return wb20TSPendingState.state;
+    if (!wb20TSContext) return wb20TSPendingState?.owner === character ? wb20TSPendingState.state : {};
     const states=character.getSetting(wb20TSStateKey(),{});
     return states?.[wb20TSContext] || {};
 }

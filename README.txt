@@ -1,5 +1,5 @@
-LIGHTCORE BRIDGE 1.73.121
-Browser build: 2.20.253
+LIGHTCORE BRIDGE 1.73.122
+Browser build: 2.20.254
 
 TaleSpire status changes to not connected only after a confirmed loss; one missed check no longer flickers the status or buttons.
 
@@ -14,11 +14,11 @@ This release repairs slot-funded spell casts made with the LightCore roll icon, 
 Connect your D&D Beyond character to local tabletop play, Roll20, Foundry VTT, TaleSpire or optional Discord roll output. A VTT is not required. Existing installation, storage and protocol names are retained for compatibility.
 
 RELEASE NOTES AND DOWNLOADS
-https://github.com/LuconoLeReis/WayBeyond20/releases/tag/v1.73.121
+https://github.com/LuconoLeReis/WayBeyond20/releases/tag/v1.73.122
 The corresponding source includes RELEASE-NOTES.md, tests and reproducible build inputs.
 
 NEW CHROME INSTALLATION
-1. Download LightCore-Bridge-chrome-v1_73_121.zip, not the source archive.
+1. Download LightCore-Bridge-chrome-v1_73_122.zip, not the source archive.
 2. Extract it. Select the inner WayBeyond20 folder containing manifest.json; Windows Extract All can add another outer folder.
 3. Open chrome://extensions and enable Developer mode.
 4. Choose Load unpacked and select that WayBeyond20 folder.

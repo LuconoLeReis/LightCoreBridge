@@ -19,7 +19,7 @@ const root=path.resolve(__dirname,'..');
         await page.setContent(fs.readFileSync(path.join(root,'companions/talespire/WayBeyond20/index.html'),'utf8'));
         await page.evaluate(()=>{
             window.wb20LocalReturnKey='a'.repeat(64);
-            window.TS={boards:{whereAmI:async()=>({id:'board'})},campaigns:{whereAmI:async()=>({id:'campaign'})},
+            window.TS={localStorage:{global:{getBlob:async()=> '{}',setBlob:async()=>{}}},boards:{whereAmI:async()=>({id:'board'})},campaigns:{whereAmI:async()=>({id:'campaign'})},
                 initiative:{getQueue:async()=>({items:[{id:'hero',name:'Hero',kind:'creature'},{id:'secret',name:'Hidden',kind:'creature'}],activeItemIndex:0})},
                 players:{whoAmI:async()=>({id:'player'})},creatures:{getSelectedCreatures:async()=>[],getCreaturesOwnedByPlayer:async()=>[{id:'hero'}],
                     getMoreInfo:async()=>[{id:'hero',name:'Hero',boardId:'board',position:{x:0,y:0,z:0,locId:0}},{id:'secret',name:'Hidden',boardId:'board',isExplicitlyHidden:true,position:{x:1,y:1,z:0,locId:0}}]},
