@@ -37,7 +37,7 @@ const root = path.resolve(__dirname, '..');
             var good = () => ({connected: true, snapshot});
             // Spy at the call site; the real apply path is covered by the existing
             // TaleSpire suites.
-            wb20TSApplySnapshot = (s, continuous) => {applied.push({continuous, s});};
+            wb20TSApplySnapshot = (s, continuous) => {wb20TSFeed=s;applied.push({continuous, s});};
             async function step(reply, advance = 1500) {now += advance; replies.push(reply); await wb20TSRefresh();}
             function view() {
                 const bar = document.querySelector('.wb20-ts-status');
@@ -57,7 +57,7 @@ const root = path.resolve(__dirname, '..');
 
         await page.evaluate(() => step(good()));
         v = await view();
-        assert.equal(v.label, 'TaleSpire: connected · link your mini');
+        assert.equal(v.label, 'TaleSpire: connected · link your mini · following turns');
         assert.deepEqual(v.disabled, [false, false]);
         assert.equal(await page.evaluate(() => applied.at(-1).continuous), false, 'first good observation is not continuous');
         await page.evaluate(() => step(good()));
@@ -74,7 +74,7 @@ const root = path.resolve(__dirname, '..');
             const before = await page.evaluate(() => applied.length);
             await page.evaluate(k => step(k), kind);
             v = await view();
-            assert.equal(v.label, 'TaleSpire: connected · link your mini', 'one miss holds status: ' + JSON.stringify(kind));
+            assert.equal(v.label, 'TaleSpire: connected · link your mini · following turns', 'one miss holds status: ' + JSON.stringify(kind));
             assert.deepEqual(v.disabled, [false, false], 'one miss keeps buttons enabled');
             assert.equal(await page.evaluate(() => applied.length), before, 'a miss applies no snapshot (no stale data)');
             await page.evaluate(() => step(good()));
@@ -88,7 +88,7 @@ const root = path.resolve(__dirname, '..');
         // Two quick misses inside the confirmation window still hold.
         await page.evaluate(() => step('error', 500));
         await page.evaluate(() => step('error', 500));
-        assert.equal((await view()).label, 'TaleSpire: connected · link your mini', 'two checks within 1s are not confirmed loss');
+        assert.equal((await view()).label, 'TaleSpire: connected · link your mini · following turns', 'two checks within 1s are not confirmed loss');
         // Sustained failure confirms the loss and disables buttons.
         await page.evaluate(() => step('error', 1500));
         await page.evaluate(() => step('error', 1500));
@@ -97,14 +97,14 @@ const root = path.resolve(__dirname, '..');
         assert.deepEqual(v.disabled, [true, true], 'confirmed loss disables buttons');
         await page.evaluate(() => step(good()));
         v = await view();
-        assert.equal(v.label, 'TaleSpire: connected · link your mini', 'recovers on a valid response');
+        assert.equal(v.label, 'TaleSpire: connected · link your mini · following turns', 'recovers on a valid response');
         assert.equal(await page.evaluate(() => applied.at(-1).continuous), false, 'recovery after loss is not continuous');
 
         // Default poll timing: three failed 1.5s polls confirm loss (~3s).
         await page.evaluate(() => step(good()));
         await page.evaluate(() => step('error'));
         await page.evaluate(() => step('error'));
-        assert.equal((await view()).label, 'TaleSpire: connected · link your mini', 'two 1.5s misses span 1.5s: held');
+        assert.equal((await view()).label, 'TaleSpire: connected · link your mini · following turns', 'two 1.5s misses span 1.5s: held');
         await page.evaluate(() => step('error'));
         assert.equal((await view()).label, 'TaleSpire: not connected', 'third miss at 3s confirms loss');
 
@@ -113,7 +113,7 @@ const root = path.resolve(__dirname, '..');
         await page.evaluate(() => step(good()));
         await page.evaluate(() => {pickReply = {ok: false}; document.querySelectorAll('.wb20-ts-status button')[1].click();});
         v = await view();
-        assert.equal(v.label, 'TaleSpire: connected · link your mini', 'one failed pick does not toggle offline');
+        assert.equal(v.label, 'TaleSpire: connected · link your mini · following turns', 'one failed pick does not toggle offline');
         assert.equal(await page.evaluate(() => picks.length), 1);
         await page.evaluate(() => step(good()));
         assert.equal(await page.evaluate(() => applied.at(-1).continuous), false, 'failed pick breaks continuity');

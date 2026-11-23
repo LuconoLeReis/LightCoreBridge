@@ -1,6 +1,22 @@
 // Read-only game observations. The only native operation is the user's picking tool.
 var wb20ReturnTimer, wb20ReturnBusy=false, wb20ReturnPicking='', wb20ReturnTarget='', wb20ReturnTargetRevision=0;
 var wb20ReturnTracking=false, wb20ReturnContext='';
+// Remember the player's explicit follow choice for this campaign and board.
+// A new board still starts paused; reopening the panel must not silently pause
+// a board the player already chose to follow. No native game state is written.
+function wb20ReturnFollowPreferences() {
+    try {
+        const entries=JSON.parse(localStorage.getItem('lightcore-talespire-follow') || '[]');
+        return new Map(Array.isArray(entries)?entries.filter(e=>Array.isArray(e) && e.length === 2 &&
+            typeof e[0] === 'string' && e[0].length <= 300 && typeof e[1] === 'boolean').slice(-50):[]);
+    } catch (_) {return new Map();}
+}
+function wb20ReturnSaveFollow() {
+    if (!wb20ReturnContext) return;
+    const choices=wb20ReturnFollowPreferences();
+    choices.delete(wb20ReturnContext); choices.set(wb20ReturnContext,wb20ReturnTracking);
+    try {localStorage.setItem('lightcore-talespire-follow',JSON.stringify([...choices].slice(-50)));} catch (_) {}
+}
 var wb20ReturnSession=crypto.randomUUID();
 var wb20ReturnLastStatus='';
 function wb20ReturnNotice(text) {
@@ -39,8 +55,9 @@ async function wb20ReturnPoll() {
         if (!board?.id || !campaign?.id) throw Error('Load a board to connect');
         const context=campaign.id+'|'+board.id;
         if (wb20ReturnContext !== context) {
-            wb20ReturnContext=context; wb20ReturnTracking=false; wb20ReturnTarget=''; wb20ReturnTargetRevision++;
-            document.getElementById('follow-turns').checked=false;
+            wb20ReturnContext=context; wb20ReturnTracking=wb20ReturnFollowPreferences().get(context) === true;
+            wb20ReturnTarget=''; wb20ReturnTargetRevision++;
+            document.getElementById('follow-turns').checked=wb20ReturnTracking;
         }
         const queue=await wb20TaleSpireCall(TS.initiative.getQueue());
         const selected=await wb20TaleSpireCall(TS.creatures.getSelectedCreatures());
@@ -69,7 +86,7 @@ function wb20ReturnState(event) {
     if (event.kind !== 'hasInitialized') return;
     clearInterval(wb20ReturnTimer);
     const follow=document.getElementById('follow-turns');
-    follow.onchange=()=>{wb20ReturnTracking=follow.checked; wb20ReturnPoll();};
+    follow.onchange=()=>{wb20ReturnTracking=follow.checked; wb20ReturnSaveFollow(); wb20ReturnPoll();};
     document.getElementById('pick-target').onclick=()=>wb20ReturnPick().catch(error=>{document.getElementById('return-status').textContent=String(error.message || error);});
     wb20ReturnTimer=setInterval(wb20ReturnPoll,1500);
     wb20ReturnPoll();

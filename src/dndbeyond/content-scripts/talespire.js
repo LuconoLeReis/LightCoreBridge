@@ -1,5 +1,9 @@
 // TaleSpire owns board observations. WB20 owns rules, counters and target notes.
 var wb20TSFeed=null, wb20TSContext='', wb20TSBusy=false, wb20TSConnected=false;
+// A locally started encounter can precede the first board response. Carry only
+// a state written by this page/owner into that first identified board; never
+// revive an old unscoped record or carry combat between different boards.
+var wb20TSPendingState=null;
 // Displayed status changes to "not connected" only after a confirmed loss:
 // at least two failed checks spanning a few seconds. One missed poll keeps the
 // status and buttons steady. Turn continuity is separate and breaks on any
@@ -33,10 +37,12 @@ function wb20TSRememberSheetTarget(key) {
 function wb20TSSelected() {return typeof settings !== 'undefined' && settings?.['vtt-tab']?.vtt === 'talespire';}
 function wb20TSStateKey() {return 'waybeyond20-talespire-turn-states';}
 function wb20TSGetState() {
+    if (!wb20TSContext && wb20TSPendingState?.owner === character) return wb20TSPendingState.state;
     const states=character.getSetting(wb20TSStateKey(),{});
     return states?.[wb20TSContext] || {};
 }
 function wb20TSSetState(state,callback) {
+    if (!wb20TSContext) wb20TSPendingState={owner:character,state};
     const states=character.getSetting(wb20TSStateKey(),{});
     return character.mergeCharacterSettings({[wb20TSStateKey()]:{...states,[wb20TSContext]:state}},callback);
 }
@@ -45,9 +51,11 @@ function wb20TSApplySnapshot(snapshot, continuous = false) {
     if (!snapshot || snapshot.v !== 1 || !Array.isArray(snapshot.creatures) || !Array.isArray(snapshot.order) ||
         snapshot.creatures.length > 200 || snapshot.order.length > 200 || !snapshot.boardId || !snapshot.campaignId) return;
     const oldContext=wb20TSContext;
+    const pending=!oldContext && wb20TSPendingState?.owner === character ? wb20TSPendingState.state : null;
+    wb20TSPendingState=null;
     wb20TSContext=snapshot.campaignId+'|'+snapshot.boardId;
     wb20TSFeed=snapshot;
-    const previous=wb20TSGetState();
+    const previous=pending || wb20TSGetState();
     let state=wayBeyond20NormalizeTurnTrackerState(previous,wayBeyond20GetTrackedSpellEffects());
     const ordered=snapshot.order.map(entry=>snapshot.creatures.find(c=>c.id === entry.id)).filter(Boolean);
     const rest=snapshot.creatures.filter(c=>!ordered.some(o=>o.id === c.id));
@@ -91,7 +99,7 @@ function wb20TSApplySnapshot(snapshot, continuous = false) {
         state.tsTargetId=snapshot.targetId;
         state.tsTargetSession=snapshot.targetSession;
     }
-    if (!wayBeyond20TurnTrackerStateEquals(previous,state)) wb20TSSetState(state,wayBeyond20ScheduleActiveEffectBadgeRefresh);
+    if (pending || !wayBeyond20TurnTrackerStateEquals(previous,state)) wb20TSSetState(state,wayBeyond20ScheduleActiveEffectBadgeRefresh);
 }
 function wb20TSLinkMini() {
     const owner=character, feed=wb20TSFeed;
@@ -127,8 +135,13 @@ function wb20TSRenderStatus() {
     }
     const binding=character.getSetting('waybeyond20-talespire-mini',null);
     const mini=wb20TSFeed?.creatures.find(c=>c.id === binding?.id && binding?.campaignId === wb20TSFeed.campaignId);
-    const label='TaleSpire: '+(wb20TSConnected?(mini?'linked to '+mini.name:'connected · link your mini'):'not connected');
+    const following=wb20TSFeed?.tracking === true;
+    const label='TaleSpire: '+(wb20TSConnected?(mini?'linked to '+mini.name:'connected · link your mini')+
+        (following?' · following turns':' · turn following paused'):'not connected');
     if (bar.find('span').text() !== label) bar.find('span').text(label);
+    const title=wb20TSConnected && !following?
+        'In the LightCore panel inside TaleSpire, enable Follow this board’s turn order to use its initiative in the combat tracker.':'';
+    if (bar.find('span').attr('title') !== title) bar.find('span').attr('title',title);
     bar.find('button').prop('disabled',!wb20TSConnected);
     if (host.length) {if (bar.parent()[0] !== host[0]) host.append(bar);}
     else if (fallback.length && bar.parent()[0] !== fallback[0]) fallback.append(bar);
