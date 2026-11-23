@@ -1,5 +1,6 @@
 // TaleSpire owns board observations. WB20 owns rules, counters and target notes.
 var wb20TSFeed=null, wb20TSContext='', wb20TSBusy=false, wb20TSConnected=false;
+var wb20TSControllerToken={};
 // A locally started encounter can precede the first board response. Carry only
 // a state written by this page/owner into that first identified board; never
 // revive an old unscoped record or carry combat between different boards.
@@ -10,6 +11,15 @@ var wb20TSPendingState=null;
 // miss, so the first observation after a gap can never reset or spend.
 var wb20TSLive=false, wb20TSMisses=0, wb20TSFirstMissAt=0, wb20TSStatusOwner=null;
 var WB20_TS_LOSS_CHECKS=2, WB20_TS_LOSS_MS=3000;
+function wb20TSControllerAvailable() {
+    if (typeof wayBeyond20ExtensionContextAvailable !== 'function' || wayBeyond20ExtensionContextAvailable()) return true;
+    // After an extension reload, this old content script can still have a
+    // timer and share the page DOM with the replacement controller. Retire
+    // quietly; it must not paint an offline status over the current feed.
+    if (typeof wb20TSPollTimer !== 'undefined') {clearInterval(wb20TSPollTimer);wb20TSPollTimer=null;}
+    wb20TSLive=false;
+    return false;
+}
 function wb20TSNoteGood() {
     wb20TSMisses=0; wb20TSFirstMissAt=0; wb20TSConnected=true; wb20TSLive=true;
 }
@@ -48,6 +58,7 @@ function wb20TSSetState(state,callback) {
 }
 function wb20TSKey(id) {return 'ts:'+wb20TSContext+':'+id;}
 function wb20TSApplySnapshot(snapshot, continuous = false) {
+    if (!wb20TSControllerAvailable()) return;
     if (!snapshot || snapshot.v !== 1 || !Array.isArray(snapshot.creatures) || !Array.isArray(snapshot.order) ||
         snapshot.creatures.length > 200 || snapshot.order.length > 200 || !snapshot.boardId || !snapshot.campaignId) return;
     const oldContext=wb20TSContext;
@@ -102,6 +113,7 @@ function wb20TSApplySnapshot(snapshot, continuous = false) {
     if (pending || !wayBeyond20TurnTrackerStateEquals(previous,state)) wb20TSSetState(state,wayBeyond20ScheduleActiveEffectBadgeRefresh);
 }
 function wb20TSLinkMini() {
+    if (!wb20TSControllerAvailable()) return;
     const owner=character, feed=wb20TSFeed;
     if (!feed || !wb20TSConnected) {wb20TSRenderStatus(); return;}
     const form=$('<form>').append($('<p>').text('Choose your mini. This saves only the LightCore link; it does not move or change the mini.'));
@@ -119,12 +131,15 @@ function wb20TSLinkMini() {
     });
 }
 function wb20TSRenderStatus() {
+    if (!wb20TSControllerAvailable()) return;
     if (!wb20TSSelected() || !wayBeyond20IsMainCharacterSheet()) { $('.wb20-ts-status').remove(); return; }
     const host=$('.waybeyond20-combat-section').first();
     const fallback=$('.ct-character-header-desktop:visible,.ct-character-header-tablet:visible,.ct-character-header-mobile:visible,.ddbc-character-header-desktop:visible,.ct-character-header:visible,.ddbc-character-header:visible').first();
     let bar=$('.wb20-ts-status').first();
-    if (!bar.length) {
+    if (!bar.length || bar.data('wb20TSController') !== wb20TSControllerToken) {
+        const previous=bar;
         bar=$('<div>').addClass('wb20-ts-status').css({display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap',fontSize:'12px',padding:'4px 0'});
+        bar.data('wb20TSController',wb20TSControllerToken);
         bar.append($('<span>').addClass('wb20-ts-label'),$('<button type="button">').text('Link mini').on('click',wb20TSLinkMini),
             $('<button type="button">').text('Pick target in TaleSpire').on('click',()=>{
                 if (!wb20TSConnected) return;
@@ -132,6 +147,7 @@ function wb20TSRenderStatus() {
                     if (chrome.runtime.lastError || !response?.ok) {wb20TSNoteMiss();wb20TSRenderStatus();}
                 });} catch (_) {wb20TSNoteMiss();wb20TSRenderStatus();}
             }));
+        if (previous.length) previous.replaceWith(bar);
     }
     const binding=character.getSetting('waybeyond20-talespire-mini',null);
     const mini=wb20TSFeed?.creatures.find(c=>c.id === binding?.id && binding?.campaignId === wb20TSFeed.campaignId);
@@ -147,6 +163,7 @@ function wb20TSRenderStatus() {
     else if (fallback.length && bar.parent()[0] !== fallback[0]) fallback.append(bar);
 }
 async function wb20TSRefresh() {
+    if (!wb20TSControllerAvailable()) return;
     if (wb20TSBusy) return;
     if (typeof character === 'undefined' || !character || !wb20TSSelected()) {if (wb20TSStatusOwner) wb20TSResetConnection(); return;}
     if (wb20TSStatusOwner !== character) wb20TSResetConnection(character);
@@ -155,7 +172,7 @@ async function wb20TSRefresh() {
         const owner=character;
         const result=await wayBeyond20SendRuntimeMessage({action:'wb20-talespire-state'});
         const reply=result.ok ? result.response : null;
-        if (character !== owner || !wb20TSSelected() || wb20TSStatusOwner !== owner) return;
+        if (!wb20TSControllerAvailable() || character !== owner || !wb20TSSelected() || wb20TSStatusOwner !== owner) return;
         if (reply?.connected) {
             // Continuous only when the previous check was also good.
             const continuous=wb20TSLive;
@@ -163,7 +180,8 @@ async function wb20TSRefresh() {
             wb20TSApplySnapshot(reply.snapshot,continuous);
         } else wb20TSNoteMiss();
         wb20TSRenderStatus();
-    } catch (_) {wb20TSNoteMiss();wb20TSRenderStatus();}
+    } catch (_) {if (wb20TSControllerAvailable()) {wb20TSNoteMiss();wb20TSRenderStatus();}}
     finally {wb20TSBusy=false;}
 }
-setInterval(()=>wb20TSRefresh().catch(()=>{wb20TSBusy=false;}),1500);
+if (typeof wb20TSPollTimer !== 'undefined') clearInterval(wb20TSPollTimer);
+var wb20TSPollTimer=setInterval(()=>wb20TSRefresh().catch(()=>{wb20TSBusy=false;}),1500);

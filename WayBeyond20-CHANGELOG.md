@@ -1,8 +1,10 @@
-# LightCore Bridge 1.73.122
+# LightCore Bridge 1.73.123
+
+Extension reload lifecycle: a retired page controller stops its TaleSpire poll and leaves the replacement controller's status and buttons alone. Invalidated badge-icon lookups return safely without clearing the current icons. Refresh DDB after an extension reload.
 
 TaleSpire combat repair: an Initiative encounter opened before the first board response now moves into the identified board state without closing the window or refreshing spent resources. The DDB status explicitly says whether turn following is paused. Companion1.1.4 remembers the player's explicit follow or pause choice separately for each campaign and board; an unfamiliar board stays paused. Reopening the panel no longer silently clears an enabled choice. This requires updating the TaleSpire companion as well as the Chrome extension. A mini list alone does not enable following.
 
-Browser build **2.20.254**. Candidate: extension text without em dashes, steady TaleSpire connection status and Actions menu pet toggles on top of the familiar picker, saved profiles and companion cards. Independent review and installed acceptance are pending.
+Browser build **2.20.255**. Candidate: extension text without em dashes, steady TaleSpire connection status and Actions menu pet toggles on top of the familiar picker, saved profiles and companion cards. Independent review and installed acceptance are pending.
 
 Extension text no longer uses em dashes. Labels, menus, tooltips, dialog titles and messages use colons, commas or parentheses instead (for example "Find Familiar: choose a form"), and empty table cells show "--". Text read from D&D Beyond, and names you enter, are shown as written. Saved settings and tracked effects keep their identity; an item Flames effect saved by an earlier build is still recognized.
 

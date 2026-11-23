@@ -1,7 +1,7 @@
 {
   "name": "LightCore Bridge",
   "short_name": "LightCore",
-  "version": "2.20.254",
+  "version": "2.20.255",
   "manifest_version": 3,
   "description": "Connect your D&D Beyond character to your table: local play, Roll20, Foundry VTT, TaleSpire and Discord.",
   "permissions": [
@@ -177,5 +177,5 @@
       ]
     }
   ],
-  "version_name": "LightCore Bridge 1.73.122"
+  "version_name": "LightCore Bridge 1.73.123"
 }
