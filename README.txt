@@ -1,49 +1,42 @@
-LIGHTCORE BRIDGE 1.73.124
-Browser build: 2.20.256
+LIGHTCORE BRIDGE 1.73.125
+Browser build: 2.20.257
 
-TaleSpire combat preserves an Initiative encounter through first-board identification. Orphaned page controllers retire after extension reload. Follow/Pause choices are remembered by companion1.1.4; its update instructions are in RELEASE-NOTES.md.
+START HERE: INSTALL OR UPDATE
+https://lightcore-bridge.lucono.chatgpt.site
 
-Actions menu: centered toolbar and legend; one toggle per active pet (a present familiar or summon with HP above 0) replaces Feature rules. Press pets to show only their actions and hide your own talents and detail text; release all to restore the combined list. See RELEASE-NOTES.md.
+DOWNLOAD
+https://github.com/LuconoLeReis/LightCoreBridge/releases/latest/download/LightCore-Bridge.zip
 
-Find Familiar now provides a form picker, named saved familiar profiles, companion cards and Actions links. Appearance is separate from mechanics. Each completed cast rolls HP once, and only one familiar is active. See RELEASE-NOTES.md for validation, resource behavior and limits.
+FIRST-TIME INSTALL
+1. Create a permanent folder called LightCore somewhere convenient, such as Documents or your Desktop.
+2. Save LightCore-Bridge.zip in that folder.
+3. Right-click the ZIP and choose Extract All. Change the destination to the existing LightCore folder. Do not accept a new LightCore-Bridge subfolder.
+4. After extraction, manifest.json and the other extension files should be directly inside LightCore, beside the ZIP.
+5. In Chrome, open chrome://extensions and enable Developer mode. Click Load unpacked, select LightCore and click Select Folder.
+6. Open or refresh your D&D Beyond character sheet. Keep the LightCore folder; Chrome uses the extracted files.
 
-Initiative receives the requested Jack-of-All-Trades half proficiency through a final check that preserves existing proficiency and prevents repeated processing from adding twice. Native independent bonuses and tiebreakers are retained. Other ability checks are unchanged. See RELEASE-NOTES.md for verification and limits. Experimental session-sync code is not included.
+UPDATE AN EXISTING INSTALLATION
+1. Finish pending rolls. Keep the same extension installation and the folder Chrome already loads.
+2. Save the new LightCore-Bridge.zip in your LightCore folder, replacing the previous ZIP if asked.
+3. Right-click the new ZIP and choose Extract All. Set the destination to your existing installation folder.
+4. Choose Replace the files in the destination and wait for extraction to finish.
+5. Open chrome://extensions. Click the circular Reload icon on the LightCore Bridge card, then refresh your D&D Beyond and VTT tabs.
 
-This release repairs slot-funded spell casts made with the LightCore roll icon, including Chromatic Orb. Successful dispatch spends one slot at the selected casting level. Cancel/failure does not spend. Native Cast/Use payment, free casts, rituals and separate damage rolls remain separate. Accounting failures warn without recasting. See RELEASE-NOTES.md for verification and known limits. This applies to LightCore spell buttons, including spell-list to-hit dice and Actions-tab spell attack dice; do not also mark the slot pip by hand. Free spells labeled Cast instead of Use and Pact Magic pool selection remain unverified on native sheets.
+Do not remove/reinstall the extension or rename its loaded folder. Keeping that folder and Chrome installation preserves settings. If an earlier installation uses a folder named WayBeyond20 or something else, keep that path and extract the new ZIP contents there. You may keep the download ZIP in LightCore separately.
 
-Connect your D&D Beyond character to local tabletop play, Roll20, Foundry VTT, TaleSpire or optional Discord roll output. A VTT is not required. Existing installation, storage and protocol names are retained for compatibility.
+THE ZIP LAYOUT
+This download has no enclosing folder. Its manifest.json is at the ZIP root. Extract into the folder Chrome will load. The ZIP itself is only a download and does not install the extension. INSTALL.html contains the same illustrated guide and can be opened locally.
 
-RELEASE NOTES AND DOWNLOADS
-https://github.com/LuconoLeReis/WayBeyond20/releases/tag/v1.73.124
-The corresponding source includes RELEASE-NOTES.md, tests and reproducible build inputs.
+WHAT CHANGED IN THIS UPDATE
+One installation/update landing page, a permanent LightCore folder workflow, and a stable LightCore-Bridge.zip download name. The public GitHub repository is now LightCoreBridge. Old WayBeyond20 repository links redirect. Gameplay JavaScript is unchanged from1.73.124; its existing TaleSpire and other verification limits still apply.
 
-NEW CHROME INSTALLATION
-1. Download LightCore-Bridge-chrome-v1_73_124.zip, not the source archive.
-2. Extract it. Select the inner WayBeyond20 folder containing manifest.json; Windows Extract All can add another outer folder.
-3. Open chrome://extensions and enable Developer mode.
-4. Choose Load unpacked and select that WayBeyond20 folder.
-5. Open a fresh D&D Beyond sheet. Disable any duplicate Beyond20/WayBeyond20 extension.
+CONNECTIONS
+Connect D&D Beyond to local rolling, Roll20, Foundry VTT, TaleSpire or optional Discord roll output. A VTT is not required. Existing protocol/storage names and installed folders remain compatible. Disable a duplicate Beyond20/WayBeyond20 extension so both do not process the same roll.
 
-UPDATE WITHOUT LOSING SETTINGS
-Finish pending rolls. Back up the folder Chrome currently loads. Replace its contents in place with the new WayBeyond20 folder contents. Let copying/Dropbox sync finish, then reload LightCore Bridge on chrome://extensions and refresh character/VTT tabs. Keep the same loaded path and extension installation. Do not remove/reinstall it. Existing settings, character resources and connections are retained. This is a manual unpacked update, not Chrome Web Store auto-update.
-
-This release retains the stable116 familiar and Initiative repairs and adds the TaleSpire combat/reload and Actions-menu changes. It requires a reload after installation; it does not change a running browser until that reload. Do not interrupt a live game to reload.
-
-WHAT CHANGED SINCE 1.73.72
-Reliable attack-icon handoff and pending Roll Damages controls; combined critical/rider totals with component breakdown; named D&D Beyond Game Log results without the old attack-only/standalone-cast holds; shared Unarmed Strike calculation repairs; clearer Protected Keep Roll choice; healing-only cast and owned Life Domain feature handling; native Lay On Hands pool details; initiative display/correction and manual turn repair; theme and settings refinements.
-
-TALESPIRE
-The optional Symbiote and loopback return helper are separate from this Chrome package. They are in companions/talespire in the corresponding source/tag. Follow that README. Keep local pairing configuration private; never replace it with another user's key. Link the mini explicitly. To follow native initiative, enable Follow this board's turn order in the companion. Position/target discovery alone does not enable following. When following is paused, a manually opened Combat Window now remains open. Companion 1.1.4 preserves the board-specific Follow/Pause choice and uses LightCore Bridge display branding; the WayBeyond20 folder/identifiers remain compatible. Native HP and initiative are not changed by the return feed.
-
-SUMMONED CREATURES
-Live descriptions supply supported cast-level statistics. For Animate Dead, open the desired Skeleton/Zombie reference in Extras once to cache the native definition. Track an existing summon registers without recasting. Each attack click rolls one attack; multiattack count is a reminder. Control hours are manually advanced game time. Renewal retains identity and HP. Aura/condition adjudication and native companion HP synchronization can require manual handling.
-
-VERIFICATION AND LIMITS
-This release has independent source reviews, passing automated regression suites, reproducible browser builds and bounded installed acceptance on a disposable character and native TaleSpire test board. Checks cover turn order, exactly-once own-turn resource reset, paused Initiative combat, saved Follow/Pause, stable status and pet filtering. Controlled first-feed and orphan-controller races are regression fixtures, separate from native acceptance. This does not certify every class, homebrew rule or destination. Separate-computer TaleSpire acceptance and exhaustive Foundry acceptance remain separate. After a timeout, a late native digital-dice result may be ambiguous. Audience-mismatched or incomplete Game Log groups can fall back to safe separate components. Refresh old tabs after an extension reload.
-
-The central Discord session service, player authentication and automatic shared-state sync are still in development and are not included in this release. Existing optional Discord roll output remains separate. No experimental private mastery branch is included.
+The separate TaleSpire companion/helper is not installed by this Chrome ZIP. Setup: https://github.com/LuconoLeReis/LightCoreBridge/tree/main/companions/talespire . Preserve local pairing configuration when updating it.
 
 SOURCE AND LICENSES
-Exact source: https://github.com/LuconoLeReis/WayBeyond20/tree/v1.73.124
-Build: npm ci, npm test, npm run build. Optional browser fixtures require Playwright/Chrome; WB20_PLAYWRIGHT can specify its module.
-Required LICENSE, LICENSE.MIT, third-party notices and Beyond20 attribution remain included. LightCore Bridge derives from Beyond20.
+https://github.com/LuconoLeReis/LightCoreBridge/tree/v1.73.125
+Release notes: https://github.com/LuconoLeReis/LightCoreBridge/releases/tag/v1.73.125
+Build: npm ci, npm test, npm run build. Package: npm run package:lightcore.
+LICENSE, LICENSE.MIT and Beyond20 attribution are retained. LightCore Bridge derives from Beyond20.

@@ -1,11 +1,12 @@
 {
   "name": "waybeyond20",
-  "version": "2.20.256",
+  "version": "2.20.257",
   "description": "LightCore Bridge: connect your D&D Beyond character to your table",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
+    "package:lightcore": "node scripts/package-lightcore.cjs",
     "test:action-pets": "node tests/action-pets-browser.js",
     "test:initiative-joat": "node tests/initiative-display-browser.js && node tests/initiative-joat-browser.js && node tests/initiative-browser.js",
     "test:spell-slot-browser": "node tests/spell-icon-slot-browser.js && node tests/healing-cast-browser.js && node tests/smite-native-replay-browser.js",
@@ -73,15 +74,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LuconoLeReis/WayBeyond20.git"
+    "url": "git+https://github.com/LuconoLeReis/LightCoreBridge.git"
   },
   "keywords": [],
   "author": "",
   "license": "GNU",
   "bugs": {
-    "url": "https://github.com/LuconoLeReis/WayBeyond20/issues"
+    "url": "https://github.com/LuconoLeReis/LightCoreBridge/issues"
   },
-  "homepage": "https://github.com/LuconoLeReis/WayBeyond20",
+  "homepage": "https://github.com/LuconoLeReis/LightCoreBridge",
   "devDependencies": {
     "cross-var": "^1.1.0",
     "gulp": "^4.0.2",

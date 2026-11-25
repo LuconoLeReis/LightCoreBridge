@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Install or update LightCore Bridge for Chrome. One permanent LightCore folder, one download, and clear steps for new and existing users.">
+  <meta name="theme-color" content="#123d41">
+  <title>Install or update | LightCore Bridge</title>
+  <link rel="icon" href="images/icons/icon128.png">
+  <style>:root{color-scheme:light;--ink:#173436;--muted:#51666b;--brand:#12666b;--deep:#123d41;--line:#d6e1e1;--paper:#fff;--bg:#f3f7f7;--gold:#9c6c19;--focus:#12666b; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg);font-size:16px}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:1.2rem}body{margin:0;line-height:1.65}a{color:var(--brand);text-underline-offset:3px}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit}a:focus-visible,button:focus-visible{outline:3px solid var(--focus);outline-offset:5px;border-radius:3px}.wrap{width:min(1140px,calc(100% - 3rem));margin-inline:auto}.site-header{display:flex;align-items:center;justify-content:space-between;padding-block:1.35rem;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:.7rem;color:var(--deep);font-size:1.35rem;text-decoration:none;letter-spacing:-.04em}.brand strong{font-weight:750}.platform{color:var(--muted);font-size:.9rem}.intro{display:grid;grid-template-columns:1.55fr 1fr;gap:3.5rem;align-items:center;padding-block:3.1rem 2.8rem}.eyebrow{text-transform:uppercase;letter-spacing:.15em;color:var(--brand);font-size:.82rem;font-weight:750;margin:0 0 .75rem}h1{font-size:clamp(2rem,3.7vw,3.15rem);line-height:1.13;letter-spacing:-.05em;font-weight:760;margin:0 0 1.1rem}h2{font-size:1.85rem;line-height:1.2;letter-spacing:-.03em;margin:.25rem 0 .6rem}h3{font-size:1.04rem;line-height:1.45;margin:0 0 .4rem}p{margin:.5rem 0}.lead{font-size:1.13rem;line-height:1.6;color:var(--muted);max-width:560px;margin:0 0 1.4rem}.button{display:inline-flex;align-items:center;justify-content:center;background:var(--deep);color:white;min-height:54px;padding:.7rem 1.5rem;border-radius:7px;text-decoration:none;font-size:1.04rem;font-weight:680;box-shadow:0 3px 0 #0c292d}.button:hover{background:#1a5960}.download-note{font-size:.86rem;color:var(--muted);margin-top:.8rem;display:flex;flex-wrap:wrap;gap:.4rem}.folder-example{background:white;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px #183c4110;overflow:hidden}.folder-heading{display:flex;gap:.55rem;align-items:center;padding:1rem 1.2rem;background:#e7f1f1;border-bottom:1px solid var(--line)}.folder-heading svg{width:24px;height:24px;fill:#d9a64c;stroke:#9b6c22;stroke-width:1.4}.folder-heading strong{font-size:1.04rem}.folder-heading>span{margin-left:auto;font-size:.8rem;color:var(--muted)}.folder-location{padding:.65rem 1.2rem;color:var(--muted);font-size:.84rem;border-bottom:1px solid #edf1f1}.folder-files{list-style:none;padding:.4rem 1.2rem;margin:0}.folder-files li{display:flex;align-items:center;gap:.7rem;padding:.6rem 0;font-size:.93rem}.file-type{display:flex;align-items:center;justify-content:center;width:36px;height:39px;border:1px solid var(--line);border-radius:4px;background:#f3f6f6;font-size:.75rem;font-weight:700;flex:none;color:#476366}.file-type.zip{background:#fcf1d9;color:#815d17;border-color:#e9d7ac}small{display:block;color:var(--muted);font-size:.79rem;line-height:1.5}.folder-example>p{border-top:1px solid var(--line);padding:.85rem 1.2rem;margin:0;font-size:.87rem;color:var(--muted)}.choose{display:flex;align-items:center;gap:.7rem;padding:1.05rem 0 1.35rem;flex-wrap:wrap}.choose>span{font-weight:600;margin-right:.4rem}.choose a{padding:.45rem .85rem;border:1px solid #b7ccce;border-radius:6px;background:#fff;text-decoration:none;font-size:.95rem;font-weight:650}.choose a:hover{background:#e3eeee}.instructions{display:grid;grid-template-columns:1fr 1fr;gap:1.3rem;align-items:start}.guide{background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--gold);border-radius:9px;padding:1.65rem 1.8rem;scroll-margin-top:1rem}.update-guide{border-top-color:var(--brand)}.guide-label{color:var(--gold);font-size:.85rem;letter-spacing:.07em;text-transform:uppercase;font-weight:750}.update-guide .guide-label{color:var(--brand)}.guide-title>p{color:var(--muted);margin-bottom:1.8rem}.steps{list-style:none;counter-reset:steps;padding:0;margin:0}.steps>li{position:relative;counter-increment:steps;padding-left:2.55rem;margin:0 0 1.9rem}.steps>li::before{content:counter(steps);position:absolute;left:0;top:.05rem;border:1px solid #e5d3ac;background:#fbf6e9;color:#8a611a;width:29px;height:29px;display:flex;align-items:center;justify-content:center;line-height:1;border-radius:50%;font-weight:750;font-size:.87rem}.update-guide .steps>li::before{border-color:#bfd9d9;background:#eaf4f3;color:var(--brand)}.steps p{font-size:.96rem;color:#3f555a;line-height:1.65}.steps p strong{color:var(--ink);font-weight:650}.important{background:#f3f7f7;border-left:3px solid #9cb9bb;padding:.6rem .75rem;margin:.7rem 0!important;font-size:.88rem!important}.copy-field{display:flex;align-items:center;border:1px solid #c7d8d9;background:#f8fafa;border-radius:5px;margin:.7rem 0;overflow:hidden}.copy-field code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.85rem;padding:.65rem .65rem;flex:1;white-space:nowrap;min-width:0}.copy-field button{background:#e4eeee;color:var(--deep);border:0;border-left:1px solid #c7d8d9;padding:.65rem .7rem;cursor:pointer;font-size:.85rem;font-weight:650;align-self:stretch}.copy-field button:hover{background:#d0e2e3}.guide-finish{border-top:1px solid var(--line);padding-top:1rem;margin:1.1rem 0 0;color:var(--muted);font-size:.9rem}.legacy-note{padding:1rem;background:#edf5f4;border-radius:7px;margin-top:.5rem}.legacy-note h3{font-size:.98rem}.legacy-note p{font-size:.9rem;color:#3f555a}.help{margin-top:3rem;padding-top:2rem;border-top:1px solid var(--line)}.help h2{font-size:1.55rem}.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem 2.4rem;margin-top:1.4rem}.help article p{color:var(--muted);font-size:.96rem}.support-note{font-size:.86rem;color:var(--muted);margin-block:2rem}.footer{border-top:1px solid var(--line);padding-block:1.4rem 2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;font-size:.86rem;color:var(--muted)}.footer>div{display:flex;gap:1.1rem;flex-wrap:wrap}.skip-link{position:absolute;top:-100px;left:1rem;padding:.8rem;background:var(--deep);color:white;z-index:2}.skip-link:focus{top:.6rem}.sr-only{position:absolute;width:1px;height:1px;margin:-1px;clip:rect(0,0,0,0);overflow:hidden;white-space:nowrap}
+@media(max-width:950px){.intro{gap:1.8rem}.guide{padding:1.4rem 1.2rem}.copy-field code{font-size:.78rem}.copy-field button{padding:.65rem .55rem}}
+@media(max-width:740px){.wrap{width:calc(100% - 2rem)}.site-header{padding-block:1rem}.brand{font-size:1.15rem}.brand img{width:42px;height:42px}.platform{font-size:.78rem;max-width:75px;text-align:right}.intro{grid-template-columns:1fr;padding-block:2rem 1.4rem;gap:1.7rem}h1{font-size:2.2rem}.lead{font-size:1.05rem}.folder-example{max-width:100%}.folder-files{display:none}.folder-heading>span{font-size:.8rem}.folder-example>p{padding-block:.6rem;font-size:.84rem}.folder-location{border-bottom:0}.choose{gap:.6rem;padding-block:.8rem 1.4rem}.choose>span{width:100%;margin-bottom:.15rem}.choose a{font-size:.9rem}.instructions{grid-template-columns:1fr;gap:1.4rem}.guide{padding:1.45rem 1.2rem}.steps>li{padding-left:2.4rem;margin-bottom:1.7rem}.copy-field code{font-size:.83rem}.help-grid{grid-template-columns:1fr;gap:1.25rem}.footer{align-items:flex-start;flex-direction:column;gap:.8rem}h2{font-size:1.7rem}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white}.intro{padding:1rem 0}.download-note,.choose,.footer,.copy-address{display:none}.instructions{display:block}.guide{break-inside:avoid;margin-bottom:1rem;border:1px solid #aaa}.folder-example{box-shadow:none}.button{color:#000;background:white;border:1px solid #777;box-shadow:none}}
+</style>
+
+</head>
+<body>
+  <a class="skip-link" href="#instructions">Skip to installation steps</a>
+  <header class="site-header wrap">
+    <a class="brand" href="https://lightcore-bridge.lucono.chatgpt.site" aria-label="LightCore Bridge home"><img src="images/icons/icon128.png" width="52" height="52" alt=""><span>LightCore <strong>Bridge</strong></span></a>
+    <span class="platform">Chrome on Windows</span>
+  </header>
+  <main class="wrap">
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">Your installation starts here</p>
+        <h1 id="page-title">One LightCore folder.<br>Every install. Every update.</h1>
+        <p class="lead">Keep the ZIP and the extracted extension in one permanent folder called <strong>LightCore</strong>. Choose your steps below.</p>
+        <a class="button download" href="https://github.com/LuconoLeReis/LightCoreBridge/releases/latest/download/LightCore-Bridge.zip" download="LightCore-Bridge.zip">Download LightCore Bridge</a>
+        <p class="download-note"><span id="release-version">Version 1.73.125</span> <span aria-hidden="true">·</span> Free download <span aria-hidden="true">·</span> No GitHub account needed</p>
+      </div>
+      <aside class="folder-example" aria-label="Your permanent LightCore folder">
+        <div class="folder-heading"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h7l2 2h9v11H3z"/></svg><strong>LightCore</strong><span>Keep this folder</span></div>
+        <div class="folder-location">For example: Documents / LightCore</div>
+        <ul class="folder-files">
+          <li><span class="file-type zip">ZIP</span><span>LightCore-Bridge.zip<small>Save each new download here</small></span></li>
+          <li><span class="file-type">{ }</span><span>manifest.json<small>Appears after you extract the ZIP</small></span></li>
+          <li><span class="file-type">+</span><span>Other extension files<small>Chrome uses these extracted files</small></span></li>
+        </ul>
+        <p>Select <strong>LightCore</strong> in Chrome.<br>Keep it in this same location.</p>
+      </aside>
+    </section>
+
+    <nav class="choose" aria-label="Choose installation or update instructions">
+      <span>What do you need to do?</span>
+      <a href="#first-install">First-time install</a>
+      <a href="#update">Update an existing install</a>
+    </nav>
+
+    <div class="instructions" id="instructions">
+      <section class="guide install-guide" id="first-install" aria-labelledby="install-title">
+        <div class="guide-title"><span class="guide-label">New to LightCore?</span><h2 id="install-title">First-time install</h2><p>Set it up once. Keep using this folder.</p></div>
+        <ol class="steps">
+          <li><h3>Create a folder called LightCore</h3><p>Put it somewhere you will keep, such as <strong>Documents</strong> or your Desktop. You choose the location.</p></li>
+          <li><h3>Save the ZIP in LightCore</h3><p>Click <a class="download" href="https://github.com/LuconoLeReis/LightCoreBridge/releases/latest/download/LightCore-Bridge.zip" download="LightCore-Bridge.zip">Download LightCore Bridge</a>. Save <strong>LightCore-Bridge.zip</strong> inside that folder. If it lands in Downloads, move it into LightCore.</p></li>
+          <li><h3>Extract into that same folder</h3><p>Right-click the ZIP and choose <strong>Extract All</strong>. Set the destination to your existing <strong>LightCore</strong> folder, then click <strong>Extract</strong>.</p><p class="important">Windows may suggest a new folder named LightCore-Bridge. Change that destination to LightCore.</p><p>You should now see <strong>manifest.json</strong> and the other files directly inside LightCore, beside the ZIP.</p></li>
+          <li><h3>Load LightCore into Chrome</h3><p>Open Chrome's Extensions page:</p><div class="copy-field"><code>chrome://extensions</code></div><p>Turn on <strong>Developer mode</strong> at the top right. Click <strong>Load unpacked</strong>, select your <strong>LightCore</strong> folder, then click <strong>Select Folder</strong>.</p></li>
+          <li><h3>Open your character sheet</h3><p>Open or refresh D&amp;D Beyond. The extension card in Chrome should say <strong>LightCore Bridge</strong>.</p><p>Keep the LightCore folder. Chrome still needs the extracted files after installation.</p></li>
+        </ol>
+        <p class="guide-finish">Next time, use the update steps. You only need Load unpacked for the first installation.</p>
+      </section>
+
+      <section class="guide update-guide" id="update" aria-labelledby="update-title">
+        <div class="guide-title"><span class="guide-label">Already installed?</span><h2 id="update-title">Update LightCore</h2><p>Same folder. Same extension. Your settings stay.</p></div>
+        <ol class="steps">
+          <li><h3>Keep your existing installation</h3><p>Finish any pending rolls. Use the <strong>same folder Chrome already loads</strong>. If you followed this guide, that is LightCore.</p><p class="important">Do not remove the extension, rename its loaded folder, or use Load unpacked again.</p></li>
+          <li><h3>Save the new ZIP there</h3><p>Click <a class="download" href="https://github.com/LuconoLeReis/LightCoreBridge/releases/latest/download/LightCore-Bridge.zip" download="LightCore-Bridge.zip">Download LightCore Bridge</a> and save it in your LightCore folder. Replace the previous ZIP if asked.</p><p>If Windows saves a numbered copy such as LightCore-Bridge (1).zip, use the newly downloaded copy.</p></li>
+          <li><h3>Extract and replace the files</h3><p>Right-click the new ZIP and choose <strong>Extract All</strong>. Set the destination to your <strong>existing installation folder</strong>.</p><p>Click <strong>Extract</strong>, then choose <strong>Replace the files in the destination</strong> when Windows asks. Wait for extraction to finish.</p></li>
+          <li><h3>Reload LightCore, then refresh your sheets</h3><p>Open Chrome's Extensions page:</p><div class="copy-field"><code>chrome://extensions</code></div><p>On the <strong>LightCore Bridge</strong> card, click the small circular <strong>Reload</strong> icon. Then refresh your D&amp;D Beyond and VTT tabs.</p><p class="important">Use Reload on the LightCore card. You do not need to remove and reinstall it.</p></li>
+        </ol>
+        <div class="legacy-note"><h3>Installed in a folder with an older name?</h3><p>Keep using that folder, even if it is called WayBeyond20. Save the ZIP in LightCore if you prefer, but extract its contents into the folder Chrome already uses. Keeping that path and the same extension installation preserves your settings.</p></div>
+        <p class="guide-finish">Your settings belong to the existing Chrome installation. Replacing files and reloading keeps that installation.</p>
+      </section>
+    </div>
+
+    <section class="help" aria-labelledby="help-title">
+      <h2 id="help-title">A few things that make this easier</h2>
+      <div class="help-grid">
+        <article><h3>The ZIP is the download</h3><p>Chrome loads the extracted folder, not the ZIP. You can keep both together in LightCore.</p></article>
+        <article><h3>Chrome cannot find manifest.json?</h3><p>The files are probably one folder too deep. Open LightCore and check that manifest.json is directly inside it, then select that folder in Chrome.</p></article>
+        <article><h3>Already have Beyond20 enabled?</h3><p>Disable a duplicate Beyond20 or WayBeyond20 extension while using LightCore Bridge so both do not handle the same roll.</p></article>
+        <article><h3>TaleSpire uses a separate companion</h3><p>This download installs the Chrome extension. An existing TaleSpire companion is updated separately using the <a href="https://github.com/LuconoLeReis/LightCoreBridge/tree/main/companions/talespire">TaleSpire setup guide</a>.</p></article>
+      </div>
+    </section>
+    <p class="support-note">This guide covers Chrome on Windows. Other browsers and operating systems may use different menus.</p>
+  </main>
+  <footer class="wrap footer"><span>LightCore Bridge</span><div><a href="https://github.com/LuconoLeReis/LightCoreBridge/releases/latest">Release notes</a><a href="https://github.com/LuconoLeReis/LightCoreBridge">Project source</a><a href="https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked">Chrome's extension guide</a></div></footer>
+  <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>
+</body>
+</html>

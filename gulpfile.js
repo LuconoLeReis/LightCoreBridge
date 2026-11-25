@@ -419,6 +419,7 @@ gulp.task("copy-misc", () => {
         "LICENSE",
         "LICENSE.MIT",
         "README.txt",
+        "INSTALL.html",
         "default_popup.html",
         "popup.html",
         "options.html",
