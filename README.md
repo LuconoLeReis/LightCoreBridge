@@ -4,7 +4,7 @@ Connect your D&D Beyond character to your table.
 
 ## Install or update
 
-**[Open the installation and update guide](https://lightcore-bridge.lucono.chatgpt.site)**
+**[Open the installation and update guide](https://lightcore-guide.nursing-research.workers.dev)**
 
 **[Download LightCore Bridge](https://github.com/LuconoLeReis/LightCoreBridge/releases/latest/download/LightCore-Bridge.zip)**
 
@@ -32,7 +32,7 @@ Local D&D Beyond rolling, Roll20, Foundry VTT, TaleSpire and optional Discord ro
 
 ## Source and attribution
 
-[Release notes](https://github.com/LuconoLeReis/LightCoreBridge/releases/latest) · [Installation guide](https://lightcore-bridge.lucono.chatgpt.site) · [Report an issue](https://github.com/LuconoLeReis/LightCoreBridge/issues)
+[Release notes](https://github.com/LuconoLeReis/LightCoreBridge/releases/latest) · [Installation guide](https://lightcore-guide.nursing-research.workers.dev) · [Report an issue](https://github.com/LuconoLeReis/LightCoreBridge/issues)
 
 Build with `npm ci`, `npm test`, `npm run build`. Create the flat Chrome ZIP with `npm run package:lightcore`.
 
